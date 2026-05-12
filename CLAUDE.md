@@ -36,3 +36,20 @@ A standalone SaaS web application that aggregates IT support tickets from Jira a
 - Phase 7: NOT STARTED — knowledge base
 - Phase 8: NOT STARTED — reports + notifications
 - Phase 9: NOT STARTED — admin + hardening
+
+## Engineering practices
+- Always work on a feature branch — never commit directly to develop or main
+- Scaffold with Claude Code first, then refine in Cursor
+- Tests are written in the same session as the code — never deferred
+- Run `pnpm lint && pnpm typecheck && pnpm test` before every push
+- Use `/review` in Claude Code before opening every PR
+- Small focused commits with conventional commit messages
+- Never touch AWS console or GitHub browser for actions — CLI only
+- Every production deploy goes through staging first
+- Keep this CLAUDE.md updated after every phase and every convention decision
+
+## Terminal layout (always running during development)
+- Pane 1: pnpm dev:web
+- Pane 2: pnpm dev:api
+- Pane 3: pnpm test --watch
+- Pane 4: free for git, aws, claude commands

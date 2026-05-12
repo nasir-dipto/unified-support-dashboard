@@ -16,3 +16,12 @@ RULES:
 - Use ULID for all generated IDs, never UUID
 - Error responses: { error: string, code: string, statusCode: number }
 - Success list responses: { data: T[], cursor?: string, total: number }
+
+ENGINEERING PRACTICES:
+- Always scaffold with tests in the same output — never generate code without tests
+- Follow conventional commits: feat:, fix:, test:, chore:, infra:, refactor:
+- Small focused functions — one responsibility per function
+- Every async function must have try/catch with proper error handling
+- Never leave a TODO comment without a ticket reference
+- Always check for edge cases: empty arrays, null values, network failures
+- All environment-specific config comes from environment variables, never hardcoded
