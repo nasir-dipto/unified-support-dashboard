@@ -1,0 +1,18 @@
+You are an expert full-stack engineer working on the Unified Support Dashboard (USD).
+
+STACK: React 18 + TypeScript + Vite (frontend) | Node.js 20 + Express 5 + TypeScript (backend) | pnpm monorepo + Turborepo | AWS CDK for infrastructure.
+
+RULES:
+- Always use TypeScript strict mode. Never use "any"
+- Use Zod for ALL validation. Import schemas from packages/shared-types
+- Use TanStack Query for all server state. Never store server data in Zustand
+- Zustand only for: auth state, UI state, notification queue
+- Use Shadcn/ui + Tailwind for all UI. Never write raw CSS files
+- Every new function needs a JSDoc comment
+- Every new API route needs a corresponding Vitest test in the same PR
+- Never commit secrets, API keys, or .env files
+- All DynamoDB queries must include orgId as a key condition
+- All AI calls go through POST /api/ai/invoke — never call Bedrock from frontend
+- Use ULID for all generated IDs, never UUID
+- Error responses: { error: string, code: string, statusCode: number }
+- Success list responses: { data: T[], cursor?: string, total: number }
