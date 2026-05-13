@@ -85,9 +85,9 @@ A standalone SaaS web application that aggregates IT support tickets from Jira a
 - Shell switched to zsh, fnm configured, Node 20 + pnpm 9 active
 - Claude Code running inside Cursor terminal
 - GitHub Actions CI pipeline (.github/workflows/ci.yml) — lint → typecheck → test (DynamoDB Local + Redis) → build
+- AWS CDK v2 stacks in `infra/` (UsdDatabase, UsdMessaging, UsdCompute, UsdCache) — synth-ready, not deployed
 
 ### Remaining
-- AWS CDK infrastructure stacks (DynamoDB tables, SQS, ECR, ECS cluster)
 - Merge Phase 0 PR to develop (CI must be green first)
 
 ## Phase 0 — CI pipeline DONE
@@ -95,10 +95,9 @@ A standalone SaaS web application that aggregates IT support tickets from Jira a
 - All 4 jobs green in 2m 12s
 - Triggers on feature/** and hotfix/** pushes and PRs to develop/main
 
-## Next task: AWS CDK infrastructure stacks
-Create the following CDK stacks in infra/:
-- UsdDatabaseStack — DynamoDB tables with GSIs
-- UsdMessagingStack — SQS queues with DLQs
-- UsdComputeStack — ECR repo + ECS Fargate cluster + IAM task role
-- UsdCacheStack — ElastiCache Redis Serverless
-All stacks tagged with Project=usd and Environment=dev/staging/prod
+## AWS CDK (infra/) — code complete
+- **UsdDatabaseStack** — DynamoDB tables: `support_tickets`, `support_users`, `support_roles`, `support_kb`, `support_reports`, `support_notification_rules` with GSIs per product spec
+- **UsdMessagingStack** — `jira-events-queue`, `hd-events-queue`, each with DLQ and `maxReceiveCount: 3`
+- **UsdComputeStack** — VPC (2 AZ, 1 NAT), `usd-cluster` ECS cluster, `usd-api` ECR repo, ECS task role (DynamoDB via table grants, Secrets Manager, SQS via queue grants, Bedrock, SES, OpenSearch/Serverless-style actions)
+- **UsdCacheStack** — ElastiCache Serverless Redis (`usd-redis-serverless-dev`) in private subnets, SG allows 6379 from ECS task SG
+- Tags: `Project=usd`, `Environment=dev` on all stacks; `pnpm --filter @usd/infra synth` seeds AZ context so synth works without `ec2:DescribeAvailabilityZones`
