@@ -89,3 +89,16 @@ A standalone SaaS web application that aggregates IT support tickets from Jira a
 ### Remaining
 - AWS CDK infrastructure stacks (DynamoDB tables, SQS, ECR, ECS cluster)
 - Merge Phase 0 PR to develop (CI must be green first)
+
+## Phase 0 — CI pipeline DONE
+- .github/workflows/ci.yml created and passing (lint → typecheck → test → build)
+- All 4 jobs green in 2m 12s
+- Triggers on feature/** and hotfix/** pushes and PRs to develop/main
+
+## Next task: AWS CDK infrastructure stacks
+Create the following CDK stacks in infra/:
+- UsdDatabaseStack — DynamoDB tables with GSIs
+- UsdMessagingStack — SQS queues with DLQs
+- UsdComputeStack — ECR repo + ECS Fargate cluster + IAM task role
+- UsdCacheStack — ElastiCache Redis Serverless
+All stacks tagged with Project=usd and Environment=dev/staging/prod
