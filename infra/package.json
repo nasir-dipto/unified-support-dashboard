@@ -1,0 +1,13 @@
+{
+  "name": "@usd/infra",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node -e \"console.log('@usd/infra: CDK scaffold — no local dev process')\"",
+    "build": "mkdir -p dist && touch dist/.gitkeep",
+    "test": "node -e \"process.exit(0)\"",
+    "lint": "node -e \"process.exit(0)\"",
+    "typecheck": "node -e \"process.exit(0)\""
+  }
+}
