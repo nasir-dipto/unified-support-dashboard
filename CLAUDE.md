@@ -101,3 +101,10 @@ A standalone SaaS web application that aggregates IT support tickets from Jira a
 - **UsdComputeStack** — VPC (2 AZ, 1 NAT), `usd-cluster` ECS cluster, `usd-api` ECR repo, ECS task role (DynamoDB via table grants, Secrets Manager, SQS via queue grants, Bedrock, SES, OpenSearch/Serverless-style actions)
 - **UsdCacheStack** — ElastiCache Serverless Redis (`usd-redis-serverless-dev`) in private subnets, SG allows 6379 from ECS task SG
 - Tags: `Project=usd`, `Environment=dev` on all stacks; `pnpm --filter @usd/infra synth` seeds AZ context so synth works without `ec2:DescribeAvailabilityZones`
+
+## Phase 0 — COMPLETE
+Merged to develop via PR #1. Branch feature/phase-0-monorepo deleted.
+
+## Phase 1 — IN PROGRESS
+Authentication & user management.
+Starting branch: feature/phase-1-auth
