@@ -4,7 +4,7 @@
 A standalone SaaS web application that aggregates IT support tickets from Jira and ServiceDesk Plus into a single role-aware interface, with AI-powered triage, sentiment analysis, knowledge base, and custom reporting.
 
 ## Stack
-- Frontend: React 18, TypeScript strict, Vite 5, React Router v6, Zustand, TanStack Query v5, Shadcn/ui, Tailwind CSS
+- Frontend: React 18, TypeScript strict, Vite 5, React Router v6, Zustand, TanStack Query v5 (server state after Phase 1), Shadcn/ui, Tailwind CSS
 - Backend: Node.js 20, Express 5, TypeScript strict, Zod, AWS SDK v3
 - Monorepo: pnpm workspaces + Turborepo
 - Infra: AWS CDK (TypeScript)
@@ -28,7 +28,7 @@ A standalone SaaS web application that aggregates IT support tickets from Jira a
 
 ## Phase status
 - Phase 0: IN PROGRESS — monorepo + CI + AWS infra
-- Phase 1: NOT STARTED — auth
+- Phase 1: IN PROGRESS — auth (login/refresh/logout/me, RS256 JWT, org-scoped Dynamo PK/SK + GSI orgId-email; forgot/reset stubbed; web: Tailwind + React Hook Form + Zustand only, no TanStack Query in Phase 1)
 - Phase 2: NOT STARTED — Jira integration
 - Phase 3: NOT STARTED — Helpdesk integration
 - Phase 4: NOT STARTED — real-time WebSocket
@@ -101,3 +101,41 @@ A standalone SaaS web application that aggregates IT support tickets from Jira a
 - **UsdComputeStack** — VPC (2 AZ, 1 NAT), `usd-cluster` ECS cluster, `usd-api` ECR repo, ECS task role (DynamoDB via table grants, Secrets Manager, SQS via queue grants, Bedrock, SES, OpenSearch/Serverless-style actions)
 - **UsdCacheStack** — ElastiCache Serverless Redis (`usd-redis-serverless-dev`) in private subnets, SG allows 6379 from ECS task SG
 - Tags: `Project=usd`, `Environment=dev` on all stacks; `pnpm --filter @usd/infra synth` seeds AZ context so synth works without `ec2:DescribeAvailabilityZones`
+
+## Phase 0 — COMPLETE
+Merged to develop via PR #1. Branch feature/phase-0-monorepo deleted.
+
+## Phase 1 — IN PROGRESS
+Authentication & user management.
+Starting branch: feature/phase-1-auth
+
+## Phase 1 — Auth details
+### Goal
+Build complete authentication so all future phases have a working user system to build on.
+
+### What to build
+- apps/api/src/utils/secrets.ts — fetch secrets from AWS Secrets Manager, cache in memory. In local dev read from .env.local instead
+- apps/api/src/utils/jwt.ts — sign (RS256) and verify JWT using keys from secrets.ts
+- apps/api/src/utils/errors.ts — AppError class with statusCode, message, code fields
+- apps/api/src/db/dynamo.client.ts — DynamoDB DocumentClient, uses DYNAMODB_ENDPOINT env var for local dev
+- apps/api/src/db/tables/users.ts — getUserByEmail, getUserById, createUser
+- apps/api/src/db/tables/roles.ts — getSupportRole, setSupportRole, deleteSupportRole
+- apps/api/src/routes/auth.routes.ts — POST /login, POST /refresh, POST /logout, POST /forgot-password, POST /reset-password
+- apps/api/src/middleware/auth.middleware.ts — verifyJWT middleware
+- apps/api/src/middleware/role.middleware.ts — requireRole(...roleb/src/store/auth.store.ts — Zustand store: accessToken, user, login(), logout(), refresh()
+- apps/web/src/api/client.ts — Axios instance with Bearer token, 401 refresh interceptor
+- apps/web/src/views/LoginView.tsx — login form with React Hook Form + Zod validation
+- apps/web/src/components/layout/AuthGuard.tsx — redirects to /login if no token
+- apps/web/src/components/layout/RoleGuard.tsx — redirects to /403 if wrong role
+- apps/web/src/components/layout/AppShell.tsx — sidebar + header (empty nav for now)
+- apps/web/src— React Router v6 routes with guards applied
+
+### Local dev auth
+- JWT keys generated locally as .env.local variables (not Secrets Manager)
+- DynamoDB Local used for users and roles tables
+- Refresh tokens stored in support_users table
+
+### Tests required (same PR)
+- Vitest unit tests for jwt.ts, errors.ts
+- Vitest integration tests for all 5 auth routes using Supertest + DynamoDB Local
+- React Testing Library test for LoginView
