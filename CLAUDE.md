@@ -139,3 +139,12 @@ Build complete authentication so all future phases have a working user system to
 - Vitest unit tests for jwt.ts, errors.ts
 - Vitest integration tests for all 5 auth routes using Supertest + DynamoDB Local
 - React Testing Library test for LoginView
+
+## Phase 1 — COMPLETE
+Merged to develop via PR #2. Branch feature/phase-1-auth deleted.
+- 19 tests passing (13 test files)
+- JWT RS256 auth, DynamoDB users/roles, auth middleware, LoginView, AuthGuard, RoleGuard
+
+## Phase 2 — NOT STARTED
+Jira integration only (Helpdesk comes in Phase 3)
+Starting branch: feature/phase-2-jira
