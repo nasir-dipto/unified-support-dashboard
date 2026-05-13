@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    container_name: usd-dynamodb
+    ports:
+      - "8000:8000"
+    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
+
+  redis:
+    image: redis:7-alpine
+    container_name: usd-redis
+    ports:
+      - "6379:6379"
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: usd-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"

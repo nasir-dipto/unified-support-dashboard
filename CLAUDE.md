@@ -53,3 +53,22 @@ A standalone SaaS web application that aggregates IT support tickets from Jira a
 - Pane 2: pnpm dev:api
 - Pane 3: pnpm test --watch
 - Pane 4: free for git, aws, claude commands
+
+## Local development strategy
+- Everything runs locally first — AWS is only for staging and production
+- Local services run via docker-compose.yml in project root
+- Start local services: docker compose up -d
+- Stop local services: docker compose down
+- Environment variables control local vs AWS — never hardcode endpoints
+- Local AI uses mock responses (USE_MOCK_AI=true) — no Bedrock calls during dev
+
+## Local service replacements
+- DynamoDB → DynamoDB Local (Docker, port 8000)
+- Redis → Redis (Docker, port 6379)
+- AWS Bedrock → Mock AI service (USE_MOCK_AI=true)
+- AWS SES → Mailhog (Docker, port 1025 SMTP, port 8025 UI)
+
+## Verify local services running
+- aws dynamodb list-tables --endpoint-url http://localhost:8000
+- docker exec usd-redis redis-cli ping
+- open http://localhost:8025 (Mailhog UI)
