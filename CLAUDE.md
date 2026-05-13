@@ -108,3 +108,34 @@ Merged to develop via PR #1. Branch feature/phase-0-monorepo deleted.
 ## Phase 1 — IN PROGRESS
 Authentication & user management.
 Starting branch: feature/phase-1-auth
+
+## Phase 1 — Auth details
+### Goal
+Build complete authentication so all future phases have a working user system to build on.
+
+### What to build
+- apps/api/src/utils/secrets.ts — fetch secrets from AWS Secrets Manager, cache in memory. In local dev read from .env.local instead
+- apps/api/src/utils/jwt.ts — sign (RS256) and verify JWT using keys from secrets.ts
+- apps/api/src/utils/errors.ts — AppError class with statusCode, message, code fields
+- apps/api/src/db/dynamo.client.ts — DynamoDB DocumentClient, uses DYNAMODB_ENDPOINT env var for local dev
+- apps/api/src/db/tables/users.ts — getUserByEmail, getUserById, createUser
+- apps/api/src/db/tables/roles.ts — getSupportRole, setSupportRole, deleteSupportRole
+- apps/api/src/routes/auth.routes.ts — POST /login, POST /refresh, POST /logout, POST /forgot-password, POST /reset-password
+- apps/api/src/middleware/auth.middleware.ts — verifyJWT middleware
+- apps/api/src/middleware/role.middleware.ts — requireRole(...roleb/src/store/auth.store.ts — Zustand store: accessToken, user, login(), logout(), refresh()
+- apps/web/src/api/client.ts — Axios instance with Bearer token, 401 refresh interceptor
+- apps/web/src/views/LoginView.tsx — login form with React Hook Form + Zod validation
+- apps/web/src/components/layout/AuthGuard.tsx — redirects to /login if no token
+- apps/web/src/components/layout/RoleGuard.tsx — redirects to /403 if wrong role
+- apps/web/src/components/layout/AppShell.tsx — sidebar + header (empty nav for now)
+- apps/web/src— React Router v6 routes with guards applied
+
+### Local dev auth
+- JWT keys generated locally as .env.local variables (not Secrets Manager)
+- DynamoDB Local used for users and roles tables
+- Refresh tokens stored in support_users table
+
+### Tests required (same PR)
+- Vitest unit tests for jwt.ts, errors.ts
+- Vitest integration tests for all 5 auth routes using Supertest + DynamoDB Local
+- React Testing Library test for LoginView
