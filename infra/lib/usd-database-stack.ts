@@ -41,32 +41,25 @@ export class UsdDatabaseStack extends cdk.Stack {
 
     const users = new dynamodb.Table(this, 'SupportUsers', {
       tableName: 'support_users',
-      partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
+      partitionKey: { name: 'orgId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
     users.addGlobalSecondaryIndex({
-      indexName: 'email',
-      partitionKey: { name: 'email', type: dynamodb.AttributeType.STRING },
-      projectionType: dynamodb.ProjectionType.ALL,
-    });
-    users.addGlobalSecondaryIndex({
-      indexName: 'orgId',
+      indexName: 'orgId-email',
       partitionKey: { name: 'orgId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'email', type: dynamodb.AttributeType.STRING },
       projectionType: dynamodb.ProjectionType.ALL,
     });
     this.tables.push(users);
 
     const roles = new dynamodb.Table(this, 'SupportRoles', {
       tableName: 'support_roles',
-      partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
+      partitionKey: { name: 'orgId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
-    roles.addGlobalSecondaryIndex({
-      indexName: 'orgId',
-      partitionKey: { name: 'orgId', type: dynamodb.AttributeType.STRING },
-      projectionType: dynamodb.ProjectionType.ALL,
     });
     this.tables.push(roles);
 

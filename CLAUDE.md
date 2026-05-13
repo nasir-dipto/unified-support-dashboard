@@ -4,7 +4,7 @@
 A standalone SaaS web application that aggregates IT support tickets from Jira and ServiceDesk Plus into a single role-aware interface, with AI-powered triage, sentiment analysis, knowledge base, and custom reporting.
 
 ## Stack
-- Frontend: React 18, TypeScript strict, Vite 5, React Router v6, Zustand, TanStack Query v5, Shadcn/ui, Tailwind CSS
+- Frontend: React 18, TypeScript strict, Vite 5, React Router v6, Zustand, TanStack Query v5 (server state after Phase 1), Shadcn/ui, Tailwind CSS
 - Backend: Node.js 20, Express 5, TypeScript strict, Zod, AWS SDK v3
 - Monorepo: pnpm workspaces + Turborepo
 - Infra: AWS CDK (TypeScript)
@@ -28,7 +28,7 @@ A standalone SaaS web application that aggregates IT support tickets from Jira a
 
 ## Phase status
 - Phase 0: IN PROGRESS — monorepo + CI + AWS infra
-- Phase 1: NOT STARTED — auth
+- Phase 1: IN PROGRESS — auth (login/refresh/logout/me, RS256 JWT, org-scoped Dynamo PK/SK + GSI orgId-email; forgot/reset stubbed; web: Tailwind + React Hook Form + Zustand only, no TanStack Query in Phase 1)
 - Phase 2: NOT STARTED — Jira integration
 - Phase 3: NOT STARTED — Helpdesk integration
 - Phase 4: NOT STARTED — real-time WebSocket
