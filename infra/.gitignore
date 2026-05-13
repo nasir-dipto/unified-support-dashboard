@@ -1,0 +1,7 @@
+*.js
+*.d.ts
+!jest.config.js
+node_modules
+cdk.out
+.cdk.staging
+dist

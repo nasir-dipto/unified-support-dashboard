@@ -24,6 +24,7 @@ A standalone SaaS web application that aggregates IT support tickets from Jira a
 - pnpm test — runs all tests
 - pnpm build — builds all apps
 - pnpm lint — runs ESLint
+- pnpm typecheck — runs TypeScript across the workspace (via Turborepo)
 
 ## Phase status
 - Phase 0: IN PROGRESS — monorepo + CI + AWS infra
@@ -53,3 +54,50 @@ A standalone SaaS web application that aggregates IT support tickets from Jira a
 - Pane 2: pnpm dev:api
 - Pane 3: pnpm test --watch
 - Pane 4: free for git, aws, claude commands
+
+## Local development strategy
+- Everything runs locally first — AWS is only for staging and production
+- Local services run via docker-compose.yml in project root
+- Start local services: docker compose up -d
+- Stop local services: docker compose down
+- Environment variables control local vs AWS — never hardcode endpoints
+- Local AI uses mock responses (USE_MOCK_AI=true) — no Bedrock calls during dev
+
+## Local service replacements
+- DynamoDB → DynamoDB Local (Docker, port 8000)
+- Redis → Redis (Docker, port 6379)
+- AWS Bedrock → Mock AI service (USE_MOCK_AI=true)
+- AWS SES → Mailhog (Docker, port 1025 SMTP, port 8025 UI)
+
+## Verify local services running
+- aws dynamodb list-tables --endpoint-url http://localhost:8000
+- docker exec usd-redis redis-cli ping
+- open http://localhost:8025 (Mailhog UI)
+
+## Phase 0 progress
+### Done
+- pnpm monorepo + Turborepo scaffolded (apps/web, apps/api, packages/shared-types, packages/ui, infra)
+- Frontend Hello World running on http://localhost:5173
+- Backend /health endpoint running on http://localhost:3001
+- docker-compose.yml with DynamoDB Local (8000), Redis (6379), Mailhog (8025)
+- .env.example with all local dev variables
+- .env.local created locally (not committed)
+- Shell switched to zsh, fnm configured, Node 20 + pnpm 9 active
+- Claude Code running inside Cursor terminal
+- GitHub Actions CI pipeline (.github/workflows/ci.yml) — lint → typecheck → test (DynamoDB Local + Redis) → build
+- AWS CDK v2 stacks in `infra/` (UsdDatabase, UsdMessaging, UsdCompute, UsdCache) — synth-ready, not deployed
+
+### Remaining
+- Merge Phase 0 PR to develop (CI must be green first)
+
+## Phase 0 — CI pipeline DONE
+- .github/workflows/ci.yml created and passing (lint → typecheck → test → build)
+- All 4 jobs green in 2m 12s
+- Triggers on feature/** and hotfix/** pushes and PRs to develop/main
+
+## AWS CDK (infra/) — code complete
+- **UsdDatabaseStack** — DynamoDB tables: `support_tickets`, `support_users`, `support_roles`, `support_kb`, `support_reports`, `support_notification_rules` with GSIs per product spec
+- **UsdMessagingStack** — `jira-events-queue`, `hd-events-queue`, each with DLQ and `maxReceiveCount: 3`
+- **UsdComputeStack** — VPC (2 AZ, 1 NAT), `usd-cluster` ECS cluster, `usd-api` ECR repo, ECS task role (DynamoDB via table grants, Secrets Manager, SQS via queue grants, Bedrock, SES, OpenSearch/Serverless-style actions)
+- **UsdCacheStack** — ElastiCache Serverless Redis (`usd-redis-serverless-dev`) in private subnets, SG allows 6379 from ECS task SG
+- Tags: `Project=usd`, `Environment=dev` on all stacks; `pnpm --filter @usd/infra synth` seeds AZ context so synth works without `ec2:DescribeAvailabilityZones`

@@ -10,3 +10,5 @@ dist/
 coverage/
 .nyc_output/
 *.tsbuildinfo
+.pnpm-store
+cdk.out/
