@@ -24,6 +24,7 @@ A standalone SaaS web application that aggregates IT support tickets from Jira a
 - pnpm test — runs all tests
 - pnpm build — builds all apps
 - pnpm lint — runs ESLint
+- pnpm typecheck — runs TypeScript across the workspace (via Turborepo)
 
 ## Phase status
 - Phase 0: IN PROGRESS — monorepo + CI + AWS infra
@@ -83,8 +84,8 @@ A standalone SaaS web application that aggregates IT support tickets from Jira a
 - .env.local created locally (not committed)
 - Shell switched to zsh, fnm configured, Node 20 + pnpm 9 active
 - Claude Code running inside Cursor terminal
+- GitHub Actions CI pipeline (.github/workflows/ci.yml) — lint → typecheck → test (DynamoDB Local + Redis) → build
 
 ### Remaining
-- GitHub Actions CI pipeline (.github/workflows/ci.yml)
 - AWS CDK infrastructure stacks (DynamoDB tables, SQS, ECR, ECS cluster)
 - Merge Phase 0 PR to develop (CI must be green first)
