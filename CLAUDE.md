@@ -72,3 +72,19 @@ A standalone SaaS web application that aggregates IT support tickets from Jira a
 - aws dynamodb list-tables --endpoint-url http://localhost:8000
 - docker exec usd-redis redis-cli ping
 - open http://localhost:8025 (Mailhog UI)
+
+## Phase 0 progress
+### Done
+- pnpm monorepo + Turborepo scaffolded (apps/web, apps/api, packages/shared-types, packages/ui, infra)
+- Frontend Hello World running on http://localhost:5173
+- Backend /health endpoint running on http://localhost:3001
+- docker-compose.yml with DynamoDB Local (8000), Redis (6379), Mailhog (8025)
+- .env.example with all local dev variables
+- .env.local created locally (not committed)
+- Shell switched to zsh, fnm configured, Node 20 + pnpm 9 active
+- Claude Code running inside Cursor terminal
+
+### Remaining
+- GitHub Actions CI pipeline (.github/workflows/ci.yml)
+- AWS CDK infrastructure stacks (DynamoDB tables, SQS, ECR, ECS cluster)
+- Merge Phase 0 PR to develop (CI must be green first)
