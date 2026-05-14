@@ -187,3 +187,45 @@ Merged to develop via PR #2. Branch feature/phase-1-auth deleted.
 - Unit tests for jira.service.ts (mock HTTP with nock)
 - Integrates (Supertest + DynamoDB Local)
 - Component tests for TicketCard
+
+## Phase 2 — COMPLETE
+Merged to develop via PR #3. Branch feature/phase-2-jira deleted.
+- 47 tests passing (20 test files)
+- Jira REST client, tickets API, webhook, TicketCard UI, TanStack Query
+- Real Jira tickets syncing from dknasir007.atlassian.net
+- db:setup and db:seed scripts for local DynamoDB
+
+## Phase 3 — IN PROGRESS
+Helpdesk (ManageEngine ServiceDesk Plus) integration
+Starting branch: feature/phase-3-helpdesk
+
+### HD connection details
+- HD URL: https://servicedeskplus.uk/app/itdesk/api/v3
+- Auth: Zoho OAuth 2.0 (refresh token flow)
+- Zoho domain: zoho.uk (EU/UK region)
+- API domain: https://www.zohoapis.uk (DNS issue — use servicedeskplus.uk directly)
+- Token endpoint: https://accounts.zoho.uk/oauth/v2/token
+- Credentials in .env.local: HD_CLIENT_ID, HD_CLIENT_SECRET, HD_REFRESH_TOKEN
+- Connection verified: GET /requests returns 10 tickets
+
+### HD field mapping (HD → USD)
+- request.id → externalId
+- ticketId = "hd_" + request.id
+- request.subject → suest.description → description
+- request.status.name → status (map to open/in_progress/pending/resolved/closed)
+- request.priority.name → priority (map to critical/high/medium/low)
+- request.technician.name → assigneeId
+- request.requester.email_id → customerEmail
+
+### What to build
+- apps/api/src/services/helpdesk.service.ts — HD REST client with OAuth token refresh
+- apps/api/src/services/zohoAuth.service.ts — manages OAuth token refresh automatically
+- apps/api/src/helpdesk/mapRequestToTicket.ts — HD → USD field mapping
+- apps/api/src/routes/webhooks.routes.ts — add POST /api/webhooks/helpdesk
+- apps/api/src/scripts/hd-reconcile.ts — manual sync script
+- Update apps/web TicketsView to show HD tickets with purple badge
+
+### Tests required
+- Unit tests for helpdesk.service.ts (nock mocks)
+- Unit tests for mapRequestToTicket.ts
+- Integration tests for HD webhook endpoint
