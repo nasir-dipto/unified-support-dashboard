@@ -27,9 +27,9 @@ A standalone SaaS web application that aggregates IT support tickets from Jira a
 - pnpm typecheck — runs TypeScript across the workspace (via Turborepo)
 
 ## Phase status
-- Phase 0: IN PROGRESS — monorepo + CI + AWS infra
-- Phase 1: IN PROGRESS — auth (login/refresh/logout/me, RS256 JWT, org-scoped Dynamo PK/SK + GSI orgId-email; forgot/reset stubbed; web: Tailwind + React Hook Form + Zustand only, no TanStack Query in Phase 1)
-- Phase 2: NOT STARTED — Jira integration
+- Phase 0: COMPLETE — monorepo + CI + AWS infra
+- Phase 1: COMPLETE — auth (login/refresh/logout/me, RS256 JWT, org-scoped Dynamo PK/SK + GSI orgId-email; forgot/reset stubbed; web: Tailwind + React Hook Form + Zustand)
+- Phase 2: IN PROGRESS — Jira integration (TanStack Query for ticket server state on web)
 - Phase 3: NOT STARTED — Helpdesk integration
 - Phase 4: NOT STARTED — real-time WebSocket
 - Phase 5: NOT STARTED — AI triage + action suggestion
@@ -139,3 +139,51 @@ Build complete authentication so all future phases have a working user system to
 - Vitest unit tests for jwt.ts, errors.ts
 - Vitest integration tests for all 5 auth routes using Supertest + DynamoDB Local
 - React Testing Library test for LoginView
+
+## Phase 1 — COMPLETE
+Merged to develop via PR #2. Branch feature/phase-1-auth deleted.
+- 19 tests passing (13 test files)
+- JWT RS256 auth, DynamoDB users/roles, auth middleware, LoginView, AuthGuard, RoleGuard
+
+## Phase 2 — Jira integration details
+### Jira connection
+- Jira Cloud URL: https://dknasir007.atlassian.net
+- Auth: Basic Auth (`JIRA_EMAIL` + `JIRA_API_TOKEN`)
+- Credentials stored in .env.local — never committed
+- Connection verified: GET /rest/api/3/myself returns 200
+
+### What to build
+- apps/api/src/services/jira.service.ts — Jira REST API client
+  - fetchProjects() — list all projects
+  - fetchIssuesByProject(projectKey) — list issues with pagination
+  - fetchSingleIssue(issueKey) — get one issue with comments
+  - postComment(issueKey, body) — post comment back to Jira
+  - transitionIssue(issueKey, transitionId) — change status
+- apps/api/src/routes/tickets.routes.ts — GET /api/tickets, GET /api/tickets/:id
+- apps/api/src/db/tables/tickets.ts — upsertTicket, getTicketById, listTickets
+- apps/api/src/lambdas/sqsConsumer.ts — processes jira webhook events from SQS
+- apps/api/src/routes/tickets.handlers.ts — POST `/api/webhooks/jira` (raw body + `x-hub-signature-256`) plus ticket GET handlers
+- apps/web/src/views/TicketsView.tsx — ticket list with TicketCard components
+- apps/web/src/components/tickets/TicketCard.tsx — shows ticket summary, priority, status, source badge
+- apps/web/src/hooks/useTickets.ts — TanStack Query hook for fetching tickets
+- apps/web/src/api/tickets.ts — typed fetch wrapper for tickets API
+
+### Field mapping (Jira → USD)
+- issue.key → externalId (e.g. SUP-1)
+- ticketId = "jira_" + issue.key
+- issue.fields.summary → summary
+- issue.fields.description → description
+- issue.fields.priority.name → priority (map to critical/high/medium/low)
+- issue.fields.status.name → status (map to open/in_progress/resolved/closed)
+- issue.fields.assignee → assigneeId
+- issue.fields.reporter → reporterId
+
+### Local dev
+- No SQS in local dev — webhook endpoint writes directly to DynamoDB Local
+- JIRA_URL, JIRA_EMAIL, JIRA_API_TOKEN, JIRA_WEBHOOK_SECRET, JIRA_DEFAULT_ORG_ID loaded from .env.local
+- Reconciliation sync runs manually via script for local dev
+
+### Tests required
+- Unit tests for jira.service.ts (mock HTTP with nock)
+- Integrates (Supertest + DynamoDB Local)
+- Component tests for TicketCard

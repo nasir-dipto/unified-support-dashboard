@@ -17,5 +17,14 @@ if (process.env.SUPPORT_USERS_TABLE === undefined) {
 if (process.env.SUPPORT_ROLES_TABLE === undefined) {
   process.env.SUPPORT_ROLES_TABLE = 'support_roles_test';
 }
+if (process.env.SUPPORT_TICKETS_TABLE === undefined) {
+  process.env.SUPPORT_TICKETS_TABLE = 'support_tickets_test';
+}
+if (process.env.JIRA_WEBHOOK_SECRET === undefined) {
+  process.env.JIRA_WEBHOOK_SECRET = 'test-webhook-secret';
+}
+if (process.env.JIRA_DEFAULT_ORG_ID === undefined) {
+  process.env.JIRA_DEFAULT_ORG_ID = 'org-int';
+}
 
 loadServerEnv();

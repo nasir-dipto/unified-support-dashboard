@@ -11,11 +11,13 @@ import {
 
 /**
  * Creates Phase 1 DynamoDB tables on Local when missing (idempotent).
+ * Optionally creates `support_tickets` (Phase 2) when `ticketsTable` is provided.
  */
 export async function ensureSupportTablesExist(
   client: DynamoDBClient,
   usersTable: string,
   rolesTable: string,
+  ticketsTable?: string,
 ): Promise<void> {
   await ensureTable(
     client,
@@ -54,6 +56,47 @@ export async function ensureSupportTablesExist(
     ],
     [],
   );
+
+  if (ticketsTable !== undefined) {
+    await ensureTable(
+      client,
+      ticketsTable,
+      [
+        { AttributeName: 'ticketId', AttributeType: 'S' },
+        { AttributeName: 'orgId', AttributeType: 'S' },
+        { AttributeName: 'createdAt', AttributeType: 'S' },
+        { AttributeName: 'status', AttributeType: 'S' },
+        { AttributeName: 'assigneeId', AttributeType: 'S' },
+      ],
+      [{ AttributeName: 'ticketId', KeyType: 'HASH' }],
+      [
+        {
+          IndexName: 'orgId-createdAt',
+          KeySchema: [
+            { AttributeName: 'orgId', KeyType: 'HASH' },
+            { AttributeName: 'createdAt', KeyType: 'RANGE' },
+          ],
+          Projection: { ProjectionType: 'ALL' },
+        },
+        {
+          IndexName: 'orgId-status',
+          KeySchema: [
+            { AttributeName: 'orgId', KeyType: 'HASH' },
+            { AttributeName: 'status', KeyType: 'RANGE' },
+          ],
+          Projection: { ProjectionType: 'ALL' },
+        },
+        {
+          IndexName: 'assigneeId-status',
+          KeySchema: [
+            { AttributeName: 'assigneeId', KeyType: 'HASH' },
+            { AttributeName: 'status', KeyType: 'RANGE' },
+          ],
+          Projection: { ProjectionType: 'ALL' },
+        },
+      ],
+    );
+  }
 }
 
 async function ensureTable(
