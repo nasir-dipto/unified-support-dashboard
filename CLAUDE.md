@@ -29,8 +29,8 @@ A standalone SaaS web application that aggregates IT support tickets from Jira a
 ## Phase status
 - Phase 0: COMPLETE — monorepo + CI + AWS infra
 - Phase 1: COMPLETE — auth (login/refresh/logout/me, RS256 JWT, org-scoped Dynamo PK/SK + GSI orgId-email; forgot/reset stubbed; web: Tailwind + React Hook Form + Zustand)
-- Phase 2: IN PROGRESS — Jira integration (TanStack Query for ticket server state on web)
-- Phase 3: NOT STARTED — Helpdesk integration
+- Phase 2: COMPLETE — Jira integration (TanStack Query for ticket server state on web)
+- Phase 3: COMPLETE — Helpdesk (ManageEngine SDP Cloud + Zoho OAuth, webhooks, reconcile)
 - Phase 4: NOT STARTED — real-time WebSocket
 - Phase 5: NOT STARTED — AI triage + action suggestion
 - Phase 6: NOT STARTED — sentiment + briefings
@@ -161,8 +161,9 @@ Merged to develop via PR #2. Branch feature/phase-1-auth deleted.
   - transitionIssue(issueKey, transitionId) — change status
 - apps/api/src/routes/tickets.routes.ts — GET /api/tickets, GET /api/tickets/:id
 - apps/api/src/db/tables/tickets.ts — upsertTicket, getTicketById, listTickets
-- apps/api/src/lambdas/sqsConsumer.ts — processes jira webhook events from SQS
-- apps/api/src/routes/tickets.handlers.ts — POST `/api/webhooks/jira` (raw body + `x-hub-signature-256`) plus ticket GET handlers
+- apps/api/src/lambdas/sqsConsumer.ts — processes Jira / Helpdesk webhook JSON (SQS wiring later)
+- apps/api/src/routes/tickets.handlers.ts — GET ticket handlers
+- apps/api/src/routes/webhooks.routes.ts — POST `/api/webhooks/jira` (raw + HMAC), POST `/api/webhooks/helpdesk` (JSON + `x-sdp-webhook-secret`)
 - apps/web/src/views/TicketsView.tsx — ticket list with TicketCard components
 - apps/web/src/components/tickets/TicketCard.tsx — shows ticket summary, priority, status, source badge
 - apps/web/src/hooks/useTickets.ts — TanStack Query hook for fetching tickets
@@ -190,42 +191,37 @@ Merged to develop via PR #2. Branch feature/phase-1-auth deleted.
 
 ## Phase 2 — COMPLETE
 Merged to develop via PR #3. Branch feature/phase-2-jira deleted.
-- 47 tests passing (20 test files)
+- 47 tests passing at Phase 2 merge (20 test files); suite expanded in Phase 3
 - Jira REST client, tickets API, webhook, TicketCard UI, TanStack Query
 - Real Jira tickets syncing from dknasir007.atlassian.net
 - db:setup and db:seed scripts for local DynamoDB
 
-## Phase 3 — IN PROGRESS
-Helpdesk (ManageEngine ServiceDesk Plus) integration
-Starting branch: feature/phase-3-helpdesk
+## Phase 3 — COMPLETE
+Helpdesk (ManageEngine ServiceDesk Plus Cloud) via Zoho OAuth; all HD REST calls use `HELPDESK_URL` only (no `zohoapis` host). Token refresh: `https://accounts.${ZOHO_DOMAIN}/oauth/v2/token` (default `zoho.uk`).
 
-### HD connection details
-- HD URL: https://servicedeskplus.uk/app/itdesk/api/v3
-- Auth: Zoho OAuth 2.0 (refresh token flow)
-- Zoho domain: zoho.uk (EU/UK region)
-- API domain: https://www.zohoapis.uk (DNS issue — use servicedeskplus.uk directly)
-- Token endpoint: https://accounts.zoho.uk/oauth/v2/token
-- Credentials in .env.local: HD_CLIENT_ID, HD_CLIENT_SECRET, HD_REFRESH_TOKEN
-- Connection verified: GET /requests returns 10 tickets
+### Env (API)
+- `HELPDESK_URL`, `ZOHO_DOMAIN`, `HD_CLIENT_ID`, `HD_CLIENT_SECRET`, `HD_REFRESH_TOKEN`, `HD_DEFAULT_ORG_ID`, `HD_WEBHOOK_SECRET` (see `.env.example`)
+
+### Implemented
+- `apps/api/src/services/zohoAuth.service.ts` — cached access token + refresh before expiry
+- `apps/api/src/services/helpdesk.service.ts` — authenticated `helpdeskFetch`, `fetchRequestsPage`, `fetchSingleRequest`
+- `apps/api/src/helpdesk/mapRequestToTicket.ts` — HD → USD (`source: helpdesk`, `ticketId` = `hd_` + id, On Hold → `pending`, `customerEmail` from requester)
+- `apps/api/src/routes/webhooks.handlers.ts` + `webhooks.routes.ts` — `POST /api/webhooks/jira` (unchanged behavior), `POST /api/webhooks/helpdesk` (`x-sdp-webhook-secret`)
+- `apps/api/src/scripts/hd-reconcile.ts` — `pnpm --filter @usd/api sync:hd`
+- `packages/shared-types` — `helpdesk/schemas.ts`, ticket schema: `pending`, optional `customerEmail`
+- Web: `TicketCard` — purple Helpdesk badge, grey `pending` status chip
 
 ### HD field mapping (HD → USD)
-- request.id → externalId
-- ticketId = "hd_" + request.id
-- request.subject → suest.description → description
-- request.status.name → status (map to open/in_progress/pending/resolved/closed)
-- request.priority.name → priority (map to critical/high/medium/low)
+- request.id → externalId; ticketId = `hd_` + id
+- request.subject → summary; request.description → description
+- request.status.name → status (On Hold → `pending`; open/in_progress/resolved/closed)
+- request.priority.name → priority
 - request.technician.name → assigneeId
-- request.requester.email_id → customerEmail
+- request.requester.email_id → customerEmail (and reporterId when set)
 
-### What to build
-- apps/api/src/services/helpdesk.service.ts — HD REST client with OAuth token refresh
-- apps/api/src/services/zohoAuth.service.ts — manages OAuth token refresh automatically
-- apps/api/src/helpdesk/mapRequestToTicket.ts — HD → USD field mapping
-- apps/api/src/routes/webhooks.routes.ts — add POST /api/webhooks/helpdesk
-- apps/api/src/scripts/hd-reconcile.ts — manual sync script
-- Update apps/web TicketsView to show HD tickets with purple badge
+### Local dev
+- Webhook → DynamoDB Local directly; `enqueueSqsEvent('helpdesk.webhook', …)` stub only
 
-### Tests required
-- Unit tests for helpdesk.service.ts (nock mocks)
-- Unit tests for mapRequestToTicket.ts
-- Integration tests for HD webhook endpoint
+### Tests
+- nock: `zohoAuth.service.test.ts`, `helpdesk.service.test.ts`; unit: `mapRequestToTicket.test.ts`, `webhooks.handlers.test.ts`, `sqsConsumer` Helpdesk path
+- Integration: `tickets.integration.test.ts` (Helpdesk webhook + list when `DYNAMODB_ENDPOINT` is set)

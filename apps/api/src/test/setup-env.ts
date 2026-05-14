@@ -26,5 +26,11 @@ if (process.env.JIRA_WEBHOOK_SECRET === undefined) {
 if (process.env.JIRA_DEFAULT_ORG_ID === undefined) {
   process.env.JIRA_DEFAULT_ORG_ID = 'org-int';
 }
+if (process.env.HD_WEBHOOK_SECRET === undefined) {
+  process.env.HD_WEBHOOK_SECRET = 'test-hd-webhook-secret';
+}
+if (process.env.HD_DEFAULT_ORG_ID === undefined) {
+  process.env.HD_DEFAULT_ORG_ID = 'org-int';
+}
 
 loadServerEnv();

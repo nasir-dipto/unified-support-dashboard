@@ -142,4 +142,57 @@ ddbDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
       .set('Authorization', `Bearer ${tokens.accessToken}`);
     expect(res.status).toBe(400);
   });
+
+  it('POST Helpdesk webhook upserts ticket and list includes it', async () => {
+    const app = createApp();
+    const env = getServerEnv();
+    const wh = await request(app)
+      .post('/api/webhooks/helpdesk')
+      .set('x-sdp-webhook-secret', env.HD_WEBHOOK_SECRET ?? '')
+      .send({
+        request: {
+          id: '501',
+          subject: 'HD integration ticket',
+          status: { name: 'On Hold' },
+          priority: { name: 'High' },
+          technician: { name: 'Agent Smith' },
+          requester: { email_id: 'customer@example.com' },
+        },
+      });
+    expect(wh.status).toBe(202);
+
+    const login = await request(app).post('/api/auth/login').send({
+      orgId: 'org-int',
+      email: 'tickets-int@example.com',
+      password: 'secret1234',
+    });
+    expect(login.status).toBe(200);
+    const tokens = loginResponseSchema.parse(login.body as unknown);
+    const list = await request(app)
+      .get('/api/tickets')
+      .set('Authorization', `Bearer ${tokens.accessToken}`);
+    expect(list.status).toBe(200);
+    const listBody = ticketsListResponseSchema.parse(list.body);
+    expect(listBody.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ticketId: 'hd_501',
+          externalId: '501',
+          source: 'helpdesk',
+          summary: 'HD integration ticket',
+          status: 'pending',
+          customerEmail: 'customer@example.com',
+        }),
+      ]),
+    );
+  });
+
+  it('rejects Helpdesk webhook without valid secret header', async () => {
+    const app = createApp();
+    const res = await request(app)
+      .post('/api/webhooks/helpdesk')
+      .set('x-sdp-webhook-secret', 'nope')
+      .send({ request: { id: '9', subject: 'x' } });
+    expect(res.status).toBe(401);
+  });
 });

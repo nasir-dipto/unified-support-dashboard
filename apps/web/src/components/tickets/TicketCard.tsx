@@ -11,6 +11,7 @@ const priorityClass: Record<TicketApiDto['priority'], string> = {
 const statusClass: Record<TicketApiDto['status'], string> = {
   open: 'border border-blue-300 bg-blue-50 text-blue-900',
   in_progress: 'border border-amber-300 bg-amber-50 text-amber-900',
+  pending: 'border border-zinc-300 bg-zinc-200 text-zinc-900',
   resolved: 'border border-emerald-300 bg-emerald-50 text-emerald-900',
   closed: 'border border-slate-300 bg-slate-100 text-slate-800',
 };
@@ -20,7 +21,7 @@ export type TicketCardProps = {
 };
 
 /**
- * Ticket summary row with Jira source (blue), priority, status, id, and summary.
+ * Ticket summary row with source badge (Jira blue, Helpdesk purple), priority, status, id, and summary.
  */
 export function TicketCard(props: TicketCardProps): ReactElement {
   const { ticket } = props;
@@ -28,7 +29,7 @@ export function TicketCard(props: TicketCardProps): ReactElement {
   const sourceStyle =
     ticket.source === 'jira'
       ? 'bg-blue-600 text-white'
-      : 'bg-violet-600 text-white';
+      : 'bg-purple-600 text-white';
 
   return (
     <article

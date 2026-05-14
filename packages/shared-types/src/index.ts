@@ -11,4 +11,5 @@ export type HealthStatus = z.infer<typeof healthStatusSchema>;
 
 export * from './auth/schemas.js';
 export * from './env/server-env.js';
+export * from './helpdesk/schemas.js';
 export * from './tickets/schemas.js';

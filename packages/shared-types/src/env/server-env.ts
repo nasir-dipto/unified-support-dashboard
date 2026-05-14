@@ -22,6 +22,20 @@ export const serverEnvSchema = z.object({
   JIRA_WEBHOOK_SECRET: z.string().min(1).optional(),
   /** Org id stamped on tickets ingested from Jira when the payload has no org. */
   JIRA_DEFAULT_ORG_ID: z.string().min(1).default('demo-org'),
+  /**
+   * ManageEngine ServiceDesk Plus Cloud API base (e.g. https://servicedeskplus.uk/app/itdesk/api/v3).
+   * All HD REST calls use this URL only (not zohoapis host).
+   */
+  HELPDESK_URL: z.string().url().optional(),
+  /** Zoho accounts domain segment (e.g. zoho.uk → https://accounts.zoho.uk/oauth/v2/token). */
+  ZOHO_DOMAIN: z.string().min(1).default('zoho.uk'),
+  HD_CLIENT_ID: z.string().min(1).optional(),
+  HD_CLIENT_SECRET: z.string().min(1).optional(),
+  HD_REFRESH_TOKEN: z.string().min(1).optional(),
+  /** Org id for Helpdesk-ingested tickets (webhook + reconcile). */
+  HD_DEFAULT_ORG_ID: z.string().min(1).default('demo-org'),
+  /** Shared secret matched against `x-sdp-webhook-secret` on POST /api/webhooks/helpdesk. */
+  HD_WEBHOOK_SECRET: z.string().min(1).optional(),
   /** PEM-encoded RS256 private key (local dev via .env.local). */
   JWT_PRIVATE_KEY: z.string().min(1).optional(),
   /** PEM-encoded RS256 public key (local dev via .env.local). */
