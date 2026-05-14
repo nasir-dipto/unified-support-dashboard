@@ -27,9 +27,9 @@ A standalone SaaS web application that aggregates IT support tickets from Jira a
 - pnpm typecheck — runs TypeScript across the workspace (via Turborepo)
 
 ## Phase status
-- Phase 0: IN PROGRESS — monorepo + CI + AWS infra
-- Phase 1: IN PROGRESS — auth (login/refresh/logout/me, RS256 JWT, org-scoped Dynamo PK/SK + GSI orgId-email; forgot/reset stubbed; web: Tailwind + React Hook Form + Zustand only, no TanStack Query in Phase 1)
-- Phase 2: NOT STARTED — Jira integration
+- Phase 0: COMPLETE — monorepo + CI + AWS infra
+- Phase 1: COMPLETE — auth (login/refresh/logout/me, RS256 JWT, org-scoped Dynamo PK/SK + GSI orgId-email; forgot/reset stubbed; web: Tailwind + React Hook Form + Zustand)
+- Phase 2: IN PROGRESS — Jira integration (TanStack Query for ticket server state on web)
 - Phase 3: NOT STARTED — Helpdesk integration
 - Phase 4: NOT STARTED — real-time WebSocket
 - Phase 5: NOT STARTED — AI triage + action suggestion
@@ -145,14 +145,10 @@ Merged to develop via PR #2. Branch feature/phase-1-auth deleted.
 - 19 tests passing (13 test files)
 - JWT RS256 auth, DynamoDB users/roles, auth middleware, LoginView, AuthGuard, RoleGuard
 
-## Phase 2 — NOT STARTED
-Jira integration only (Helpdesk comes in Phase 3)
-Starting branch: feature/phase-2-jira
-
 ## Phase 2 — Jira integration details
 ### Jira connection
 - Jira Cloud URL: https://dknasir007.atlassian.net
-- Auth: Basic Auth (email + API token)
+- Auth: Basic Auth (`JIRA_EMAIL` + `JIRA_API_TOKEN`)
 - Credentials stored in .env.local — never committed
 - Connection verified: GET /rest/api/3/myself returns 200
 
@@ -166,8 +162,8 @@ Starting branch: feature/phase-2-jira
 - apps/api/src/routes/tickets.routes.ts — GET /api/tickets, GET /api/tickets/:id
 - apps/api/src/db/tables/tickets.ts — upsertTicket, getTicketById, listTickets
 - apps/api/src/lambdas/sqsConsumer.ts — processes jira webhook events from SQS
-- apps/api/src/routes/webhooks.routes.ts — POST /api/webhooks/jira (HMAC validation)
-- apps/web/stsx — ticket list with TicketCard components
+- apps/api/src/routes/tickets.handlers.ts — POST `/api/webhooks/jira` (raw body + `x-hub-signature-256`) plus ticket GET handlers
+- apps/web/src/views/TicketsView.tsx — ticket list with TicketCard components
 - apps/web/src/components/tickets/TicketCard.tsx — shows ticket summary, priority, status, source badge
 - apps/web/src/hooks/useTickets.ts — TanStack Query hook for fetching tickets
 - apps/web/src/api/tickets.ts — typed fetch wrapper for tickets API
@@ -184,7 +180,7 @@ Starting branch: feature/phase-2-jira
 
 ### Local dev
 - No SQS in local dev — webhook endpoint writes directly to DynamoDB Local
-- JIRA_URL, JIRA_EMAIL, JIRA_API_TOKEN loaded from .env.local
+- JIRA_URL, JIRA_EMAIL, JIRA_API_TOKEN, JIRA_WEBHOOK_SECRET, JIRA_DEFAULT_ORG_ID loaded from .env.local
 - Reconciliation sync runs manually via script for local dev
 
 ### Tests required

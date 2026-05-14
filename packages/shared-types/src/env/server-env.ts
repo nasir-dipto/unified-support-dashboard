@@ -11,6 +11,17 @@ export const serverEnvSchema = z.object({
   DYNAMODB_ENDPOINT: z.string().url().optional(),
   SUPPORT_USERS_TABLE: z.string().min(1).default('support_users'),
   SUPPORT_ROLES_TABLE: z.string().min(1).default('support_roles'),
+  SUPPORT_TICKETS_TABLE: z.string().min(1).default('support_tickets'),
+  /** Jira Cloud site base URL (e.g. https://your.atlassian.net). */
+  JIRA_URL: z.string().url().optional(),
+  /** Jira Cloud account email (Basic Auth username). */
+  JIRA_EMAIL: z.string().min(1).optional(),
+  /** Jira Cloud API token (Basic Auth password). */
+  JIRA_API_TOKEN: z.string().min(1).optional(),
+  /** Secret for `x-hub-signature-256` verification on `POST /api/webhooks/jira`. */
+  JIRA_WEBHOOK_SECRET: z.string().min(1).optional(),
+  /** Org id stamped on tickets ingested from Jira when the payload has no org. */
+  JIRA_DEFAULT_ORG_ID: z.string().min(1).default('demo-org'),
   /** PEM-encoded RS256 private key (local dev via .env.local). */
   JWT_PRIVATE_KEY: z.string().min(1).optional(),
   /** PEM-encoded RS256 public key (local dev via .env.local). */

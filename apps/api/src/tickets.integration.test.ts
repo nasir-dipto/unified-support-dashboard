@@ -1,0 +1,145 @@
+import { createHmac } from 'node:crypto';
+import request from 'supertest';
+import bcrypt from 'bcryptjs';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import {
+  loginResponseSchema,
+  ticketDetailResponseSchema,
+  ticketsListResponseSchema,
+} from '@usd/shared-types';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { createApp } from './app.js';
+import { getServerEnv } from './config/loadEnv.js';
+import { ensureSupportTablesExist } from './test/helpers/create-tables.js';
+
+const ddbDescribe = process.env.DYNAMODB_ENDPOINT ? describe : describe.skip;
+
+ddbDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
+  beforeAll(async () => {
+    const endpoint = process.env.DYNAMODB_ENDPOINT;
+    if (endpoint === undefined) {
+      return;
+    }
+    const client = new DynamoDBClient({
+      endpoint,
+      region: 'us-east-1',
+      credentials: { accessKeyId: 'local', secretAccessKey: 'local' },
+    });
+    const env = getServerEnv();
+    await ensureSupportTablesExist(
+      client,
+      env.SUPPORT_USERS_TABLE,
+      env.SUPPORT_ROLES_TABLE,
+      env.SUPPORT_TICKETS_TABLE,
+    );
+    const doc = DynamoDBDocumentClient.from(client, {
+      marshallOptions: { removeUndefinedValues: true },
+    });
+    const hash = await bcrypt.hash('secret1234', 8);
+    await doc.send(
+      new PutCommand({
+        TableName: env.SUPPORT_USERS_TABLE,
+        Item: {
+          orgId: 'org-int',
+          userId: '01HZINTTICKUSER',
+          email: 'tickets-int@example.com',
+          passwordHash: hash,
+          createdAt: new Date().toISOString(),
+        },
+      }),
+    );
+    await doc.send(
+      new PutCommand({
+        TableName: env.SUPPORT_ROLES_TABLE,
+        Item: {
+          orgId: 'org-int',
+          userId: '01HZINTTICKUSER',
+          role: 'viewer',
+        },
+      }),
+    );
+  });
+
+  it('POST webhook upserts ticket and GET /api/tickets returns it', async () => {
+    const app = createApp();
+    const env = getServerEnv();
+    const secret = env.JIRA_WEBHOOK_SECRET ?? 'test-webhook-secret';
+    /** Compact JSON so signed bytes match what Supertest sends (no re-key ordering). */
+    const payload =
+      '{"webhookEvent":"jira:issue_updated","issue":{"key":"SUP-99","fields":{"summary":"Integration ticket","priority":{"name":"High"},"status":{"name":"In Progress"}}}}';
+    const raw = Buffer.from(payload, 'utf8');
+    const sig = `sha256=${createHmac('sha256', secret).update(raw).digest('hex')}`;
+    const wh = await request(app)
+      .post('/api/webhooks/jira')
+      .set('x-hub-signature-256', sig)
+      .set('Content-Type', 'application/json')
+      .send(payload);
+    expect(wh.status).toBe(202);
+
+    const login = await request(app).post('/api/auth/login').send({
+      orgId: 'org-int',
+      email: 'tickets-int@example.com',
+      password: 'secret1234',
+    });
+    expect(login.status).toBe(200);
+    const tokens = loginResponseSchema.parse(login.body as unknown);
+
+    const list = await request(app)
+      .get('/api/tickets')
+      .set('Authorization', `Bearer ${tokens.accessToken}`);
+    expect(list.status).toBe(200);
+    const listBody = ticketsListResponseSchema.parse(list.body);
+    expect(listBody.data).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ticketId: 'jira_SUP-99',
+          externalId: 'SUP-99',
+          summary: 'Integration ticket',
+          source: 'jira',
+        }),
+      ]),
+    );
+  });
+
+  it('GET /api/tickets/:id returns ticket', async () => {
+    const app = createApp();
+    const login = await request(app).post('/api/auth/login').send({
+      orgId: 'org-int',
+      email: 'tickets-int@example.com',
+      password: 'secret1234',
+    });
+    const tokens = loginResponseSchema.parse(login.body as unknown);
+    const res = await request(app)
+      .get('/api/tickets/jira_SUP-99')
+      .set('Authorization', `Bearer ${tokens.accessToken}`);
+    expect(res.status).toBe(200);
+    const detail = ticketDetailResponseSchema.parse(res.body);
+    expect(detail.data.ticketId).toBe('jira_SUP-99');
+  });
+
+  it('rejects webhook without valid signature', async () => {
+    const app = createApp();
+    const raw = Buffer.from('{"issue":{"key":"X-1","fields":{}}}', 'utf8');
+    const res = await request(app)
+      .post('/api/webhooks/jira')
+      .set('x-hub-signature-256', 'sha256=deadbeef')
+      .set('Content-Type', 'application/json')
+      .send(raw);
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects invalid tickets cursor', async () => {
+    const app = createApp();
+    const login = await request(app).post('/api/auth/login').send({
+      orgId: 'org-int',
+      email: 'tickets-int@example.com',
+      password: 'secret1234',
+    });
+    const tokens = loginResponseSchema.parse(login.body as unknown);
+    const res = await request(app)
+      .get('/api/tickets?cursor=not-valid')
+      .set('Authorization', `Bearer ${tokens.accessToken}`);
+    expect(res.status).toBe(400);
+  });
+});

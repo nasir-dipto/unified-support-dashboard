@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './components/layout/AppShell';
 import { AuthGuard } from './components/layout/AuthGuard';
 import { LoginView } from './views/LoginView';
+import { TicketsView } from './views/TicketsView';
 
 function Forbidden(): ReactElement {
   return (
@@ -32,6 +33,7 @@ export function AppRouter(): ReactElement {
         <Route element={<AuthGuard />}>
           <Route element={<AppShell />}>
             <Route path="/" element={<Home />} />
+            <Route path="/tickets" element={<TicketsView />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

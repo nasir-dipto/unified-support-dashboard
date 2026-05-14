@@ -2,6 +2,8 @@ import cors from 'cors';
 import express from 'express';
 import { healthStatusSchema } from '@usd/shared-types';
 import { authRouter } from './routes/auth.routes.js';
+import { postJiraWebhook } from './routes/tickets.handlers.js';
+import { ticketsRouter } from './routes/tickets.routes.js';
 import { toApiErrorBody } from './utils/errors.js';
 
 /**
@@ -16,6 +18,11 @@ export function createApp(): express.Application {
       credentials: true,
     }),
   );
+  app.post(
+    '/api/webhooks/jira',
+    express.raw({ type: 'application/json', limit: '5mb' }),
+    postJiraWebhook,
+  );
   app.use(express.json());
 
   app.get('/', (_req, res) => {
@@ -29,6 +36,7 @@ export function createApp(): express.Application {
   });
 
   app.use('/api/auth', authRouter);
+  app.use('/api/tickets', ticketsRouter);
 
   app.use(
     (err: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
