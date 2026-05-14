@@ -46,14 +46,20 @@ describe('jira.service', () => {
     expect(projects).toEqual([{ id: '2', key: 'X', name: 'Xray' }]);
   });
 
-  it('fetchIssuesByProject returns issues', async () => {
+  it('fetchIssuesByProject posts to search/jql and returns issues', async () => {
     nock(base)
-      .get(/\/rest\/api\/3\/search/)
+      .post('/rest/api/3/search/jql', (body: unknown) => {
+        const parsed =
+          typeof body === 'string' ? (JSON.parse(body) as Record<string, unknown>) : (body as Record<string, unknown>);
+        return (
+          parsed.jql === 'project = SUP ORDER BY created DESC' &&
+          Array.isArray(parsed.fields) &&
+          parsed.maxResults === 50
+        );
+      })
       .reply(200, {
         issues: [{ key: 'SUP-1', fields: { summary: 'A' } }],
         total: 1,
-        startAt: 0,
-        maxResults: 50,
       });
     const out = await fetchIssuesByProject('SUP');
     expect(out.issues).toHaveLength(1);

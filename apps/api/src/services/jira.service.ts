@@ -153,24 +153,47 @@ function issueFieldsAsJson(fieldsRaw: unknown): Json {
 
 export type JiraIssueSearchHit = { key: string; fields?: Json };
 
+/** Fields requested for JQL search results (used by ticket mapping). */
+const JIRA_SEARCH_FIELDS = [
+  'summary',
+  'description',
+  'priority',
+  'status',
+  'assignee',
+  'reporter',
+] as const;
+
 /**
- * Lists issues in a project (paginated via startAt).
+ * Lists issues in a project via enhanced JQL search (`POST /rest/api/3/search/jql`).
+ * Pagination uses `nextPageToken` from the response (pass it on the next call).
  */
 export async function fetchIssuesByProject(
   projectKey: string,
-  options?: { startAt?: number; maxResults?: number },
-): Promise<{ issues: JiraIssueSearchHit[]; total: number; nextStartAt?: number }> {
-  const startAt = options?.startAt ?? 0;
+  options?: { maxResults?: number; nextPageToken?: string },
+): Promise<{
+  issues: JiraIssueSearchHit[];
+  total: number;
+  nextPageToken?: string;
+}> {
   const maxResults = options?.maxResults ?? 50;
-  const jql = encodeURIComponent(`project=${projectKey} ORDER BY updated DESC`);
-  const res = await jiraFetch(
-    `/rest/api/3/search?jql=${jql}&startAt=${String(startAt)}&maxResults=${String(maxResults)}`,
-  );
+  const jql = `project = ${projectKey} ORDER BY created DESC`;
+  const requestBody: Record<string, unknown> = {
+    jql,
+    fields: [...JIRA_SEARCH_FIELDS],
+    maxResults,
+  };
+  const token = options?.nextPageToken;
+  if (token !== undefined && token.length > 0) {
+    requestBody.nextPageToken = token;
+  }
+  const res = await jiraFetch('/rest/api/3/search/jql', {
+    method: 'POST',
+    body: JSON.stringify(requestBody),
+  });
   const body = (await res.json()) as {
     issues?: Json[];
     total?: number;
-    startAt?: number;
-    maxResults?: number;
+    nextPageToken?: string;
   };
   const issues = (body.issues ?? []).map((row) => {
     return {
@@ -179,9 +202,11 @@ export async function fetchIssuesByProject(
     };
   });
   const total = typeof body.total === 'number' ? body.total : issues.length;
-  const next =
-    startAt + issues.length < total ? startAt + issues.length : undefined;
-  return { issues, total, nextStartAt: next };
+  const nextPageToken =
+    typeof body.nextPageToken === 'string' && body.nextPageToken.length > 0
+      ? body.nextPageToken
+      : undefined;
+  return { issues, total, nextPageToken };
 }
 
 /**

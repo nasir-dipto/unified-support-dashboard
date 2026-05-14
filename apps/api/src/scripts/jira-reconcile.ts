@@ -32,10 +32,13 @@ async function main(): Promise<void> {
   const env = getServerEnv();
   const projects = await fetchProjects();
   for (const p of projects) {
-    let startAt = 0;
+    let nextPageToken: string | undefined;
     let hasMore = true;
     while (hasMore) {
-      const page = await fetchIssuesByProject(p.key, { startAt, maxResults: 25 });
+      const page = await fetchIssuesByProject(p.key, {
+        maxResults: 25,
+        nextPageToken,
+      });
       for (const hit of page.issues) {
         const issue = { key: hit.key, fields: hit.fields ?? {} };
         const rec = mapJiraIssueToTicket({
@@ -44,10 +47,10 @@ async function main(): Promise<void> {
         });
         await upsertTicket(rec);
       }
-      if (page.nextStartAt === undefined) {
+      if (page.nextPageToken === undefined) {
         hasMore = false;
       } else {
-        startAt = page.nextStartAt;
+        nextPageToken = page.nextPageToken;
       }
     }
   }

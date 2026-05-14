@@ -1,13 +1,5 @@
-import {
-  CreateTableCommand,
-  DescribeTableCommand,
-  DynamoDBClient,
-  type AttributeDefinition,
-  type CreateTableCommandInput,
-  type DescribeTableCommandOutput,
-  type GlobalSecondaryIndex,
-  type KeySchemaElement,
-} from '@aws-sdk/client-dynamodb';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { ensureDynamoTableIfMissing } from '../../db/ensureUsdLocalDynamoTables.js';
 
 /**
  * Creates Phase 1 DynamoDB tables on Local when missing (idempotent).
@@ -19,7 +11,7 @@ export async function ensureSupportTablesExist(
   rolesTable: string,
   ticketsTable?: string,
 ): Promise<void> {
-  await ensureTable(
+  await ensureDynamoTableIfMissing(
     client,
     usersTable,
     [
@@ -43,7 +35,7 @@ export async function ensureSupportTablesExist(
     ],
   );
 
-  await ensureTable(
+  await ensureDynamoTableIfMissing(
     client,
     rolesTable,
     [
@@ -58,7 +50,7 @@ export async function ensureSupportTablesExist(
   );
 
   if (ticketsTable !== undefined) {
-    await ensureTable(
+    await ensureDynamoTableIfMissing(
       client,
       ticketsTable,
       [
@@ -96,46 +88,5 @@ export async function ensureSupportTablesExist(
         },
       ],
     );
-  }
-}
-
-async function ensureTable(
-  client: DynamoDBClient,
-  tableName: string,
-  attributeDefinitions: AttributeDefinition[],
-  keySchema: KeySchemaElement[],
-  gsis: GlobalSecondaryIndex[],
-): Promise<void> {
-  try {
-    await client.send(new DescribeTableCommand({ TableName: tableName }));
-    return;
-  } catch (e: unknown) {
-    if (
-      typeof e === 'object' &&
-      e !== null &&
-      'name' in e &&
-      (e as { name?: string }).name === 'ResourceNotFoundException'
-    ) {
-      // fall through to create
-    } else {
-      throw e;
-    }
-  }
-  const params: CreateTableCommandInput = {
-    TableName: tableName,
-    BillingMode: 'PAY_PER_REQUEST',
-    AttributeDefinitions: attributeDefinitions,
-    KeySchema: keySchema,
-    ...(gsis.length > 0 ? { GlobalSecondaryIndexes: gsis } : {}),
-  };
-  await client.send(new CreateTableCommand(params));
-  for (let i = 0; i < 40; i += 1) {
-    const d: DescribeTableCommandOutput = await client.send(
-      new DescribeTableCommand({ TableName: tableName }),
-    );
-    if (d.Table?.TableStatus === 'ACTIVE') {
-      return;
-    }
-    await new Promise((r) => setTimeout(r, 250));
   }
 }
