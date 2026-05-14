@@ -12,7 +12,8 @@
     "test": "vitest run",
     "db:setup": "tsx src/scripts/create-local-tables.ts",
     "db:seed": "tsx src/scripts/seed-admin.ts",
-    "sync:jira": "tsx src/scripts/jira-reconcile.ts"
+    "sync:jira": "tsx src/scripts/jira-reconcile.ts",
+    "sync:hd": "tsx src/scripts/hd-reconcile.ts"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.750.0",

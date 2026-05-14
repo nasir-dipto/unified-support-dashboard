@@ -1,14 +1,20 @@
 import { z } from 'zod';
 
-/** Ticket origin system (Phase 2: Jira only). */
+/** Ticket origin system (Jira or Helpdesk). */
 export const ticketSourceSchema = z.enum(['jira', 'helpdesk']);
 
 /** Normalized priority for USD. */
 export const ticketPrioritySchema = z.enum(['critical', 'high', 'medium', 'low']);
 export type TicketPriority = z.infer<typeof ticketPrioritySchema>;
 
-/** Normalized lifecycle status. */
-export const ticketStatusSchema = z.enum(['open', 'in_progress', 'resolved', 'closed']);
+/** Normalized lifecycle status (includes Helpdesk-style pending / on hold). */
+export const ticketStatusSchema = z.enum([
+  'open',
+  'in_progress',
+  'pending',
+  'resolved',
+  'closed',
+]);
 export type TicketStatus = z.infer<typeof ticketStatusSchema>;
 
 /**
@@ -25,6 +31,8 @@ export const supportTicketRecordSchema = z.object({
   status: ticketStatusSchema,
   assigneeId: z.string().optional(),
   reporterId: z.string().optional(),
+  /** Requester email from Helpdesk (`request.requester.email_id`). */
+  customerEmail: z.string().min(1).optional(),
   createdAt: z.string().min(1),
   updatedAt: z.string().min(1),
 });
@@ -45,6 +53,7 @@ export const ticketApiDtoSchema = supportTicketRecordSchema.pick({
   status: true,
   assigneeId: true,
   reporterId: true,
+  customerEmail: true,
   createdAt: true,
   updatedAt: true,
 });

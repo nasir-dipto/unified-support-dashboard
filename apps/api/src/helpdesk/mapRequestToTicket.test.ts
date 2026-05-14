@@ -1,0 +1,91 @@
+import { describe, expect, it } from 'vitest';
+import {
+  mapHdPriorityName,
+  mapHdRequestToTicket,
+  mapHdStatusName,
+  normalizeHdDescription,
+} from './mapRequestToTicket.js';
+
+describe('mapHdPriorityName', () => {
+  it('maps urgent to critical', () => {
+    expect(mapHdPriorityName('Urgent')).toBe('critical');
+  });
+  it('defaults unknown to medium', () => {
+    expect(mapHdPriorityName(undefined)).toBe('medium');
+  });
+});
+
+describe('mapHdStatusName', () => {
+  it('maps On Hold to pending', () => {
+    expect(mapHdStatusName('On Hold')).toBe('pending');
+  });
+  it('maps resolved', () => {
+    expect(mapHdStatusName('Resolved')).toBe('resolved');
+  });
+});
+
+describe('normalizeHdDescription', () => {
+  it('returns string as-is', () => {
+    expect(normalizeHdDescription('note')).toBe('note');
+  });
+});
+
+describe('mapHdRequestToTicket', () => {
+  it('builds helpdesk ticket id and customerEmail', () => {
+    const rec = mapHdRequestToTicket({
+      orgId: 'org-1',
+      request: {
+        id: 9001,
+        subject: 'Printer issue',
+        status: { name: 'Open' },
+        priority: { name: 'Medium' },
+        technician: { name: 'Jane Agent' },
+        requester: { email_id: 'user@acme.test' },
+      },
+      nowIso: '2020-01-01T00:00:00.000Z',
+    });
+    expect(rec.ticketId).toBe('hd_9001');
+    expect(rec.externalId).toBe('9001');
+    expect(rec.source).toBe('helpdesk');
+    expect(rec.assigneeId).toBe('Jane Agent');
+    expect(rec.customerEmail).toBe('user@acme.test');
+    expect(rec.reporterId).toBe('user@acme.test');
+  });
+
+  it('omits customerEmail and assigneeId when API returns nulls', () => {
+    const rec = mapHdRequestToTicket({
+      orgId: 'org-1',
+      request: {
+        id: 42,
+        subject: 'No contact',
+        status: { name: 'Open' },
+        priority: { name: 'Low' },
+        technician: null,
+        requester: { email_id: null, name: null, phone: null, mobile: null },
+      },
+      nowIso: '2020-01-01T00:00:00.000Z',
+    });
+    expect(rec.ticketId).toBe('hd_42');
+    expect(rec.customerEmail).toBeUndefined();
+    expect(rec.reporterId).toBeUndefined();
+    expect(rec.assigneeId).toBeUndefined();
+  });
+
+  it('uses requester name when email_id is null', () => {
+    const rec = mapHdRequestToTicket({
+      orgId: 'org-1',
+      request: {
+        id: 43,
+        subject: 'Walk-in',
+        status: { name: 'Open' },
+        priority: { name: 'Medium' },
+        technician: { name: null },
+        requester: { email_id: null, name: 'Desk User' },
+      },
+      nowIso: '2020-01-01T00:00:00.000Z',
+    });
+    expect(rec.customerEmail).toBeUndefined();
+    expect(rec.reporterId).toBe('Desk User');
+    expect(rec.assigneeId).toBeUndefined();
+  });
+});

@@ -30,6 +30,13 @@ export function loadServerEnv(): ParsedEnv {
     JIRA_API_TOKEN: process.env.JIRA_API_TOKEN,
     JIRA_WEBHOOK_SECRET: process.env.JIRA_WEBHOOK_SECRET,
     JIRA_DEFAULT_ORG_ID: process.env.JIRA_DEFAULT_ORG_ID,
+    HELPDESK_URL: process.env.HELPDESK_URL,
+    ZOHO_DOMAIN: process.env.ZOHO_DOMAIN,
+    HD_CLIENT_ID: process.env.HD_CLIENT_ID,
+    HD_CLIENT_SECRET: process.env.HD_CLIENT_SECRET,
+    HD_REFRESH_TOKEN: process.env.HD_REFRESH_TOKEN,
+    HD_DEFAULT_ORG_ID: process.env.HD_DEFAULT_ORG_ID,
+    HD_WEBHOOK_SECRET: process.env.HD_WEBHOOK_SECRET,
   };
   const parsed = serverEnvRefinedSchema.safeParse(raw);
   if (!parsed.success) {
