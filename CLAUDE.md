@@ -262,3 +262,64 @@ and next story to In Progress.
 
 At end of each phase: use jira-corporate MCP to transition TAS ticket to Done
 and next TAS ticket to In Progress. Do same for jira-personal USD tickets.
+
+## Architecture decisions (confirmed before Phase 4)
+
+### Webhook reliability
+- SQS at-least-once delivery — nothing lost even under concurrent burst
+- upsertTicket is idempotent — duplicate webhooks safe (PutItem overwrites)
+- DLQ catches failed events after 3 retries
+- Lambda concurrency limit: 10 (add to UsdMessagingStack in Phase 4)
+- DLQ CloudWatch alarm: alert when depth > 0 (add to UsdMessagingStack in Phase 4)
+
+### Knowledge Base search
+- Use pgvector on Amazon RDS PostgreSQL (NOT OpenSearch Serverless)
+- Cost: ~$15-25/month vs ~$50/month for OpenSearch
+- KB articles stored as text + vector embeddings in same PostgreSQL table
+- Add RDS instance to CDK in Phase 7
+
+### Ticket data strategy
+- NO TTL on tickets — keep all history for KB, sentiment, reports
+- All tickets kept indefinitely in DynamoDB
+- metadata: Record<string, unknown> field stores unknown/custom Jira+HD fields
+- Incremental sync: only tickets updated in last 15 minutes (not full sync)
+  - Jira: jql atedDate >= -15m ORDER BY updated DESC"
+  - HD: filter by updated_time in last 15 minutes
+  - Full historical sync is a separate one-time script (built in Phase 9)
+- All Jira projects synced (6-7 expected in corporate)
+
+### Current test count (after Phase 3)
+- 64 tests passing (24 API test files, 6 web test files)
+
+## Local dev scripts (run from project root)
+- docker compose up -d — start DynamoDB Local, Redis, Mailhog
+- pnpm dev — start frontend (:5173) + backend (:3001)
+- pnpm --filter @usd/api db:setup — create DynamoDB Local tables
+- pnpm --filter @usd/api db:seed — seed admin user (admin@usd.dev / Admin123!)
+- pnpm --filter @usd/api sync:jira — sync Jira tickets to DynamoDB Local
+- pnpm --filter @usd/api sync:hd — sync HD tickets to DynamoDB Local
+- export DYNAMODB_ENDPOINT=http://localhost:8000 && pnpm --filter @usd/api test — run integration tests
+
+## Phase 4 — Real-Time WebSocket + DetailModal + Cross-linking
+### Goal
+Make the dashboard live — tickets update in real time. Technicit detail and post comments.
+
+### WebSocket strategy
+- Local dev: ws package on Express server at /ws path (WS_MODE=local)
+- Production: API Gateway WebSocket — stub only in Phase 4 (WS_MODE=gateway)
+- Message format: { type, ticketId, orgId, payload }
+- Types: ticket_created, ticket_updated, comment_added, ticket_resolved
+
+### What to build (backend)
+- apps/api/src/services/websocket.service.ts — connection manager, broadcast events
+- apps/api/src/db/tables/comments.ts — store/retrieve comments
+- apps/api/src/routes/tickets.routes.ts — add GET /api/tickets/:id/comments, POST /api/tickets/:id/comments, POST /api/tickets/:id/link
+- Update webhooks.handlers.ts — broadcast WS event after upsertTicket
+- infra/lib/usd-messaging-stack.ts — add Lambda concurrency:10 + DLQ CloudWatch alarm
+
+### What to build (frontend)
+- apps/web/src/hooks/useWebSocket.ts — WS connection manager with auto-reconnect
+- apps/web/src/components/tickets/DetailModal.tsx — ticket detail, comments, post comment button
+- appsnts/tickets/ActivitySidebar.tsx — live feed, urgent alerts section
+- apps/web/src/store/notifications.store.ts — Zustand store for WS events
+- Update TicketsView — add ActivitySidebar, open DetailModal on card click
