@@ -335,3 +335,40 @@ Make the dashboard live — tickets update in real time. Ticket detail, comments
 - [ ] Cross-link: link jira_SCRUM-6 to an hd_ ticket, both show linked badge
 - [ ] ActivitySidebar shows live events as webhooks fire
 - [ ] All 74+ tests passing with DYNAMODB_ENDPOINT set
+
+## Permission model (confirmed before Phase 4 close)
+
+### Roles
+- technician — default role for support staff
+- manager — elevated access, manages the team
+- super_admin — supreme access, manages the system
+
+### Technician access rules
+- Default "My Tickets" view: only tickets where assigneeId = their userId
+- "All Tickets" tab: can view all tickets (read-only for unassigned)
+- Own tickets (assigneeId = their userId): full access — comment, status change, cross-link, save to KB
+- Other tickets: read-only — no comment, no status change, no cross-link
+- Activity sidebar: shows events for their own tickets by default; can switch to all
+
+### Manager access rules
+- Sees all tickets by default
+- Full admin-like access to ALL tickets (comment, status, cross-link, KB)
+- Access to sentiment analysis, reports, team view, AI insights
+- Cannot manage users or configure integrations
+
+### Super Admin access rules
+- Everything Manager can do
+- User management (assign/revoke roles)tion configuration (Jira, HD, webhooks)
+- Notification rules configuration
+- Report builder
+- Delete tickets and KB articles
+- Full audit trail access
+
+### Implementation notes
+- Backend: requireRole middleware already exists — extend to support ownership check
+- Add new middleware: requireTicketAccess(action) — checks role + ownership
+- Frontend: hide action buttons (Post Comment, Change Status etc) based on role + ownership
+- API: POST /api/tickets/:id/comments — reject if technician and not assignee
+- API: PUT /api/tickets/:id/status — reject if technician and not assignee
+- Implement in Phase 9 (admin + hardening phase)
+- For now: manager and super_admin have full access, technician has full access (ownership check deferred to Phase 9)
