@@ -8,36 +8,47 @@ import type { Construct } from 'constructs';
  * All GSIs are defined so queries can always scope by orgId where applicable.
  */
 export class UsdDatabaseStack extends cdk.Stack {
+  public readonly supportTicketsTable: dynamodb.Table;
+  public readonly supportTicketCommentsTable: dynamodb.Table;
   private readonly tables: dynamodb.Table[] = [];
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    const tickets = new dynamodb.Table(this, 'SupportTickets', {
+    this.supportTicketsTable = new dynamodb.Table(this, 'SupportTickets', {
       tableName: 'support_tickets',
       partitionKey: { name: 'ticketId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
-    tickets.addGlobalSecondaryIndex({
+    this.supportTicketsTable.addGlobalSecondaryIndex({
       indexName: 'orgId-createdAt',
       partitionKey: { name: 'orgId', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'createdAt', type: dynamodb.AttributeType.STRING },
       projectionType: dynamodb.ProjectionType.ALL,
     });
-    tickets.addGlobalSecondaryIndex({
+    this.supportTicketsTable.addGlobalSecondaryIndex({
       indexName: 'orgId-status',
       partitionKey: { name: 'orgId', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'status', type: dynamodb.AttributeType.STRING },
       projectionType: dynamodb.ProjectionType.ALL,
     });
-    tickets.addGlobalSecondaryIndex({
+    this.supportTicketsTable.addGlobalSecondaryIndex({
       indexName: 'assigneeId-status',
       partitionKey: { name: 'assigneeId', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'status', type: dynamodb.AttributeType.STRING },
       projectionType: dynamodb.ProjectionType.ALL,
     });
-    this.tables.push(tickets);
+    this.tables.push(this.supportTicketsTable);
+
+    this.supportTicketCommentsTable = new dynamodb.Table(this, 'SupportTicketComments', {
+      tableName: 'support_ticket_comments',
+      partitionKey: { name: 'orgId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'ticketCommentKey', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+    this.tables.push(this.supportTicketCommentsTable);
 
     const users = new dynamodb.Table(this, 'SupportUsers', {
       tableName: 'support_users',

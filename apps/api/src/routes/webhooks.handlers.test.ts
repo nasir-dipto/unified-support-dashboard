@@ -21,11 +21,13 @@ describe('webhooks.handlers', () => {
   });
 
   it('POST /api/webhooks/helpdesk accepts valid secret and upserts', async () => {
+    vi.spyOn(tickets, 'getTicketRecordOrUndefined').mockResolvedValue(undefined);
     const spy = vi.spyOn(tickets, 'upsertTicket').mockResolvedValue({
-      ticketId: 'hd_777',
+      ticketId: 'hd_12',
       orgId: 'org-int',
       source: 'helpdesk',
-      externalId: '777',
+      externalId: '12',
+      internalId: '777',
       summary: 'Webhook HD',
       priority: 'low',
       status: 'pending',
@@ -40,6 +42,7 @@ describe('webhooks.handlers', () => {
       .send({
         request: {
           id: '777',
+          display_id: { value: '12', display_value: '#12' },
           subject: 'Webhook HD',
           status: { name: 'On Hold' },
           priority: { name: 'Low' },

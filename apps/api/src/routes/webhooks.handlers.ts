@@ -6,10 +6,11 @@ import {
   sdpRequestSchema,
 } from '@usd/shared-types';
 import { getServerEnv } from '../config/loadEnv.js';
-import { upsertTicket } from '../db/tables/tickets.js';
+import { upsertTicket, getTicketRecordOrUndefined } from '../db/tables/tickets.js';
 import { mapHdRequestToTicket } from '../helpdesk/mapRequestToTicket.js';
 import { mapJiraIssueToTicket } from '../jira/mapIssueToTicket.js';
 import { enqueueSqsEvent } from '../messaging/enqueueSqsEvent.js';
+import { broadcastTicketLifecycleEvent } from './ticket-broadcast.js';
 import { AppError } from '../utils/errors.js';
 import { assertValidHubSignature256 } from '../utils/jiraWebhookSignature.js';
 
@@ -58,7 +59,9 @@ export const postJiraWebhook: RequestHandler = asyncHandler(async (req, res) => 
     issue: webhookParsed.data.issue,
     orgId: env.JIRA_DEFAULT_ORG_ID,
   });
-  await upsertTicket(record);
+  const prev = await getTicketRecordOrUndefined(record.ticketId);
+  const merged = await upsertTicket(record);
+  broadcastTicketLifecycleEvent(prev, merged);
   if (env.NODE_ENV === 'development' || env.DYNAMODB_ENDPOINT !== undefined) {
     enqueueSqsEvent('jira.webhook', json);
   }
@@ -95,7 +98,9 @@ export const postHelpdeskWebhook: RequestHandler = asyncHandler(async (req, res)
     request: payload,
     orgId: env.HD_DEFAULT_ORG_ID,
   });
-  await upsertTicket(record);
+  const prev = await getTicketRecordOrUndefined(record.ticketId);
+  const merged = await upsertTicket(record);
+  broadcastTicketLifecycleEvent(prev, merged);
   if (env.NODE_ENV === 'development' || env.DYNAMODB_ENDPOINT !== undefined) {
     enqueueSqsEvent('helpdesk.webhook', req.body);
   }

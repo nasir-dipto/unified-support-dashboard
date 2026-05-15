@@ -211,4 +211,18 @@ export async function ensureAllUsdLocalDynamoTables(
     ],
     [],
   );
+
+  await ensureDynamoTableIfMissing(
+    client,
+    'support_ticket_comments',
+    [
+      { AttributeName: 'orgId', AttributeType: 'S' },
+      { AttributeName: 'ticketCommentKey', AttributeType: 'S' },
+    ],
+    [
+      { AttributeName: 'orgId', KeyType: 'HASH' },
+      { AttributeName: 'ticketCommentKey', KeyType: 'RANGE' },
+    ],
+    [],
+  );
 }

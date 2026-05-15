@@ -175,3 +175,36 @@ export async function fetchSingleRequest(requestId: string): Promise<Json> {
   }
   return {};
 }
+
+/**
+ * Minimal ticket slice needed to resolve the SDP request id for `/requests/{id}/notes`.
+ * Cloud SDP expects the **internal** request id in the path; display ids return 404.
+ */
+export type HelpdeskCommentTicketRef = {
+  internalId?: string | undefined;
+  externalId: string;
+};
+
+/**
+ * Posts a plain-text note on an SDP request using v3 `input_data` form encoding.
+ * SDP **Cloud** expects the wrapper key `request_note` (on‑prem docs use `note`; Cloud
+ * returns EXTRA_KEY_FOUND_IN_JSON for `note`). Payload: `{"request_note":{"description":"…"}}`.
+ */
+export async function postComment(ticket: HelpdeskCommentTicketRef, bodyText: string): Promise<void> {
+  const requestId = ticket.internalId ?? ticket.externalId;
+  const id = encodeURIComponent(requestId);
+  const inputDataJson = JSON.stringify({
+    request_note: {
+      description: bodyText,
+    },
+  });
+  const formBody = new URLSearchParams({ input_data: inputDataJson }).toString();
+  const res = await helpdeskFetch(`/requests/${id}/notes`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: formBody,
+  });
+  void res;
+}

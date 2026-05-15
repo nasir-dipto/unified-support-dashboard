@@ -36,6 +36,7 @@ describe('mapHdRequestToTicket', () => {
       orgId: 'org-1',
       request: {
         id: 9001,
+        display_id: { value: '12', display_value: '#12' },
         subject: 'Printer issue',
         status: { name: 'Open' },
         priority: { name: 'Medium' },
@@ -44,8 +45,9 @@ describe('mapHdRequestToTicket', () => {
       },
       nowIso: '2020-01-01T00:00:00.000Z',
     });
-    expect(rec.ticketId).toBe('hd_9001');
-    expect(rec.externalId).toBe('9001');
+    expect(rec.ticketId).toBe('hd_12');
+    expect(rec.externalId).toBe('12');
+    expect(rec.internalId).toBe('9001');
     expect(rec.source).toBe('helpdesk');
     expect(rec.assigneeId).toBe('Jane Agent');
     expect(rec.customerEmail).toBe('user@acme.test');
@@ -57,6 +59,7 @@ describe('mapHdRequestToTicket', () => {
       orgId: 'org-1',
       request: {
         id: 42,
+        display_id: { value: '42', display_value: '42' },
         subject: 'No contact',
         status: { name: 'Open' },
         priority: { name: 'Low' },
@@ -66,6 +69,7 @@ describe('mapHdRequestToTicket', () => {
       nowIso: '2020-01-01T00:00:00.000Z',
     });
     expect(rec.ticketId).toBe('hd_42');
+    expect(rec.internalId).toBe('42');
     expect(rec.customerEmail).toBeUndefined();
     expect(rec.reporterId).toBeUndefined();
     expect(rec.assigneeId).toBeUndefined();
@@ -76,6 +80,7 @@ describe('mapHdRequestToTicket', () => {
       orgId: 'org-1',
       request: {
         id: 43,
+        display_id: { value: '43', display_value: '43' },
         subject: 'Walk-in',
         status: { name: 'Open' },
         priority: { name: 'Medium' },
@@ -87,5 +92,23 @@ describe('mapHdRequestToTicket', () => {
     expect(rec.customerEmail).toBeUndefined();
     expect(rec.reporterId).toBe('Desk User');
     expect(rec.assigneeId).toBeUndefined();
+    expect(rec.internalId).toBe('43');
+  });
+
+  it('accepts display_id as a string (REST list shape)', () => {
+    const rec = mapHdRequestToTicket({
+      orgId: 'org-1',
+      request: {
+        id: '999',
+        display_id: '88',
+        subject: 'Scalar display',
+        status: { name: 'Open' },
+        priority: { name: 'Low' },
+      },
+      nowIso: '2020-01-01T00:00:00.000Z',
+    });
+    expect(rec.ticketId).toBe('hd_88');
+    expect(rec.externalId).toBe('88');
+    expect(rec.internalId).toBe('999');
   });
 });

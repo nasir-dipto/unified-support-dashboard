@@ -13,3 +13,4 @@ export * from './auth/schemas.js';
 export * from './env/server-env.js';
 export * from './helpdesk/schemas.js';
 export * from './tickets/schemas.js';
+export * from './websocket/schemas.js';

@@ -18,13 +18,15 @@ const statusClass: Record<TicketApiDto['status'], string> = {
 
 export type TicketCardProps = {
   ticket: TicketApiDto;
+  /** Opens ticket detail inspector when provided (keyboard-accessible card). */
+  onOpenDetail?: (ticket: TicketApiDto) => void;
 };
 
 /**
  * Ticket summary row with source badge (Jira blue, Helpdesk purple), priority, status, id, and summary.
  */
 export function TicketCard(props: TicketCardProps): ReactElement {
-  const { ticket } = props;
+  const { ticket, onOpenDetail } = props;
   const sourceLabel = ticket.source === 'jira' ? 'Jira' : 'Helpdesk';
   const sourceStyle =
     ticket.source === 'jira'
@@ -33,8 +35,24 @@ export function TicketCard(props: TicketCardProps): ReactElement {
 
   return (
     <article
-      className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+      className={`rounded-lg border border-slate-200 bg-white p-4 shadow-sm ${
+        onOpenDetail !== undefined ? 'cursor-pointer hover:border-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400' : ''
+      }`}
       data-testid="ticket-card"
+      role={onOpenDetail !== undefined ? 'button' : undefined}
+      tabIndex={onOpenDetail !== undefined ? 0 : undefined}
+      onClick={() => {
+        onOpenDetail?.(ticket);
+      }}
+      onKeyDown={(e) => {
+        if (onOpenDetail === undefined) {
+          return;
+        }
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onOpenDetail(ticket);
+        }
+      }}
     >
       <div className="flex flex-wrap items-center gap-2">
         <span

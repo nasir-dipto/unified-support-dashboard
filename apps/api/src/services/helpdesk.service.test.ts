@@ -2,7 +2,7 @@ import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadServerEnv, resetServerEnvForTests } from '../config/loadEnv.js';
 import { resetZohoAuthCacheForTests } from './zohoAuth.service.js';
-import { fetchRequestsPage, helpdeskFetch } from './helpdesk.service.js';
+import { fetchRequestsPage, helpdeskFetch, postComment } from './helpdesk.service.js';
 
 describe('helpdesk.service', () => {
   beforeEach(() => {
@@ -62,5 +62,50 @@ describe('helpdesk.service', () => {
     expect(out.requests).toHaveLength(1);
     expect(out.requests[0]?.subject).toBe('A');
     expect(out.hasMore).toBe(false);
+  });
+
+  it('postComment submits input_data as x-www-form-urlencoded', async () => {
+    nock('https://accounts.zoho.uk')
+      .post('/oauth/v2/token')
+      .reply(200, { access_token: 'note-tok', expires_in: 3600 });
+    nock('https://sdp.example')
+      .post('/api/v3/requests/4445000000000077/notes', (body: unknown) => {
+        let rawInput: string | null = null;
+        if (typeof body === 'string') {
+          rawInput = new URLSearchParams(body).get('input_data');
+        } else if (typeof body === 'object' && body !== null && 'input_data' in body) {
+          const v = (body as { input_data?: unknown }).input_data;
+          rawInput = typeof v === 'string' ? v : null;
+        } else if (Buffer.isBuffer(body)) {
+          rawInput = new URLSearchParams(body.toString('utf8')).get('input_data');
+        }
+        if (rawInput === null) {
+          return false;
+        }
+        const parsed = JSON.parse(rawInput) as {
+          request_note?: { description?: string };
+          note?: { description?: string };
+        };
+        const rn = parsed.request_note;
+        if (rn === undefined) {
+          return false;
+        }
+        return rn.description === 'hello-note' && !('note' in parsed);
+      })
+      .matchHeader('content-type', /application\/x-www-form-urlencoded/)
+      .reply(200, { status: 'ok' });
+    await postComment({ externalId: '77', internalId: '4445000000000077' }, 'hello-note');
+    expect(nock.isDone()).toBe(true);
+  });
+
+  it('postComment falls back to externalId when internalId is absent', async () => {
+    nock('https://accounts.zoho.uk')
+      .post('/oauth/v2/token')
+      .reply(200, { access_token: 'note-tok2', expires_in: 3600 });
+    nock('https://sdp.example')
+      .post('/api/v3/requests/88/notes')
+      .reply(200, { status: 'ok' });
+    await postComment({ externalId: '88' }, 'short-path');
+    expect(nock.isDone()).toBe(true);
   });
 });
