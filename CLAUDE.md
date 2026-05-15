@@ -31,7 +31,7 @@ A standalone SaaS web application that aggregates IT support tickets from Jira a
 - Phase 1: COMPLETE — auth (login/refresh/logout/me, RS256 JWT, org-scoped Dynamo PK/SK + GSI orgId-email; forgot/reset stubbed; web: Tailwind + React Hook Form + Zustand)
 - Phase 2: COMPLETE — Jira integration (TanStack Query for ticket server state on web)
 - Phase 3: COMPLETE — Helpdesk (ManageEngine SDP Cloud + Zoho OAuth, webhooks, reconcile)
-- Phase 4: NOT STARTED — real-time WebSocket
+- Phase 4: COMPLETE — realtime WebSocket (`WS_MODE=local` `/ws`; `gateway` stub), ticket comments DynamoDB + POST upstream comment + WS `comment_added`, cross-link route, ActivitySidebar ring buffer (50), messaging Lambda concurrency + DLQ alarms
 - Phase 5: NOT STARTED — AI triage + action suggestion
 - Phase 6: NOT STARTED — sentiment + briefings
 - Phase 7: NOT STARTED — knowledge base
@@ -96,8 +96,8 @@ A standalone SaaS web application that aggregates IT support tickets from Jira a
 - Triggers on feature/** and hotfix/** pushes and PRs to develop/main
 
 ## AWS CDK (infra/) — code complete
-- **UsdDatabaseStack** — DynamoDB tables: `support_tickets`, `support_users`, `support_roles`, `support_kb`, `support_reports`, `support_notification_rules` with GSIs per product spec
-- **UsdMessagingStack** — `jira-events-queue`, `hd-events-queue`, each with DLQ and `maxReceiveCount: 3`
+- **UsdDatabaseStack** — DynamoDB tables: `support_tickets`, `support_ticket_comments`, `support_users`, `support_roles`, `support_kb`, `support_reports`, `support_notification_rules` with GSIs per product spec
+- **UsdMessagingStack** — `jira-events-queue`, `hd-events-queue`, each with DLQ and `maxReceiveCount: 3`; webhook `NodejsFunction` consumer with reserved concurrency 10 + DLQ depth alarms
 - **UsdComputeStack** — VPC (2 AZ, 1 NAT), `usd-cluster` ECS cluster, `usd-api` ECR repo, ECS task role (DynamoDB via table grants, Secrets Manager, SQS via queue grants, Bedrock, SES, OpenSearch/Serverless-style actions)
 - **UsdCacheStack** — ElastiCache Serverless Redis (`usd-redis-serverless-dev`) in private subnets, SG allows 6379 from ECS task SG
 - Tags: `Project=usd`, `Environment=dev` on all stacks; `pnpm --filter @usd/infra synth` seeds AZ context so synth works without `ec2:DescribeAvailabilityZones`
@@ -235,7 +235,7 @@ Stories:
 - USD-3: Phase 1 — Authentication (Done)
 - USD-4: Phase 2 — Jira Integration (Done)
 - USD-5: Phase 3 — Helpdesk Integration (Done)
-- USD-6: Phase 4 — Real-Time WebSocket (In Progress)
+- USD-6: Phase 4 — Real-Time WebSocket (Done)
 - USD-7: Phase 5 — AI Triage & Action Suggestion (To Do)
 - USD-8: Phase 6 — Sentiment & Briefings (To Do)
 - USD-9: Phase 7 — Knowledge Base pgvector (To Do)
@@ -253,7 +253,7 @@ and next story to In Progress.
 - TAS-4: Phase 1 — Done
 - TAS-5: Phase 2 — Done
 - TAS-6: Phase 3 — Done
-- TAS-7: Phase 4 — In Progress
+- TAS-7: Phase 4 — Done
 - TAS-8: Phase 5 — To Do
 - TAS-9: Phase 6 — To Do
 - TAS-10: Phase 7 — To Do
@@ -269,8 +269,8 @@ and next TAS ticket to In Progress. Do same for jira-personal USD tickets.
 - SQS at-least-once delivery — nothing lost even under concurrent burst
 - upsertTicket is idempotent — duplicate webhooks safe (PutItem overwrites)
 - DLQ catches failed events after 3 retries
-- Lambda concurrency limit: 10 (add to UsdMessagingStack in Phase 4)
-- DLQ CloudWatch alarm: alert when depth > 0 (add to UsdMessagingStack in Phase 4)
+- Lambda concurrency limit: 10 (`UsdMessagingStack` webhook worker)
+- DLQ CloudWatch alarms when approximate depth > 0 (Jira + Helpdesk DLQs)
 
 ### Knowledge Base search
 - Use pgvector on Amazon RDS PostgreSQL (NOT OpenSearch Serverless)
@@ -288,8 +288,9 @@ and next TAS ticket to In Progress. Do same for jira-personal USD tickets.
   - Full historical sync is a separate one-time script (built in Phase 9)
 - All Jira projects synced (6-7 expected in corporate)
 
-### Current test count (after Phase 3)
-- 64 tests passing (24 API test files, 6 web test files)
+### Current test count (after Phase 4)
+- 89 tests passing in CI (`pnpm test` with `DYNAMODB_ENDPOINT` for API integration suites)
+- 77 tests when integration files skip (no DynamoDB endpoint in the process env)
 
 ## Local dev scripts (run from project root)
 - docker compose up -d — start DynamoDB Local, Redis, Mailhog
@@ -300,26 +301,37 @@ and next TAS ticket to In Progress. Do same for jira-personal USD tickets.
 - pnpm --filter @usd/api sync:hd — sync HD tickets to DynamoDB Local
 - export DYNAMODB_ENDPOINT=http://localhost:8000 && pnpm --filter @usd/api test — run integration tests
 
-## Phase 4 — Real-Time WebSocket + DetailModal + Cross-linking
+## Phase 4 — Real-Time WebSocket + DetailModal + Cross-linking (COMPLETE)
 ### Goal
-Make the dashboard live — tickets update in real time. Technicit detail and post comments.
+Make the dashboard live — tickets update in real time. Ticket detail, comments thread, and cross-linking between Jira and Helpdesk tickets.
 
 ### WebSocket strategy
 - Local dev: ws package on Express server at /ws path (WS_MODE=local)
-- Production: API Gateway WebSocket — stub only in Phase 4 (WS_MODE=gateway)
+- Production: API Gateway WebSocket — stub only in Phase 4 (WS_MODE=gateway logs `API Gateway WebSocket not configured`, no fan-out)
 - Message format: { type, ticketId, orgId, payload }
 - Types: ticket_created, ticket_updated, comment_added, ticket_resolved
 
-### What to build (backend)
-- apps/api/src/services/websocket.service.ts — connection manager, broadcast events
-- apps/api/src/db/tables/comments.ts — store/retrieve comments
-- apps/api/src/routes/tickets.routes.ts — add GET /api/tickets/:id/comments, POST /api/tickets/:id/comments, POST /api/tickets/:id/link
-- Update webhooks.handlers.ts — broadcast WS event after upsertTicket
-- infra/lib/usd-messaging-stack.ts — add Lambda concurrency:10 + DLQ CloudWatch alarm
+### Delivered (backend)
+- apps/api/src/services/websocket.service.ts — local org fan-out + gateway stub logging
+- apps/api/src/db/tables/comments.ts — store/retrieve comments (`support_ticket_comments`)
+- apps/api/src/routes/tickets.routes.ts — GET/POST `/api/tickets/:id/comments`, POST `/api/tickets/:id/link`
+- apps/api/webhooks + SQS Lambda paths broadcast lifecycle events via ticket-broadcast
+- infra: `support_ticket_comments` table; messaging stack webhook Lambda reserved concurrency 10 + DLQ alarms
 
-### What to build (frontend)
-- apps/web/src/hooks/useWebSocket.ts — WS connection manager with auto-reconnect
-- apps/web/src/components/tickets/DetailModal.tsx — ticket detail, comments, post comment button
-- appsnts/tickets/ActivitySidebar.tsx — live feed, urgent alerts section
-- apps/web/src/store/notifications.store.ts — Zustand store for WS events
-- Update TicketsView — add ActivitySidebar, open DetailModal on card click
+### Delivered (frontend)
+- apps/web/src/hooks/useWebSocket.ts — WS connection with JWT query param + reconnect
+- apps/web/src/components/tickets/DetailModal.tsx — ticket detail, comments, post comment, cross-link
+- apps/web/src/components/tickets/ActivitySidebar.tsx — live feed (last 50 client-side), urgent section for critical priority
+- apps/web/src/store/notifications.store.ts — Zustand ring buffer for WS events (not server state)
+- TicketsView — ActivitySidebar + DetailModal on card click
+
+## Phase 4 — verification checklist (must pass before PR)
+- [ ] Jira webhook → DynamoDB update → WebSocket broadcast → UI update
+- [ ] HD webhook → DynamoDB update → WebSocket broadcast → UI update
+- [ ] DetailModal opens on ticket card click
+- [ ] Post comment saves to DynamoDB and appears in comment thread
+- [ ] Post comment syncs back to Jira (jira.service.postComment)
+- [ ] Post comment syncs back to HD (helpdesk.service.postComment)
+- [ ] Cross-link: link jira_SCRUM-6 to an hd_ ticket, both show linked badge
+- [ ] ActivitySidebar shows live events as webhooks fire
+- [ ] All 74+ tests passing with DYNAMODB_ENDPOINT set
