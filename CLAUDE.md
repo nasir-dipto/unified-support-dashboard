@@ -225,3 +225,22 @@ Helpdesk (ManageEngine ServiceDesk Plus Cloud) via Zoho OAuth; all HD REST calls
 ### Tests
 - nock: `zohoAuth.service.test.ts`, `helpdesk.service.test.ts`; unit: `mapRequestToTicket.test.ts`, `webhooks.handlers.test.ts`, `sqsConsumer` Helpdesk path
 - Integration: `tickets.integration.test.ts` (Helpdesk webhook + list when `DYNAMODB_ENDPOINT` is set)
+
+## Jira project tracking
+Project: USD (https://dknasir007.atlassian.net/jira/software/projects/USD)
+Epic: USD-1 — USD Full Build Phases 0-9 (In Progress)
+
+Stories:
+- USD-2: Phase 0 — Foundation (Done)
+- USD-3: Phase 1 — Authentication (Done)
+- USD-4: Phase 2 — Jira Integration (Done)
+- USD-5: Phase 3 — Helpdesk Integration (Done)
+- USD-6: Phase 4 — Real-Time WebSocket (In Progress)
+- USD-7: Phase 5 — AI Triage & Action Suggestion (To Do)
+- USD-8: Phase 6 — Sentiment & Briefings (To Do)
+- USD-9: Phase 7 — Knowledge Base pgvector (To Do)
+- USD-10: Phase 8 — Reports & Notifications (To Do)
+- USD-11: Phase 9 — Admin Polish & Hardening (To Do)
+
+At end of each phase: use Jira MCP to transition current story to Done
+and next story to In Progress.
