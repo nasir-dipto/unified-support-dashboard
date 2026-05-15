@@ -244,3 +244,21 @@ Stories:
 
 At end of each phase: use Jira MCP to transition current story to Done
 and next story to In Progress.
+
+## Corporate Jira tracking — ACTIVE
+- URL: https://trialinteractive.atlassian.net/jira/software/projects/TAS
+- Account used: syahmed@transperfect.com
+- Epic: TAS-2 — USD Full Build (In Progress)
+- TAS-3: Phase 0 — Done
+- TAS-4: Phase 1 — Done
+- TAS-5: Phase 2 — Done
+- TAS-6: Phase 3 — Done
+- TAS-7: Phase 4 — In Progress
+- TAS-8: Phase 5 — To Do
+- TAS-9: Phase 6 — To Do
+- TAS-10: Phase 7 — To Do
+- TAS-11: Phase 8 — To Do
+- TAS-12: Phase 9 — To Do
+
+At end of each phase: use jira-corporate MCP to transition TAS ticket to Done
+and next TAS ticket to In Progress. Do same for jira-personal USD tickets.
