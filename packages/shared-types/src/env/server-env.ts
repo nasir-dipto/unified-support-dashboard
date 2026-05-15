@@ -36,6 +36,12 @@ export const serverEnvSchema = z.object({
   HD_DEFAULT_ORG_ID: z.string().min(1).default('demo-org'),
   /** Shared secret matched against `x-sdp-webhook-secret` on POST /api/webhooks/helpdesk. */
   HD_WEBHOOK_SECRET: z.string().min(1).optional(),
+  /** Local Express attaches `ws`; production uses API Gateway WebSocket later. */
+  WS_MODE: z.enum(['local', 'gateway']).default('local'),
+  /** When `true`, skips inline JWT env requirements for queue worker Lambdas. */
+  LAMBDA_WEBHOOK_WORKER: z.enum(['true', 'false']).optional(),
+  /** DynamoDB table for USD-authored ticket comments (`support_ticket_comments`). */
+  SUPPORT_TICKET_COMMENTS_TABLE: z.string().min(1).default('support_ticket_comments'),
   /** PEM-encoded RS256 private key (local dev via .env.local). */
   JWT_PRIVATE_KEY: z.string().min(1).optional(),
   /** PEM-encoded RS256 public key (local dev via .env.local). */
@@ -63,7 +69,7 @@ export const serverEnvRefinedSchema = serverEnvSchema.superRefine((val, ctx) => 
     val.JWT_PUBLIC_KEY !== undefined &&
     val.JWT_PUBLIC_KEY.length > 0;
   const hasArn = val.JWT_KEY_SECRET_ARN !== undefined && val.JWT_KEY_SECRET_ARN.length > 0;
-  if (val.NODE_ENV === 'test') {
+  if (val.NODE_ENV === 'test' || val.LAMBDA_WEBHOOK_WORKER === 'true') {
     return;
   }
   if (!hasInlineKeys && !hasArn) {

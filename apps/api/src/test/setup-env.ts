@@ -29,6 +29,9 @@ if (process.env.JIRA_DEFAULT_ORG_ID === undefined) {
 if (process.env.HD_WEBHOOK_SECRET === undefined) {
   process.env.HD_WEBHOOK_SECRET = 'test-hd-webhook-secret';
 }
+if (process.env.SUPPORT_TICKET_COMMENTS_TABLE === undefined) {
+  process.env.SUPPORT_TICKET_COMMENTS_TABLE = 'support_ticket_comments_test';
+}
 if (process.env.HD_DEFAULT_ORG_ID === undefined) {
   process.env.HD_DEFAULT_ORG_ID = 'org-int';
 }

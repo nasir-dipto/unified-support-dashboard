@@ -31,7 +31,7 @@ A standalone SaaS web application that aggregates IT support tickets from Jira a
 - Phase 1: COMPLETE — auth (login/refresh/logout/me, RS256 JWT, org-scoped Dynamo PK/SK + GSI orgId-email; forgot/reset stubbed; web: Tailwind + React Hook Form + Zustand)
 - Phase 2: COMPLETE — Jira integration (TanStack Query for ticket server state on web)
 - Phase 3: COMPLETE — Helpdesk (ManageEngine SDP Cloud + Zoho OAuth, webhooks, reconcile)
-- Phase 4: NOT STARTED — real-time WebSocket
+- Phase 4: COMPLETE — realtime WebSocket (`WS_MODE=local` `/ws`; `gateway` stub), ticket comments DynamoDB + POST upstream comment + WS `comment_added`, cross-link route, ActivitySidebar ring buffer (50), messaging Lambda concurrency + DLQ alarms
 - Phase 5: NOT STARTED — AI triage + action suggestion
 - Phase 6: NOT STARTED — sentiment + briefings
 - Phase 7: NOT STARTED — knowledge base
@@ -96,8 +96,8 @@ A standalone SaaS web application that aggregates IT support tickets from Jira a
 - Triggers on feature/** and hotfix/** pushes and PRs to develop/main
 
 ## AWS CDK (infra/) — code complete
-- **UsdDatabaseStack** — DynamoDB tables: `support_tickets`, `support_users`, `support_roles`, `support_kb`, `support_reports`, `support_notification_rules` with GSIs per product spec
-- **UsdMessagingStack** — `jira-events-queue`, `hd-events-queue`, each with DLQ and `maxReceiveCount: 3`
+- **UsdDatabaseStack** — DynamoDB tables: `support_tickets`, `support_ticket_comments`, `support_users`, `support_roles`, `support_kb`, `support_reports`, `support_notification_rules` with GSIs per product spec
+- **UsdMessagingStack** — `jira-events-queue`, `hd-events-queue`, each with DLQ and `maxReceiveCount: 3`; webhook `NodejsFunction` consumer with reserved concurrency 10 + DLQ depth alarms
 - **UsdComputeStack** — VPC (2 AZ, 1 NAT), `usd-cluster` ECS cluster, `usd-api` ECR repo, ECS task role (DynamoDB via table grants, Secrets Manager, SQS via queue grants, Bedrock, SES, OpenSearch/Serverless-style actions)
 - **UsdCacheStack** — ElastiCache Serverless Redis (`usd-redis-serverless-dev`) in private subnets, SG allows 6379 from ECS task SG
 - Tags: `Project=usd`, `Environment=dev` on all stacks; `pnpm --filter @usd/infra synth` seeds AZ context so synth works without `ec2:DescribeAvailabilityZones`
@@ -225,3 +225,150 @@ Helpdesk (ManageEngine ServiceDesk Plus Cloud) via Zoho OAuth; all HD REST calls
 ### Tests
 - nock: `zohoAuth.service.test.ts`, `helpdesk.service.test.ts`; unit: `mapRequestToTicket.test.ts`, `webhooks.handlers.test.ts`, `sqsConsumer` Helpdesk path
 - Integration: `tickets.integration.test.ts` (Helpdesk webhook + list when `DYNAMODB_ENDPOINT` is set)
+
+## Jira project tracking
+Project: USD (https://dknasir007.atlassian.net/jira/software/projects/USD)
+Epic: USD-1 — USD Full Build Phases 0-9 (In Progress)
+
+Stories:
+- USD-2: Phase 0 — Foundation (Done)
+- USD-3: Phase 1 — Authentication (Done)
+- USD-4: Phase 2 — Jira Integration (Done)
+- USD-5: Phase 3 — Helpdesk Integration (Done)
+- USD-6: Phase 4 — Real-Time WebSocket (Done)
+- USD-7: Phase 5 — AI Triage & Action Suggestion (To Do)
+- USD-8: Phase 6 — Sentiment & Briefings (To Do)
+- USD-9: Phase 7 — Knowledge Base pgvector (To Do)
+- USD-10: Phase 8 — Reports & Notifications (To Do)
+- USD-11: Phase 9 — Admin Polish & Hardening (To Do)
+
+At end of each phase: use Jira MCP to transition current story to Done
+and next story to In Progress.
+
+## Corporate Jira tracking — ACTIVE
+- URL: https://trialinteractive.atlassian.net/jira/software/projects/TAS
+- Account used: syahmed@transperfect.com
+- Epic: TAS-2 — USD Full Build (In Progress)
+- TAS-3: Phase 0 — Done
+- TAS-4: Phase 1 — Done
+- TAS-5: Phase 2 — Done
+- TAS-6: Phase 3 — Done
+- TAS-7: Phase 4 — Done
+- TAS-8: Phase 5 — To Do
+- TAS-9: Phase 6 — To Do
+- TAS-10: Phase 7 — To Do
+- TAS-11: Phase 8 — To Do
+- TAS-12: Phase 9 — To Do
+
+At end of each phase: use jira-corporate MCP to transition TAS ticket to Done
+and next TAS ticket to In Progress. Do same for jira-personal USD tickets.
+
+## Architecture decisions (confirmed before Phase 4)
+
+### Webhook reliability
+- SQS at-least-once delivery — nothing lost even under concurrent burst
+- upsertTicket is idempotent — duplicate webhooks safe (PutItem overwrites)
+- DLQ catches failed events after 3 retries
+- Lambda concurrency limit: 10 (`UsdMessagingStack` webhook worker)
+- DLQ CloudWatch alarms when approximate depth > 0 (Jira + Helpdesk DLQs)
+
+### Knowledge Base search
+- Use pgvector on Amazon RDS PostgreSQL (NOT OpenSearch Serverless)
+- Cost: ~$15-25/month vs ~$50/month for OpenSearch
+- KB articles stored as text + vector embeddings in same PostgreSQL table
+- Add RDS instance to CDK in Phase 7
+
+### Ticket data strategy
+- NO TTL on tickets — keep all history for KB, sentiment, reports
+- All tickets kept indefinitely in DynamoDB
+- metadata: Record<string, unknown> field stores unknown/custom Jira+HD fields
+- Incremental sync: only tickets updated in last 15 minutes (not full sync)
+  - Jira: jql atedDate >= -15m ORDER BY updated DESC"
+  - HD: filter by updated_time in last 15 minutes
+  - Full historical sync is a separate one-time script (built in Phase 9)
+- All Jira projects synced (6-7 expected in corporate)
+
+### Current test count (after Phase 4)
+- 89 tests passing in CI (`pnpm test` with `DYNAMODB_ENDPOINT` for API integration suites)
+- 77 tests when integration files skip (no DynamoDB endpoint in the process env)
+
+## Local dev scripts (run from project root)
+- docker compose up -d — start DynamoDB Local, Redis, Mailhog
+- pnpm dev — start frontend (:5173) + backend (:3001)
+- pnpm --filter @usd/api db:setup — create DynamoDB Local tables
+- pnpm --filter @usd/api db:seed — seed admin user (admin@usd.dev / Admin123!)
+- pnpm --filter @usd/api sync:jira — sync Jira tickets to DynamoDB Local
+- pnpm --filter @usd/api sync:hd — sync HD tickets to DynamoDB Local
+- export DYNAMODB_ENDPOINT=http://localhost:8000 && pnpm --filter @usd/api test — run integration tests
+
+## Phase 4 — Real-Time WebSocket + DetailModal + Cross-linking (COMPLETE)
+### Goal
+Make the dashboard live — tickets update in real time. Ticket detail, comments thread, and cross-linking between Jira and Helpdesk tickets.
+
+### WebSocket strategy
+- Local dev: ws package on Express server at /ws path (WS_MODE=local)
+- Production: API Gateway WebSocket — stub only in Phase 4 (WS_MODE=gateway logs `API Gateway WebSocket not configured`, no fan-out)
+- Message format: { type, ticketId, orgId, payload }
+- Types: ticket_created, ticket_updated, comment_added, ticket_resolved
+
+### Delivered (backend)
+- apps/api/src/services/websocket.service.ts — local org fan-out + gateway stub logging
+- apps/api/src/db/tables/comments.ts — store/retrieve comments (`support_ticket_comments`)
+- apps/api/src/routes/tickets.routes.ts — GET/POST `/api/tickets/:id/comments`, POST `/api/tickets/:id/link`
+- apps/api/webhooks + SQS Lambda paths broadcast lifecycle events via ticket-broadcast
+- infra: `support_ticket_comments` table; messaging stack webhook Lambda reserved concurrency 10 + DLQ alarms
+
+### Delivered (frontend)
+- apps/web/src/hooks/useWebSocket.ts — WS connection with JWT query param + reconnect
+- apps/web/src/components/tickets/DetailModal.tsx — ticket detail, comments, post comment, cross-link
+- apps/web/src/components/tickets/ActivitySidebar.tsx — live feed (last 50 client-side), urgent section for critical priority
+- apps/web/src/store/notifications.store.ts — Zustand ring buffer for WS events (not server state)
+- TicketsView — ActivitySidebar + DetailModal on card click
+
+## Phase 4 — verification checklist (must pass before PR)
+- [ ] Jira webhook → DynamoDB update → WebSocket broadcast → UI update
+- [ ] HD webhook → DynamoDB update → WebSocket broadcast → UI update
+- [ ] DetailModal opens on ticket card click
+- [ ] Post comment saves to DynamoDB and appears in comment thread
+- [ ] Post comment syncs back to Jira (jira.service.postComment)
+- [ ] Post comment syncs back to HD (helpdesk.service.postComment)
+- [ ] Cross-link: link jira_SCRUM-6 to an hd_ ticket, both show linked badge
+- [ ] ActivitySidebar shows live events as webhooks fire
+- [ ] All 74+ tests passing with DYNAMODB_ENDPOINT set
+
+## Permission model (confirmed before Phase 4 close)
+
+### Roles
+- technician — default role for support staff
+- manager — elevated access, manages the team
+- super_admin — supreme access, manages the system
+
+### Technician access rules
+- Default "My Tickets" view: only tickets where assigneeId = their userId
+- "All Tickets" tab: can view all tickets (read-only for unassigned)
+- Own tickets (assigneeId = their userId): full access — comment, status change, cross-link, save to KB
+- Other tickets: read-only — no comment, no status change, no cross-link
+- Activity sidebar: shows events for their own tickets by default; can switch to all
+
+### Manager access rules
+- Sees all tickets by default
+- Full admin-like access to ALL tickets (comment, status, cross-link, KB)
+- Access to sentiment analysis, reports, team view, AI insights
+- Cannot manage users or configure integrations
+
+### Super Admin access rules
+- Everything Manager can do
+- User management (assign/revoke roles)tion configuration (Jira, HD, webhooks)
+- Notification rules configuration
+- Report builder
+- Delete tickets and KB articles
+- Full audit trail access
+
+### Implementation notes
+- Backend: requireRole middleware already exists — extend to support ownership check
+- Add new middleware: requireTicketAccess(action) — checks role + ownership
+- Frontend: hide action buttons (Post Comment, Change Status etc) based on role + ownership
+- API: POST /api/tickets/:id/comments — reject if technician and not assignee
+- API: PUT /api/tickets/:id/status — reject if technician and not assignee
+- Implement in Phase 9 (admin + hardening phase)
+- For now: manager and super_admin have full access, technician has full access (ownership check deferred to Phase 9)

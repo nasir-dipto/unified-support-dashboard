@@ -29,11 +29,54 @@ export const sdpNamedRefSchema = z
   .passthrough();
 
 /**
- * Minimal ServiceDesk Plus / SDP On-Demand "request" record for ingestion.
+ * SDP display id: APIs may return `{ value, display_value }` or a plain string/number.
  */
+/**
+ * Coerces SDP `display_id` fragments that are plain scalars to string.
+ * Objects and arrays are rejected so we never stringify arbitrary JSON.
+ */
+function sdpDisplayIdPart(raw: unknown): string | undefined {
+  if (typeof raw === 'string') {
+    return raw;
+  }
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    return String(raw);
+  }
+  return undefined;
+}
+
+export const sdpDisplayIdSchema = z.preprocess((raw: unknown) => {
+  if (typeof raw === 'string' || typeof raw === 'number') {
+    const v = sdpDisplayIdPart(raw);
+    if (v !== undefined) {
+      return { value: v, display_value: v };
+    }
+    return raw;
+  }
+  if (raw !== null && typeof raw === 'object' && !Array.isArray(raw)) {
+    const o = raw as Record<string, unknown>;
+    const valueRaw = o.value;
+    const displayRaw = o.display_value;
+    const valueStr = sdpDisplayIdPart(valueRaw);
+    if (valueStr !== undefined) {
+      const displayStr = sdpDisplayIdPart(displayRaw) ?? valueStr;
+      return { value: valueStr, display_value: displayStr };
+    }
+    const onlyDisplay = sdpDisplayIdPart(displayRaw);
+    if (onlyDisplay !== undefined) {
+      return { value: onlyDisplay, display_value: onlyDisplay };
+    }
+  }
+  return raw;
+}, z.object({
+  value: z.union([z.string(), z.number()]).transform((v) => String(v)),
+  display_value: z.union([z.string(), z.number()]).transform((v) => String(v)),
+}));
+
 export const sdpRequestSchema = z
   .object({
     id: z.union([z.string(), z.number()]).transform((v) => String(v)),
+    display_id: sdpDisplayIdSchema,
     subject: z.string().nullable().optional(),
     description: z.union([z.string(), z.record(z.unknown()), z.null()]).optional(),
     status: sdpNamedRefSchema.nullable().optional(),

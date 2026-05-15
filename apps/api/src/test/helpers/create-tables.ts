@@ -10,6 +10,7 @@ export async function ensureSupportTablesExist(
   usersTable: string,
   rolesTable: string,
   ticketsTable?: string,
+  commentsTable?: string,
 ): Promise<void> {
   await ensureDynamoTableIfMissing(
     client,
@@ -87,6 +88,22 @@ export async function ensureSupportTablesExist(
           Projection: { ProjectionType: 'ALL' },
         },
       ],
+    );
+  }
+
+  if (commentsTable !== undefined) {
+    await ensureDynamoTableIfMissing(
+      client,
+      commentsTable,
+      [
+        { AttributeName: 'orgId', AttributeType: 'S' },
+        { AttributeName: 'ticketCommentKey', AttributeType: 'S' },
+      ],
+      [
+        { AttributeName: 'orgId', KeyType: 'HASH' },
+        { AttributeName: 'ticketCommentKey', KeyType: 'RANGE' },
+      ],
+      [],
     );
   }
 }

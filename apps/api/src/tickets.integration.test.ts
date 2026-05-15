@@ -5,6 +5,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import {
   loginResponseSchema,
+  ticketCommentsListResponseSchema,
   ticketDetailResponseSchema,
   ticketsListResponseSchema,
 } from '@usd/shared-types';
@@ -32,6 +33,7 @@ ddbDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
       env.SUPPORT_USERS_TABLE,
       env.SUPPORT_ROLES_TABLE,
       env.SUPPORT_TICKETS_TABLE,
+      env.SUPPORT_TICKET_COMMENTS_TABLE,
     );
     const doc = DynamoDBDocumentClient.from(client, {
       marshallOptions: { removeUndefinedValues: true },
@@ -151,7 +153,8 @@ ddbDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
       .set('x-sdp-webhook-secret', env.HD_WEBHOOK_SECRET ?? '')
       .send({
         request: {
-          id: '501',
+          id: '4445000000190501',
+          display_id: { value: '501', display_value: 'REQ-501' },
           subject: 'HD integration ticket',
           status: { name: 'On Hold' },
           priority: { name: 'High' },
@@ -178,6 +181,7 @@ ddbDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
         expect.objectContaining({
           ticketId: 'hd_501',
           externalId: '501',
+          internalId: '4445000000190501',
           source: 'helpdesk',
           summary: 'HD integration ticket',
           status: 'pending',
@@ -194,5 +198,22 @@ ddbDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
       .set('x-sdp-webhook-secret', 'nope')
       .send({ request: { id: '9', subject: 'x' } });
     expect(res.status).toBe(401);
+  });
+
+  it('GET /api/tickets/:id/comments returns an empty thread', async () => {
+    const app = createApp();
+    const login = await request(app).post('/api/auth/login').send({
+      orgId: 'org-int',
+      email: 'tickets-int@example.com',
+      password: 'secret1234',
+    });
+    const tokens = loginResponseSchema.parse(login.body as unknown);
+    const res = await request(app)
+      .get('/api/tickets/jira_SUP-99/comments')
+      .set('Authorization', `Bearer ${tokens.accessToken}`);
+    expect(res.status).toBe(200);
+    const body = ticketCommentsListResponseSchema.parse(res.body);
+    expect(body.data).toEqual([]);
+    expect(body.total).toBe(0);
   });
 });

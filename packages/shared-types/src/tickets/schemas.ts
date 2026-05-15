@@ -25,6 +25,8 @@ export const supportTicketRecordSchema = z.object({
   orgId: z.string().min(1),
   source: ticketSourceSchema,
   externalId: z.string().min(1),
+  /** ManageEngine SDP internal request id (required for REST paths like `/requests/{id}/notes`). */
+  internalId: z.string().min(1).optional(),
   summary: z.string(),
   description: z.string().optional(),
   priority: ticketPrioritySchema,
@@ -33,6 +35,8 @@ export const supportTicketRecordSchema = z.object({
   reporterId: z.string().optional(),
   /** Requester email from Helpdesk (`request.requester.email_id`). */
   customerEmail: z.string().min(1).optional(),
+  /** Cross-system link: paired Helpdesk ↔ Jira ticket id in same org (`hd_*` / `jira_*`). */
+  linkedTicketId: z.string().min(1).optional(),
   createdAt: z.string().min(1),
   updatedAt: z.string().min(1),
 });
@@ -47,6 +51,7 @@ export const ticketApiDtoSchema = supportTicketRecordSchema.pick({
   orgId: true,
   source: true,
   externalId: true,
+  internalId: true,
   summary: true,
   description: true,
   priority: true,
@@ -54,6 +59,7 @@ export const ticketApiDtoSchema = supportTicketRecordSchema.pick({
   assigneeId: true,
   reporterId: true,
   customerEmail: true,
+  linkedTicketId: true,
   createdAt: true,
   updatedAt: true,
 });
@@ -132,3 +138,60 @@ export const jiraWebhookBodySchema = z
   .passthrough();
 
 export type JiraWebhookBody = z.infer<typeof jiraWebhookBodySchema>;
+
+/** Stored USD comment on a ticket (`support_ticket_comments`). */
+export const supportTicketCommentRecordSchema = z.object({
+  orgId: z.string().min(1),
+  /** Sort key: `${ticketId}#${commentUlid}` */
+  ticketCommentKey: z.string().min(1),
+  ticketId: z.string().min(1),
+  commentId: z.string().min(1),
+  body: z.string(),
+  authorUserId: z.string().min(1).optional(),
+  authorEmail: z.string().min(1).optional(),
+  createdAt: z.string().min(1),
+});
+
+export type SupportTicketCommentRecord = z.infer<typeof supportTicketCommentRecordSchema>;
+
+/** Comment returned by GET /api/tickets/:id/comments */
+export const ticketCommentApiDtoSchema = supportTicketCommentRecordSchema.omit({
+  orgId: true,
+  ticketCommentKey: true,
+});
+
+export type TicketCommentApiDto = z.infer<typeof ticketCommentApiDtoSchema>;
+
+export const ticketCommentsListResponseSchema = z.object({
+  data: z.array(ticketCommentApiDtoSchema),
+  total: z.number().int().nonnegative(),
+});
+
+export type TicketCommentsListResponse = z.infer<typeof ticketCommentsListResponseSchema>;
+
+export const postTicketCommentBodySchema = z.object({
+  body: z.string().min(1).max(16000),
+});
+
+export type PostTicketCommentBody = z.infer<typeof postTicketCommentBodySchema>;
+
+export const postTicketCommentResponseSchema = z.object({
+  data: ticketCommentApiDtoSchema,
+});
+
+export type PostTicketCommentResponse = z.infer<typeof postTicketCommentResponseSchema>;
+
+export const ticketCrossLinkBodySchema = z.object({
+  linkedTicketId: z.string().min(1),
+});
+
+export type TicketCrossLinkBody = z.infer<typeof ticketCrossLinkBodySchema>;
+
+export const ticketCrossLinkResponseSchema = z.object({
+  data: z.object({
+    ticket: ticketApiDtoSchema,
+    linkedTicket: ticketApiDtoSchema,
+  }),
+});
+
+export type TicketCrossLinkResponse = z.infer<typeof ticketCrossLinkResponseSchema>;

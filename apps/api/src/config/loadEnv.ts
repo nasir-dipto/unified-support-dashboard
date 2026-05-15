@@ -37,6 +37,9 @@ export function loadServerEnv(): ParsedEnv {
     HD_REFRESH_TOKEN: process.env.HD_REFRESH_TOKEN,
     HD_DEFAULT_ORG_ID: process.env.HD_DEFAULT_ORG_ID,
     HD_WEBHOOK_SECRET: process.env.HD_WEBHOOK_SECRET,
+    WS_MODE: process.env.WS_MODE,
+    SUPPORT_TICKET_COMMENTS_TABLE: process.env.SUPPORT_TICKET_COMMENTS_TABLE,
+    LAMBDA_WEBHOOK_WORKER: process.env.LAMBDA_WEBHOOK_WORKER,
   };
   const parsed = serverEnvRefinedSchema.safeParse(raw);
   if (!parsed.success) {

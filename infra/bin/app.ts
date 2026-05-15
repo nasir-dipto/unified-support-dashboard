@@ -39,7 +39,10 @@ const env: cdk.Environment = { account, region };
 const database = new UsdDatabaseStack(app, 'UsdDatabase', { env });
 applyUsdTags(database);
 
-const messaging = new UsdMessagingStack(app, 'UsdMessaging', { env });
+const messaging = new UsdMessagingStack(app, 'UsdMessaging', {
+  env,
+  ticketsTable: database.supportTicketsTable,
+});
 applyUsdTags(messaging);
 
 const compute = new UsdComputeStack(app, 'UsdCompute', {

@@ -1,15 +1,18 @@
-import { config as loadEnvFile } from 'dotenv';
+import http from 'node:http';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { config as loadEnvFile } from 'dotenv';
+import { WebSocketServer } from 'ws';
 import { createApp } from './app.js';
 import { ensureDevJwtKeys } from './config/ensureDevJwtKeys.js';
 import { getServerEnv, loadServerEnv } from './config/loadEnv.js';
+import { registerLocalWsClient } from './services/websocket.service.js';
+import { verifyAccessToken } from './utils/jwt.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /**
  * Loads `.env.local` from the monorepo root and the API package (missing files are ignored).
- * Package-level values override root when the same key is defined in both files.
  */
 function loadLocalDotenv(): void {
   const apiRoot = join(__dirname, '..');
@@ -24,6 +27,40 @@ loadServerEnv();
 const app = createApp();
 const env = getServerEnv();
 
-app.listen(env.PORT, () => {
+const server = http.createServer(app);
+
+if (env.WS_MODE === 'local') {
+  const wss = new WebSocketServer({ noServer: true });
+  server.on('upgrade', (request, socket, head) => {
+    const host = request.headers.host ?? '127.0.0.1';
+    let url: URL;
+    try {
+      url = new URL(request.url ?? '/', `http://${host}`);
+    } catch {
+      socket.destroy();
+      return;
+    }
+    if (url.pathname !== '/ws') {
+      socket.destroy();
+      return;
+    }
+    const token = url.searchParams.get('token');
+    if (token === null || token.length === 0) {
+      socket.destroy();
+      return;
+    }
+    void verifyAccessToken(token)
+      .then((payload) => {
+        wss.handleUpgrade(request, socket, head, (ws) => {
+          registerLocalWsClient(payload.orgId, ws);
+        });
+      })
+      .catch(() => {
+        socket.destroy();
+      });
+  });
+}
+
+server.listen(env.PORT, () => {
   console.log(`API listening on http://localhost:${String(env.PORT)}`);
 });

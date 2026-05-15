@@ -54,7 +54,8 @@ describe('sqsConsumer', () => {
       await processHelpdeskWebhookJson(
         {
           request: {
-            id: '99',
+            id: '4445000000190099',
+            display_id: { value: '99', display_value: 'REQ-99' },
             subject: 'Printer',
             priority: { name: 'Medium' },
             status: { name: 'Open' },
@@ -64,6 +65,7 @@ describe('sqsConsumer', () => {
       );
       expect(spy).toHaveBeenCalledTimes(1);
       expect(spy.mock.calls[0]?.[0]?.ticketId).toBe('hd_99');
+      expect(spy.mock.calls[0]?.[0]?.internalId).toBe('4445000000190099');
     });
 
     it('throws when request missing', async () => {

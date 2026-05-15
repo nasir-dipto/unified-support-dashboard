@@ -28,3 +28,14 @@ describe('fetchTicketsList', () => {
     expect(out.data[0]?.ticketId).toBe('jira_A-1');
   });
 });
+
+describe('fetchTicketComments', () => {
+  it('parses API response', async () => {
+    const spy = vi.spyOn(apiClient, 'get').mockResolvedValue({
+      data: { data: [], total: 0 },
+    });
+    const out = await ticketsApi.fetchTicketComments('jira_A-1');
+    expect(spy).toHaveBeenCalledWith('/api/tickets/jira_A-1/comments');
+    expect(out.total).toBe(0);
+  });
+});

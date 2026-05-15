@@ -67,12 +67,15 @@ export type MapHdRequestInput = {
 };
 
 /**
- * Builds a `support_tickets` item from an SDP request (`ticketId` = `hd_` + id).
+ * Builds a `support_tickets` item from an SDP request.
+ * `ticketId` / `externalId` use `display_id.value`; `internalId` stores SDP `id` for REST calls.
  */
 export function mapHdRequestToTicket(input: MapHdRequestInput): SupportTicketRecord {
   const req = sdpRequestSchema.parse(input.request);
   const orgId = input.orgId;
   const now = input.nowIso ?? new Date().toISOString();
+  const externalDisplayId = req.display_id.value;
+  const internalId = req.id;
   const summary = (req.subject != null && req.subject.length > 0 ? req.subject : null) ?? '(no subject)';
   const priority = ticketPrioritySchema.parse(mapHdPriorityName(req.priority?.name ?? undefined));
   const status = ticketStatusSchema.parse(mapHdStatusName(req.status?.name ?? undefined));
@@ -91,10 +94,11 @@ export function mapHdRequestToTicket(input: MapHdRequestInput): SupportTicketRec
           return name != null && typeof name === 'string' && name.length > 0 ? name : undefined;
         })();
   return {
-    ticketId: `hd_${req.id}`,
+    ticketId: `hd_${externalDisplayId}`,
     orgId,
     source: 'helpdesk',
-    externalId: req.id,
+    externalId: externalDisplayId,
+    internalId,
     summary,
     description: normalizeHdDescription(req.description),
     priority,
