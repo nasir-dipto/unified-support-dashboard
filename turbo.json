@@ -1,5 +1,16 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalPassThroughEnv": [
+    "DYNAMODB_ENDPOINT",
+    "REDIS_URL",
+    "JIRA_WEBHOOK_SECRET",
+    "HD_WEBHOOK_SECRET",
+    "JIRA_DEFAULT_ORG_ID",
+    "HD_DEFAULT_ORG_ID",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_SECRET_ACCESS_KEY",
+    "AWS_REGION"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -17,7 +28,15 @@
       "dependsOn": ["^build"]
     },
     "test": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["^build"],
+      "env": [
+        "DYNAMODB_ENDPOINT",
+        "REDIS_URL",
+        "JIRA_WEBHOOK_SECRET",
+        "HD_WEBHOOK_SECRET",
+        "JIRA_DEFAULT_ORG_ID",
+        "HD_DEFAULT_ORG_ID"
+      ]
     }
   }
 }

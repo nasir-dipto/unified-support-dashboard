@@ -10,6 +10,18 @@ import {
 } from '@aws-sdk/client-dynamodb';
 
 /**
+ * Returns true when DynamoDB reports the table already exists (concurrent create).
+ */
+function isResourceInUseException(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'name' in error &&
+    (error as { name?: string }).name === 'ResourceInUseException'
+  );
+}
+
+/**
  * Waits until a DynamoDB table reports ACTIVE status (best-effort for local dev).
  */
 async function waitForTableActive(
@@ -59,7 +71,13 @@ export async function ensureDynamoTableIfMissing(
     KeySchema: keySchema,
     ...(gsis.length > 0 ? { GlobalSecondaryIndexes: gsis } : {}),
   };
-  await client.send(new CreateTableCommand(params));
+  try {
+    await client.send(new CreateTableCommand(params));
+  } catch (error: unknown) {
+    if (!isResourceInUseException(error)) {
+      throw error;
+    }
+  }
   await waitForTableActive(client, tableName);
 }
 

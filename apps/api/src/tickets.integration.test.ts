@@ -9,14 +9,13 @@ import {
   ticketDetailResponseSchema,
   ticketsListResponseSchema,
 } from '@usd/shared-types';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, expect, it } from 'vitest';
 import { createApp } from './app.js';
 import { getServerEnv } from './config/loadEnv.js';
 import { ensureSupportTablesExist } from './test/helpers/create-tables.js';
+import { dynamoDescribe } from './test/helpers/dynamo-integration.js';
 
-const ddbDescribe = process.env.DYNAMODB_ENDPOINT ? describe : describe.skip;
-
-ddbDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
+dynamoDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
   beforeAll(async () => {
     const endpoint = process.env.DYNAMODB_ENDPOINT;
     if (endpoint === undefined) {
@@ -43,7 +42,7 @@ ddbDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
       new PutCommand({
         TableName: env.SUPPORT_USERS_TABLE,
         Item: {
-          orgId: 'org-int',
+          orgId: 'demo-org',
           userId: '01HZINTTICKUSER',
           email: 'tickets-int@example.com',
           passwordHash: hash,
@@ -55,7 +54,7 @@ ddbDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
       new PutCommand({
         TableName: env.SUPPORT_ROLES_TABLE,
         Item: {
-          orgId: 'org-int',
+          orgId: 'demo-org',
           userId: '01HZINTTICKUSER',
           role: 'viewer',
         },
@@ -80,7 +79,7 @@ ddbDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
     expect(wh.status).toBe(202);
 
     const login = await request(app).post('/api/auth/login').send({
-      orgId: 'org-int',
+      orgId: 'demo-org',
       email: 'tickets-int@example.com',
       password: 'secret1234',
     });
@@ -107,7 +106,7 @@ ddbDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
   it('GET /api/tickets/:id returns ticket', async () => {
     const app = createApp();
     const login = await request(app).post('/api/auth/login').send({
-      orgId: 'org-int',
+      orgId: 'demo-org',
       email: 'tickets-int@example.com',
       password: 'secret1234',
     });
@@ -134,7 +133,7 @@ ddbDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
   it('rejects invalid tickets cursor', async () => {
     const app = createApp();
     const login = await request(app).post('/api/auth/login').send({
-      orgId: 'org-int',
+      orgId: 'demo-org',
       email: 'tickets-int@example.com',
       password: 'secret1234',
     });
@@ -165,7 +164,7 @@ ddbDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
     expect(wh.status).toBe(202);
 
     const login = await request(app).post('/api/auth/login').send({
-      orgId: 'org-int',
+      orgId: 'demo-org',
       email: 'tickets-int@example.com',
       password: 'secret1234',
     });
@@ -203,7 +202,7 @@ ddbDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
   it('GET /api/tickets/:id/comments returns an empty thread', async () => {
     const app = createApp();
     const login = await request(app).post('/api/auth/login').send({
-      orgId: 'org-int',
+      orgId: 'demo-org',
       email: 'tickets-int@example.com',
       password: 'secret1234',
     });

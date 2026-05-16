@@ -87,6 +87,10 @@ jobs:
       AWS_REGION: us-east-1
       DYNAMODB_ENDPOINT: http://127.0.0.1:8000
       REDIS_URL: redis://127.0.0.1:6379
+      JIRA_WEBHOOK_SECRET: ci-test-secret
+      HD_WEBHOOK_SECRET: ci-test-secret
+      JIRA_DEFAULT_ORG_ID: demo-org
+      HD_DEFAULT_ORG_ID: demo-org
     steps:
       - name: Checkout
         uses: actions/checkout@v4

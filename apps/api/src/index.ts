@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { config as loadEnvFile } from 'dotenv';
 import { WebSocketServer } from 'ws';
 import { createApp } from './app.js';
+import { checkEnvWarnings } from './config/checkEnvWarnings.js';
 import { ensureDevJwtKeys } from './config/ensureDevJwtKeys.js';
 import { getServerEnv, loadServerEnv } from './config/loadEnv.js';
 import { registerLocalWsClient } from './services/websocket.service.js';
@@ -24,6 +25,7 @@ function loadLocalDotenv(): void {
 loadLocalDotenv();
 ensureDevJwtKeys();
 loadServerEnv();
+checkEnvWarnings();
 const app = createApp();
 const env = getServerEnv();
 

@@ -32,6 +32,17 @@ export function clearLocalWsClientsForTests(): void {
 }
 
 /**
+ * Returns the count of open local WebSocket clients across all orgs.
+ */
+export function getLocalWsConnectionCount(): number {
+  let total = 0;
+  for (const bucket of orgClients.values()) {
+    total += bucket.size;
+  }
+  return total;
+}
+
+/**
  * Validates and delivers a realtime event to every open socket in the org.
  * In `gateway` mode: logs once and returns without error.
  */

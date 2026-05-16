@@ -1,6 +1,9 @@
 import { generateKeyPairSync } from 'node:crypto';
 import { loadServerEnv } from '../config/loadEnv.js';
 
+// DYNAMODB_ENDPOINT / REDIS_URL must come from the parent process (CI job env or local shell).
+// Turbo `globalPassThroughEnv` forwards them into `pnpm test`; Vitest `test.env` mirrors them for workers.
+
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
 
 process.env.NODE_ENV = 'test';
@@ -24,7 +27,7 @@ if (process.env.JIRA_WEBHOOK_SECRET === undefined) {
   process.env.JIRA_WEBHOOK_SECRET = 'test-webhook-secret';
 }
 if (process.env.JIRA_DEFAULT_ORG_ID === undefined) {
-  process.env.JIRA_DEFAULT_ORG_ID = 'org-int';
+  process.env.JIRA_DEFAULT_ORG_ID = 'demo-org';
 }
 if (process.env.HD_WEBHOOK_SECRET === undefined) {
   process.env.HD_WEBHOOK_SECRET = 'test-hd-webhook-secret';
@@ -33,7 +36,7 @@ if (process.env.SUPPORT_TICKET_COMMENTS_TABLE === undefined) {
   process.env.SUPPORT_TICKET_COMMENTS_TABLE = 'support_ticket_comments_test';
 }
 if (process.env.HD_DEFAULT_ORG_ID === undefined) {
-  process.env.HD_DEFAULT_ORG_ID = 'org-int';
+  process.env.HD_DEFAULT_ORG_ID = 'demo-org';
 }
 
 loadServerEnv();

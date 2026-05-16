@@ -17,6 +17,7 @@ export function loadServerEnv(): ParsedEnv {
     PORT: process.env.PORT,
     AWS_REGION: process.env.AWS_REGION,
     DYNAMODB_ENDPOINT: process.env.DYNAMODB_ENDPOINT,
+    REDIS_URL: process.env.REDIS_URL,
     SUPPORT_USERS_TABLE: process.env.SUPPORT_USERS_TABLE,
     SUPPORT_ROLES_TABLE: process.env.SUPPORT_ROLES_TABLE,
     SUPPORT_TICKETS_TABLE: process.env.SUPPORT_TICKETS_TABLE,
