@@ -2,12 +2,21 @@ import request from 'supertest';
 import { loginResponseSchema, refreshResponseSchema } from '@usd/shared-types';
 import bcrypt from 'bcryptjs';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { beforeAll, expect, it } from 'vitest';
 import { createApp } from './app.js';
 import { getServerEnv } from './config/loadEnv.js';
+import { getDocumentClient, resetDocumentClientForTests } from './db/dynamo.client.js';
+import { setSupportRole } from './db/tables/roles.js';
+import { createUser, getUserByEmail } from './db/tables/users.js';
 import { ensureSupportTablesExist } from './test/helpers/create-tables.js';
 import { dynamoDescribe } from './test/helpers/dynamo-integration.js';
+
+const INT_TEST_ORG = 'demo-org';
+const INT_TEST_EMAIL = 'auth-int@example.com';
+const INT_TEST_PASSWORD = 'secret1234';
+
+let intTestUserId: string;
 
 dynamoDescribe('auth HTTP (DynamoDB Local)', () => {
   beforeAll(async () => {
@@ -26,55 +35,52 @@ dynamoDescribe('auth HTTP (DynamoDB Local)', () => {
       env.SUPPORT_USERS_TABLE,
       env.SUPPORT_ROLES_TABLE,
     );
-    const doc = DynamoDBDocumentClient.from(client, {
-      marshallOptions: { removeUndefinedValues: true },
-    });
-    const hash = await bcrypt.hash('secret1234', 8);
-    await doc.send(
-      new PutCommand({
-        TableName: env.SUPPORT_USERS_TABLE,
-        Item: {
-          orgId: 'demo-org',
-          userId: '01HZINTTESTUSER',
-          email: 'auth-int@example.com',
-          passwordHash: hash,
-          createdAt: new Date().toISOString(),
-        },
-      }),
-    );
-    await doc.send(
-      new PutCommand({
-        TableName: env.SUPPORT_ROLES_TABLE,
-        Item: {
-          orgId: 'demo-org',
-          userId: '01HZINTTESTUSER',
-          role: 'viewer',
-        },
-      }),
-    );
+    resetDocumentClientForTests();
+    const passwordHash = await bcrypt.hash(INT_TEST_PASSWORD, 8);
+    const existing = await getUserByEmail(INT_TEST_ORG, INT_TEST_EMAIL);
+    if (existing !== undefined) {
+      intTestUserId = existing.userId;
+      const doc = getDocumentClient();
+      await doc.send(
+        new UpdateCommand({
+          TableName: env.SUPPORT_USERS_TABLE,
+          Key: { orgId: INT_TEST_ORG, userId: existing.userId },
+          UpdateExpression: 'SET passwordHash = :p',
+          ExpressionAttributeValues: { ':p': passwordHash },
+        }),
+      );
+    } else {
+      const user = await createUser({
+        orgId: INT_TEST_ORG,
+        email: INT_TEST_EMAIL,
+        passwordHash,
+      });
+      intTestUserId = user.userId;
+    }
+    await setSupportRole(INT_TEST_ORG, intTestUserId, 'viewer');
   });
 
   it('POST /api/auth/login returns tokens', async () => {
     const res = await request(createApp())
       .post('/api/auth/login')
       .send({
-        orgId: 'demo-org',
-        email: 'auth-int@example.com',
-        password: 'secret1234',
+        orgId: INT_TEST_ORG,
+        email: INT_TEST_EMAIL,
+        password: INT_TEST_PASSWORD,
       });
     expect(res.status).toBe(200);
     const body = loginResponseSchema.parse(res.body as unknown);
     expect(body.accessToken.length).toBeGreaterThan(0);
     expect(body.refreshToken.length).toBeGreaterThan(0);
-    expect(body.user.userId).toBe('01HZINTTESTUSER');
+    expect(body.user.userId).toBe(intTestUserId);
   });
 
   it('POST /api/auth/refresh rotates tokens', async () => {
     const app = createApp();
     const login = await request(app).post('/api/auth/login').send({
-      orgId: 'org-int',
-      email: 'auth-int@example.com',
-      password: 'secret1234',
+      orgId: INT_TEST_ORG,
+      email: INT_TEST_EMAIL,
+      password: INT_TEST_PASSWORD,
     });
     const loginBody = loginResponseSchema.parse(login.body as unknown);
     const refreshToken = loginBody.refreshToken;
@@ -90,9 +96,9 @@ dynamoDescribe('auth HTTP (DynamoDB Local)', () => {
   it('POST /api/auth/logout clears refresh metadata', async () => {
     const app = createApp();
     const login = await request(app).post('/api/auth/login').send({
-      orgId: 'org-int',
-      email: 'auth-int@example.com',
-      password: 'secret1234',
+      orgId: INT_TEST_ORG,
+      email: INT_TEST_EMAIL,
+      password: INT_TEST_PASSWORD,
     });
     const loginBody = loginResponseSchema.parse(login.body as unknown);
     const accessToken = loginBody.accessToken;
@@ -105,7 +111,7 @@ dynamoDescribe('auth HTTP (DynamoDB Local)', () => {
   it('POST stub forgot-password returns ok', async () => {
     const res = await request(createApp())
       .post('/api/auth/forgot-password')
-      .send({ orgId: 'org-int', email: 'auth-int@example.com' });
+      .send({ orgId: INT_TEST_ORG, email: INT_TEST_EMAIL });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ status: 'ok' });
   });
@@ -113,7 +119,11 @@ dynamoDescribe('auth HTTP (DynamoDB Local)', () => {
   it('POST stub reset-password returns ok', async () => {
     const res = await request(createApp())
       .post('/api/auth/reset-password')
-      .send({ orgId: 'org-int', token: 'x', password: 'secret12345' });
+      .send({
+        orgId: INT_TEST_ORG,
+        token: 'x',
+        password: 'secret12345',
+      });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ status: 'ok' });
   });
