@@ -1,6 +1,9 @@
 import { generateKeyPairSync } from 'node:crypto';
 import { loadServerEnv } from '../config/loadEnv.js';
 
+// DYNAMODB_ENDPOINT / REDIS_URL must come from the parent process (CI job env or local shell).
+// Turbo `globalPassThroughEnv` forwards them into `pnpm test`; Vitest `test.env` mirrors them for workers.
+
 const { privateKey, publicKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
 
 process.env.NODE_ENV = 'test';

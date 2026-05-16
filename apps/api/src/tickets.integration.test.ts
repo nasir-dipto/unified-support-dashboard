@@ -9,14 +9,13 @@ import {
   ticketDetailResponseSchema,
   ticketsListResponseSchema,
 } from '@usd/shared-types';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, expect, it } from 'vitest';
 import { createApp } from './app.js';
 import { getServerEnv } from './config/loadEnv.js';
 import { ensureSupportTablesExist } from './test/helpers/create-tables.js';
+import { dynamoDescribe } from './test/helpers/dynamo-integration.js';
 
-const ddbDescribe = process.env.DYNAMODB_ENDPOINT ? describe : describe.skip;
-
-ddbDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
+dynamoDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
   beforeAll(async () => {
     const endpoint = process.env.DYNAMODB_ENDPOINT;
     if (endpoint === undefined) {
