@@ -161,3 +161,8 @@ Follow jira.service.ts pattern:
   - Hide if description is empty or "—"
 - Future (Phase 5+): sync full comment history from Jira/HD during reconciliation
 - Future (Phase 9): attachment proxy for inline images in DetailModal
+
+## Pre-Phase 5 improvements (in progress)
+- Fix integration tests running in CI (add DYNAMODB_ENDPOINT to ci.yml test job)
+- Add GET /api/health/detail endpoint (DynamoDB, Redis, WebSocket connections, version)
+- Add startup env var validation warnings (missing JIRA_WEBHOOK_SECRET, HD_WEBHOOK_SECRET etc)
