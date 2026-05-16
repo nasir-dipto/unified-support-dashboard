@@ -153,3 +153,11 @@ Follow jira.service.ts pattern:
 - Every Query MUST have orgId in KeyConditionExpression
 - Every GetItem result MUST verify orgId matches JWT orgId
 - Use upsertTicket for all ticket writes — never raw PutItem in routes
+
+## Pending fixes (before Phase 5)
+- DetailModal: show ticket.description as first item in conversation thread
+  - Label: "Original Request" (HD) or "Issue Description" (Jira)
+  - Show createdAt timestamp
+  - Hide if description is empty or "—"
+- Future (Phase 5+): sync full comment history from Jira/HD during reconciliation
+- Future (Phase 9): attachment proxy for inline images in DetailModal
