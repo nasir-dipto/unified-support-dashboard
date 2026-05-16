@@ -1,5 +1,8 @@
 # Unified Support Dashboard — Claude Code Context
 
+
+## Reference
+- See CLAUDE-HISTORY.md for completed phase details (Phases 0-4)
 ## What this is
 Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentiment, KB, reports.
 
