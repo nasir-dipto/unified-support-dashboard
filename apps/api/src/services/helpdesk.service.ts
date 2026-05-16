@@ -114,13 +114,28 @@ export async function helpdeskFetch(path: string, init?: RequestInit): Promise<R
 export type HelpdeskRequestListItem = Json;
 
 /**
+ * SDP v3 list fields for sync/webhook mapping (`fields_required` always includes `id`).
+ * Without this, list responses omit `description` and other nested refs.
+ */
+export const REQUEST_LIST_FIELDS_REQUIRED = [
+  'display_id',
+  'subject',
+  'description',
+  'status',
+  'priority',
+  'technician',
+  'requester',
+] as const;
+
+/**
  * Builds the SDP v3 `input_data` query value for listing requests (pagination via `list_info`).
  */
-function buildRequestsListInputData(rowCount: number, startIndex: number): string {
+export function buildRequestsListInputData(rowCount: number, startIndex: number): string {
   const payload = {
     list_info: {
       row_count: rowCount,
       start_index: startIndex,
+      fields_required: [...REQUEST_LIST_FIELDS_REQUIRED],
     },
   };
   return encodeURIComponent(JSON.stringify(payload));

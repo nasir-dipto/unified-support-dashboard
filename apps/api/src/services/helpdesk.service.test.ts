@@ -2,7 +2,13 @@ import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadServerEnv, resetServerEnvForTests } from '../config/loadEnv.js';
 import { resetZohoAuthCacheForTests } from './zohoAuth.service.js';
-import { fetchRequestsPage, helpdeskFetch, postComment } from './helpdesk.service.js';
+import {
+  buildRequestsListInputData,
+  fetchRequestsPage,
+  helpdeskFetch,
+  postComment,
+  REQUEST_LIST_FIELDS_REQUIRED,
+} from './helpdesk.service.js';
 
 describe('helpdesk.service', () => {
   beforeEach(() => {
@@ -41,26 +47,32 @@ describe('helpdesk.service', () => {
     expect(json.request.id).toBe('42');
   });
 
+  it('buildRequestsListInputData requests description and mapping fields', () => {
+    const decoded = decodeURIComponent(buildRequestsListInputData(5, 1));
+    const parsed = JSON.parse(decoded) as {
+      list_info: { fields_required: string[] };
+    };
+    expect(parsed.list_info.fields_required).toEqual([...REQUEST_LIST_FIELDS_REQUIRED]);
+    expect(parsed.list_info.fields_required).toContain('description');
+  });
+
   it('fetchRequestsPage parses requests array', async () => {
     nock('https://accounts.zoho.uk')
       .post('/oauth/v2/token')
       .reply(200, { access_token: 't2', expires_in: 3600 });
-    const expectedInput = encodeURIComponent(
-      JSON.stringify({
-        list_info: { row_count: 5, start_index: 1 },
-      }),
-    );
+    const expectedInput = buildRequestsListInputData(5, 1);
     nock('https://sdp.example')
       .get(`/api/v3/requests?input_data=${expectedInput}`)
       .matchHeader('accept', 'application/vnd.manageengine.sdp.v3+json')
       .matchHeader('authorization', 'Zoho-oauthtoken t2')
       .reply(200, {
-        requests: [{ id: '1', subject: 'A' }],
+        requests: [{ id: '1', subject: 'A', description: 'Details here' }],
         list_info: { has_more_rows: false },
       });
     const out = await fetchRequestsPage({ rowCount: 5, startIndex: 1 });
     expect(out.requests).toHaveLength(1);
     expect(out.requests[0]?.subject).toBe('A');
+    expect(out.requests[0]?.description).toBe('Details here');
     expect(out.hasMore).toBe(false);
   });
 

@@ -40,21 +40,76 @@ export function mapJiraStatusName(name: string | undefined): TicketStatus {
   return 'open';
 }
 
+/** Prefix of serialized Jira Cloud ADF description JSON. */
+const ADF_DOC_JSON_PREFIX = '{"type":"doc"';
+
 /**
- * Normalizes Jira description (string or Atlassian Document Format) to plain text / JSON string.
+ * Returns true when `value` is an Atlassian Document Format root node.
  */
-export function normalizeJiraDescription(raw: unknown): string | undefined {
+function isAdfDocument(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && (value as { type?: unknown }).type === 'doc';
+}
+
+/**
+ * Recursively collects `text` fields from ADF `content` trees into plain text.
+ */
+export function adfToPlainText(node: unknown): string {
+  const parts: string[] = [];
+
+  function walk(n: unknown): void {
+    if (n === undefined || n === null) {
+      return;
+    }
+    if (typeof n !== 'object') {
+      return;
+    }
+    const o = n as Record<string, unknown>;
+    if (o.type === 'text' && typeof o.text === 'string') {
+      parts.push(o.text);
+    }
+    const content = o.content;
+    if (Array.isArray(content)) {
+      for (const child of content) {
+        walk(child);
+      }
+    }
+  }
+
+  walk(node);
+  return parts.join('');
+}
+
+/**
+ * Normalizes Jira description (plain text or ADF) to a plain string for storage.
+ */
+export function normalizeJiraDescription(raw: unknown): string {
   if (raw === undefined || raw === null) {
-    return undefined;
+    return '';
   }
   if (typeof raw === 'string') {
-    return raw.length > 0 ? raw : undefined;
+    const trimmed = raw.trim();
+    if (trimmed.length === 0) {
+      return '';
+    }
+    if (trimmed.startsWith(ADF_DOC_JSON_PREFIX)) {
+      try {
+        const parsed: unknown = JSON.parse(trimmed);
+        if (isAdfDocument(parsed)) {
+          return adfToPlainText(parsed);
+        }
+      } catch {
+        return raw;
+      }
+    }
+    return raw;
   }
-  try {
-    return JSON.stringify(raw);
-  } catch {
-    return undefined;
+  if (isAdfDocument(raw)) {
+    return adfToPlainText(raw);
   }
+  if (typeof raw === 'object') {
+    return adfToPlainText(raw);
+  }
+  return '';
 }
 
 export type MapIssueInput = {

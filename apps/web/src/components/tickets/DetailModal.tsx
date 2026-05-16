@@ -21,6 +21,38 @@ const statusClass: Record<TicketApiDto['status'], string> = {
   closed: 'border border-slate-300 bg-slate-100 text-slate-800',
 };
 
+/**
+ * Returns true when the ticket description should appear in the conversation thread.
+ */
+export function hasDisplayableDescription(description: string | undefined): boolean {
+  if (description === undefined) {
+    return false;
+  }
+  const trimmed = description.trim();
+  return trimmed.length > 0 && trimmed !== '—';
+}
+
+/**
+ * Thread label for the ticket's original description by source system.
+ */
+export function originalDescriptionLabel(source: TicketApiDto['source']): string {
+  return source === 'helpdesk' ? 'Original Request' : 'Issue Description';
+}
+
+/**
+ * Formats an ISO timestamp for display in the conversation thread (stable en-US locale).
+ */
+export function formatTicketTimestamp(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return iso;
+  }
+  return date.toLocaleString('en-US', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+}
+
 export type DetailModalProps = {
   ticketId: string | null;
   open: boolean;
@@ -48,6 +80,9 @@ export function DetailModal(props: DetailModalProps): ReactElement {
   }
 
   const ticket = detailQuery.data?.data;
+  const comments = commentsQuery.data?.data ?? [];
+  const originalDescriptionEntry =
+    ticket !== undefined && hasDisplayableDescription(ticket.description) ? ticket : undefined;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -91,19 +126,28 @@ export function DetailModal(props: DetailModalProps): ReactElement {
           </div>
         ) : null}
 
-        <section className="mt-4">
-          <h3 className="text-sm font-medium text-slate-800">Description</h3>
-          <p className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
-            {ticket?.description !== undefined && ticket.description.length > 0
-              ? ticket.description
-              : '—'}
-          </p>
-        </section>
-
         <section className="mt-6 border-t border-slate-100 pt-4">
-          <h3 className="text-sm font-medium text-slate-800">Comments</h3>
+          <h3 className="text-sm font-medium text-slate-800">Conversation</h3>
           <ul className="mt-3 space-y-3">
-            {(commentsQuery.data?.data ?? []).map((c) => (
+            {originalDescriptionEntry !== undefined ? (
+              <li
+                data-testid="ticket-original-description"
+                className="rounded border border-slate-200 bg-slate-100 p-3 text-sm shadow-sm"
+              >
+                <div className="flex flex-wrap items-baseline justify-between gap-2 text-xs text-slate-600">
+                  <span className="font-medium text-slate-700">
+                    {originalDescriptionLabel(originalDescriptionEntry.source)}
+                  </span>
+                  <time dateTime={originalDescriptionEntry.createdAt}>
+                    {formatTicketTimestamp(originalDescriptionEntry.createdAt)}
+                  </time>
+                </div>
+                <p className="mt-2 whitespace-pre-wrap text-slate-800">
+                  {originalDescriptionEntry.description}
+                </p>
+              </li>
+            ) : null}
+            {comments.map((c) => (
               <li key={c.commentId} className="rounded border border-slate-100 bg-slate-50 p-3 text-sm">
                 <div className="flex justify-between text-xs text-slate-500">
                   <span>{c.createdAt}</span>
@@ -113,7 +157,7 @@ export function DetailModal(props: DetailModalProps): ReactElement {
               </li>
             ))}
           </ul>
-          {commentsQuery.data?.data.length === 0 ? (
+          {comments.length === 0 && originalDescriptionEntry === undefined ? (
             <p className="mt-2 text-xs text-slate-500">No comments yet.</p>
           ) : null}
 

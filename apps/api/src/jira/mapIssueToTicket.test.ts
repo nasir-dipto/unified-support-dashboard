@@ -1,10 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import {
+  adfToPlainText,
   mapJiraIssueToTicket,
   mapJiraPriorityName,
   mapJiraStatusName,
   normalizeJiraDescription,
 } from './mapIssueToTicket.js';
+
+const sampleAdf = {
+  type: 'doc',
+  version: 1,
+  content: [
+    {
+      type: 'paragraph',
+      content: [{ type: 'text', text: 'Password reset not working' }],
+    },
+  ],
+} as const;
+
+const sampleAdfJson =
+  '{"type":"doc","version":1,"content":[{"type":"paragraph","content":[{"type":"text","text":"Password reset not working"}]}]}';
 
 describe('mapJiraPriorityName', () => {
   it('maps highest to critical', () => {
@@ -24,12 +39,33 @@ describe('mapJiraStatusName', () => {
   });
 });
 
-describe('normalizeJiraDescription', () => {
-  it('returns string as-is', () => {
-    expect(normalizeJiraDescription('x')).toBe('x');
+describe('adfToPlainText', () => {
+  it('extracts text nodes from nested ADF content', () => {
+    expect(adfToPlainText(sampleAdf)).toBe('Password reset not working');
   });
-  it('stringifies objects', () => {
-    expect(normalizeJiraDescription({ type: 'doc' })).toBe('{"type":"doc"}');
+});
+
+describe('normalizeJiraDescription', () => {
+  it('returns plain string as-is', () => {
+    expect(normalizeJiraDescription('Plain description')).toBe('Plain description');
+  });
+
+  it('parses ADF JSON string and extracts text', () => {
+    expect(normalizeJiraDescription(sampleAdfJson)).toBe('Password reset not working');
+  });
+
+  it('extracts text from ADF object', () => {
+    expect(normalizeJiraDescription(sampleAdf)).toBe('Password reset not working');
+  });
+
+  it('returns empty string for null or undefined', () => {
+    expect(normalizeJiraDescription(null)).toBe('');
+    expect(normalizeJiraDescription(undefined)).toBe('');
+  });
+
+  it('returns empty string for empty input', () => {
+    expect(normalizeJiraDescription('')).toBe('');
+    expect(normalizeJiraDescription('   ')).toBe('');
   });
 });
 
@@ -41,6 +77,7 @@ describe('mapJiraIssueToTicket', () => {
         key: 'SUP-42',
         fields: {
           summary: 'Hello',
+          description: sampleAdf,
           priority: { name: 'High' },
           status: { name: 'Open' },
           assignee: { accountId: 'acc1' },
@@ -53,6 +90,7 @@ describe('mapJiraIssueToTicket', () => {
     expect(rec.externalId).toBe('SUP-42');
     expect(rec.orgId).toBe('org-1');
     expect(rec.source).toBe('jira');
+    expect(rec.description).toBe('Password reset not working');
     expect(rec.priority).toBe('high');
     expect(rec.status).toBe('open');
     expect(rec.assigneeId).toBe('acc1');
