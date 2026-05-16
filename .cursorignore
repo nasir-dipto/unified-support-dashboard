@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.turbo/
+.pnpm-store/
+coverage/
+cdk.out/
+*.lock
+*.log
+*.tsbuildinfo
+apps/*/dist/
+packages/*/dist/
+infra/cdk.out/
