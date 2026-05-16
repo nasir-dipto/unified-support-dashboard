@@ -112,3 +112,44 @@ escalated: +10. Max=100
 - each AI handler unit test
 - TicketCard triage ring component test
 - DetailModal AI buttons component test
+
+## Established patterns (always follow these)
+
+### Adding a new API route
+1. Zod schema in packages/shared-types/src/[domain]/schemas.ts
+2. Handler in apps/api/src/routes/[domain].handlers.ts
+3. Route registered in apps/api/src/routes/[domain].routes.ts
+4. Mounted in apps/api/src/app.ts
+5. Integration test in apps/api/src/[domain].integration.test.ts
+
+### Adding a new external service
+Follow jira.service.ts pattern:
+- fetchX() methods only, no business logic
+- All HTTP via helperFetch() with AppError on non-OK
+- nock mocks in .test.ts, never real HTTP in tests
+- Credentials from process.env via loadServerEnv()
+
+### Adding a new frontend feature
+1. Zod schema imported from packages/shared-types
+2. API function in apps/web/src/api/[domain].ts
+3. TanStack Query hook in apps/web/src/hooks/use[Domain].ts
+4. Component in apps/web/src/components/[domain]/
+5. RTL test alongside component
+
+### Adding a new AI feature
+1. Add feature name to AI feature union type in shared-types
+2. Add prompt template in apps/api/src/ai/prompts.ts
+3. Add handler in apps/api/src/ai/[feature].ts
+4. Register in apps/api/src/routes/ai.routes.ts
+5. Add mock response in bedrock.service.ts mock handler
+6. Unit test for handler + mock response
+
+### WebSocket broadcast (after any ticket mutation)
+- Import broadcastTicketEvent from routes/ticket-broadcast.ts
+- Call after upsertTicket succeeds
+- Never broadcast before DB write confirms
+
+### DynamoDB query rules
+- Every Query MUST have orgId in KeyConditionExpression
+- Every GetItem result MUST verify orgId matches JWT orgId
+- Use upsertTicket for all ticket writes — never raw PutItem in routes
