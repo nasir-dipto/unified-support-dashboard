@@ -51,13 +51,13 @@ Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentim
 - Phase 2: COMPLETE — Jira integration, tickets API, webhooks
 - Phase 3: COMPLETE —  webhooks
 - Phase 4: COMPLETE — WebSocket, DetailModal, ActivitySidebar, cross-linking
-- Phase 5: IN PROGRESS — AI triage + action suggestion
+- Phase 5: IN PROGRESS — AI triage + action suggestion (branch: feature/phase-5-ai)
 - Phase 6: NOT STARTED — sentiment + briefings
 - Phase 7: NOT STARTED — knowledge base (pgvector)
 - Phase 8: NOT STARTED — reports + notifications
 - Phase 9: NOT STARTED — admin + hardening
 
-## Current test count: 74 (28 test files)
+## Current test count: 94 (32 test files)
 
 ## Architecture decisions
 - pgvector (RDS PostgreSQL) for KB search — not OpenSearch
@@ -166,3 +166,13 @@ Follow jira.service.ts pattern:
 - Fix integration tests running in CI (add DYNAMODB_ENDPOINT to ci.yml test job)
 - Add GET /api/health/detail endpoint (DynamoDB, Redis, WebSocket connections, version)
 - Add startup env var validation warnings (missing JIRA_WEBHOOK_SECRET, HD_WEBHOOK_SECRET etc)
+
+## Pre-Phase 5 improvements — COMPLETE (PR #6)
+- Integration tests now run in CI (94 tests, 0 skipped)
+- GET /api/health/detail endpoint
+- Startup env var validation warnings
+- DetailModal shows original ticket description
+- HD description field synced from SDP v3
+- Jira ADF converted to plain text
+
+## Current test count: 94 (32 test files)
