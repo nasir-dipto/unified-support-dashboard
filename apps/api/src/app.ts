@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import { healthStatusSchema } from '@usd/shared-types';
 import { authRouter } from './routes/auth.routes.js';
+import { healthRouter } from './routes/health.routes.js';
 import { ticketsRouter } from './routes/tickets.routes.js';
 import { webhooksRouter } from './routes/webhooks.routes.js';
 import { toApiErrorBody } from './utils/errors.js';
@@ -31,6 +32,7 @@ export function createApp(): express.Application {
     res.json(payload);
   });
 
+  app.use('/api/health', healthRouter);
   app.use('/api/auth', authRouter);
   app.use('/api/tickets', ticketsRouter);
 

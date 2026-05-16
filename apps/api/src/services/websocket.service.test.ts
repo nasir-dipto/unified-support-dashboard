@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadServerEnv, resetServerEnvForTests } from '../config/loadEnv.js';
+import { WebSocket } from 'ws';
 import {
   broadcastWsEnvelope,
   clearLocalWsClientsForTests,
+  getLocalWsConnectionCount,
+  registerLocalWsClient,
 } from './websocket.service.js';
 
 describe('websocket.service', () => {
@@ -27,5 +30,14 @@ describe('websocket.service', () => {
       payload: {},
     });
     expect(spy).toHaveBeenCalledWith('API Gateway WebSocket not configured');
+  });
+
+  it('getLocalWsConnectionCount sums registered clients', () => {
+    const fakeWs = {
+      readyState: WebSocket.OPEN,
+      once: vi.fn(),
+    } as unknown as WebSocket;
+    registerLocalWsClient('demo-org', fakeWs);
+    expect(getLocalWsConnectionCount()).toBe(1);
   });
 });

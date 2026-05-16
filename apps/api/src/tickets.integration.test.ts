@@ -43,7 +43,7 @@ ddbDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
       new PutCommand({
         TableName: env.SUPPORT_USERS_TABLE,
         Item: {
-          orgId: 'org-int',
+          orgId: 'demo-org',
           userId: '01HZINTTICKUSER',
           email: 'tickets-int@example.com',
           passwordHash: hash,
@@ -55,7 +55,7 @@ ddbDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
       new PutCommand({
         TableName: env.SUPPORT_ROLES_TABLE,
         Item: {
-          orgId: 'org-int',
+          orgId: 'demo-org',
           userId: '01HZINTTICKUSER',
           role: 'viewer',
         },
@@ -80,7 +80,7 @@ ddbDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
     expect(wh.status).toBe(202);
 
     const login = await request(app).post('/api/auth/login').send({
-      orgId: 'org-int',
+      orgId: 'demo-org',
       email: 'tickets-int@example.com',
       password: 'secret1234',
     });
@@ -107,7 +107,7 @@ ddbDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
   it('GET /api/tickets/:id returns ticket', async () => {
     const app = createApp();
     const login = await request(app).post('/api/auth/login').send({
-      orgId: 'org-int',
+      orgId: 'demo-org',
       email: 'tickets-int@example.com',
       password: 'secret1234',
     });
@@ -134,7 +134,7 @@ ddbDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
   it('rejects invalid tickets cursor', async () => {
     const app = createApp();
     const login = await request(app).post('/api/auth/login').send({
-      orgId: 'org-int',
+      orgId: 'demo-org',
       email: 'tickets-int@example.com',
       password: 'secret1234',
     });
@@ -165,7 +165,7 @@ ddbDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
     expect(wh.status).toBe(202);
 
     const login = await request(app).post('/api/auth/login').send({
-      orgId: 'org-int',
+      orgId: 'demo-org',
       email: 'tickets-int@example.com',
       password: 'secret1234',
     });
@@ -203,7 +203,7 @@ ddbDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
   it('GET /api/tickets/:id/comments returns an empty thread', async () => {
     const app = createApp();
     const login = await request(app).post('/api/auth/login').send({
-      orgId: 'org-int',
+      orgId: 'demo-org',
       email: 'tickets-int@example.com',
       password: 'secret1234',
     });

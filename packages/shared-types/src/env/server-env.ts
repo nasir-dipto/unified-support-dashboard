@@ -9,6 +9,8 @@ export const serverEnvSchema = z.object({
   AWS_REGION: z.string().min(1).default('us-east-1'),
   /** When set, DynamoDB client talks to DynamoDB Local instead of AWS. */
   DYNAMODB_ENDPOINT: z.string().url().optional(),
+  /** Redis connection URL (health checks and future cache/session use). */
+  REDIS_URL: z.string().min(1).optional(),
   SUPPORT_USERS_TABLE: z.string().min(1).default('support_users'),
   SUPPORT_ROLES_TABLE: z.string().min(1).default('support_roles'),
   SUPPORT_TICKETS_TABLE: z.string().min(1).default('support_tickets'),

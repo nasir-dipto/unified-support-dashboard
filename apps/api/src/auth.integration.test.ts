@@ -35,7 +35,7 @@ ddbDescribe('auth HTTP (DynamoDB Local)', () => {
       new PutCommand({
         TableName: env.SUPPORT_USERS_TABLE,
         Item: {
-          orgId: 'org-int',
+          orgId: 'demo-org',
           userId: '01HZINTTESTUSER',
           email: 'auth-int@example.com',
           passwordHash: hash,
@@ -47,7 +47,7 @@ ddbDescribe('auth HTTP (DynamoDB Local)', () => {
       new PutCommand({
         TableName: env.SUPPORT_ROLES_TABLE,
         Item: {
-          orgId: 'org-int',
+          orgId: 'demo-org',
           userId: '01HZINTTESTUSER',
           role: 'viewer',
         },
@@ -59,7 +59,7 @@ ddbDescribe('auth HTTP (DynamoDB Local)', () => {
     const res = await request(createApp())
       .post('/api/auth/login')
       .send({
-        orgId: 'org-int',
+        orgId: 'demo-org',
         email: 'auth-int@example.com',
         password: 'secret1234',
       });
