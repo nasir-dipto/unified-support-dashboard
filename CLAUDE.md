@@ -176,3 +176,15 @@ Follow jira.service.ts pattern:
 - Jira ADF converted to plain text
 
 ## Current test count: 94 (32 test files)
+
+## UI Redesign — COMPLETE (PR #7)
+- Full UI rebuilt matching docs/design-reference.tsx
+- packages/ui: Badge, SlaBar, StatCard, Pill, Toggle, Overlay, StatusDot
+- Role views: TechView (/tickets), MgrView (/manager), AdminView (/admin)
+- All roles land on /tickets after login
+- JIRA_INCLUDE_PROJECTS: admin-configurable project filter (empty = all)
+- No mock data in production code
+- No direct Anthropic calls from frontend
+- 145 tests passing
+
+## Current test count: 145 (33 API + 32 web + 8 UI + 4 shared-types)
