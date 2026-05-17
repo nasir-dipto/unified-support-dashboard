@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { loadServerEnv, resetServerEnvForTests } from '../config/loadEnv.js';
 import { processHelpdeskWebhookJson, processJiraWebhookJson } from './sqsConsumer.js';
 import * as tickets from '../db/tables/tickets.js';
 
@@ -35,6 +36,41 @@ describe('sqsConsumer', () => {
 
     it('throws when issue missing', async () => {
       await expect(processJiraWebhookJson({}, 'o')).rejects.toThrow();
+    });
+
+    it('skips upsert when project is not in JIRA_INCLUDE_PROJECTS', async () => {
+      const previous = process.env.JIRA_INCLUDE_PROJECTS;
+      resetServerEnvForTests();
+      process.env.JIRA_INCLUDE_PROJECTS = 'SCRUM';
+      loadServerEnv();
+      const spy = vi.spyOn(tickets, 'upsertTicket').mockResolvedValue({
+        ticketId: 'jira_SCRUM-1',
+        orgId: 'o',
+        source: 'jira',
+        externalId: 'SCRUM-1',
+        summary: 's',
+        priority: 'medium',
+        status: 'open',
+        createdAt: 't',
+        updatedAt: 't',
+      });
+      await processJiraWebhookJson(
+        {
+          issue: {
+            key: 'TRL-1',
+            fields: { summary: 's', priority: { name: 'Medium' }, status: { name: 'To Do' } },
+          },
+        },
+        'o',
+      );
+      expect(spy).not.toHaveBeenCalled();
+      resetServerEnvForTests();
+      if (previous === undefined) {
+        delete process.env.JIRA_INCLUDE_PROJECTS;
+      } else {
+        process.env.JIRA_INCLUDE_PROJECTS = previous;
+      }
+      loadServerEnv();
     });
   });
 

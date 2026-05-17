@@ -4,6 +4,11 @@ import {
   sdpRequestSchema,
 } from '@usd/shared-types';
 import { mapHdRequestToTicket } from '../helpdesk/mapRequestToTicket.js';
+import { getServerEnv } from '../config/loadEnv.js';
+import {
+  getJiraIncludeProjectsFromEnv,
+  isJiraIssueKeyIncluded,
+} from '../jira/jiraIncludeProjects.js';
 import { mapJiraIssueToTicket } from '../jira/mapIssueToTicket.js';
 import { upsertTicket } from '../db/tables/tickets.js';
 import { AppError } from '../utils/errors.js';
@@ -15,6 +20,10 @@ export async function processJiraWebhookJson(body: unknown, orgId: string): Prom
   const parsed = jiraWebhookBodySchema.parse(body);
   if (parsed.issue === undefined) {
     throw new AppError('Webhook missing issue', 'VALIDATION', 400);
+  }
+  const includeProjects = getJiraIncludeProjectsFromEnv(getServerEnv());
+  if (!isJiraIssueKeyIncluded(parsed.issue.key, includeProjects)) {
+    return;
   }
   const record = mapJiraIssueToTicket({ issue: parsed.issue, orgId });
   await upsertTicket(record);

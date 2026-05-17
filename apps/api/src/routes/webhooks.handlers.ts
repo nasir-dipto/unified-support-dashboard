@@ -8,6 +8,7 @@ import {
 import { getServerEnv } from '../config/loadEnv.js';
 import { upsertTicket, getTicketRecordOrUndefined } from '../db/tables/tickets.js';
 import { mapHdRequestToTicket } from '../helpdesk/mapRequestToTicket.js';
+import { getJiraIncludeProjectsFromEnv, isJiraIssueKeyIncluded } from '../jira/jiraIncludeProjects.js';
 import { mapJiraIssueToTicket } from '../jira/mapIssueToTicket.js';
 import { enqueueSqsEvent } from '../messaging/enqueueSqsEvent.js';
 import { broadcastTicketLifecycleEvent } from './ticket-broadcast.js';
@@ -54,6 +55,12 @@ export const postJiraWebhook: RequestHandler = asyncHandler(async (req, res) => 
   }
   if (webhookParsed.data.issue === undefined) {
     throw new AppError('Webhook missing issue', 'VALIDATION', 400);
+  }
+  const includeProjects = getJiraIncludeProjectsFromEnv(env);
+  const issueKey = webhookParsed.data.issue.key;
+  if (!isJiraIssueKeyIncluded(issueKey, includeProjects)) {
+    res.status(200).json({ accepted: true, ignored: true, reason: 'project_not_included' });
+    return;
   }
   const record = mapJiraIssueToTicket({
     issue: webhookParsed.data.issue,
