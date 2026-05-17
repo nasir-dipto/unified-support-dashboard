@@ -1,86 +1,143 @@
 import type { TicketApiDto } from '@usd/shared-types';
-import type { ReactElement } from 'react';
-
-const priorityClass: Record<TicketApiDto['priority'], string> = {
-  critical: 'bg-red-600 text-white',
-  high: 'bg-orange-500 text-white',
-  medium: 'bg-amber-500 text-white',
-  low: 'bg-slate-500 text-white',
-};
-
-const statusClass: Record<TicketApiDto['status'], string> = {
-  open: 'border border-blue-300 bg-blue-50 text-blue-900',
-  in_progress: 'border border-amber-300 bg-amber-50 text-amber-900',
-  pending: 'border border-zinc-300 bg-zinc-200 text-zinc-900',
-  resolved: 'border border-emerald-300 bg-emerald-50 text-emerald-900',
-  closed: 'border border-slate-300 bg-slate-100 text-slate-800',
-};
+import { Badge, SlaBar, StatusDot, priorityColors, usdColors } from '@usd/ui';
+import type { ReactElement, KeyboardEvent } from 'react';
+import {
+  estimateSlaPercentRemaining,
+  formatAssignee,
+  formatCustomer,
+  formatStatusLabel,
+  sourceAccentColor,
+  ticketExternalUrl,
+} from '../../utils/ticket-display';
+import { computeTriageScore } from '../../utils/triage';
+import { TriageScoreRing } from './TriageScoreRing';
 
 export type TicketCardProps = {
   ticket: TicketApiDto;
-  /** Opens ticket detail inspector when provided (keyboard-accessible card). */
   onOpenDetail?: (ticket: TicketApiDto) => void;
+  onOpenComment?: (ticket: TicketApiDto) => void;
 };
 
 /**
- * Ticket summary row with source badge (Jira blue, Helpdesk purple), priority, status, id, and summary.
+ * Ticket card matching design reference with real API fields.
  */
 export function TicketCard(props: TicketCardProps): ReactElement {
-  const { ticket, onOpenDetail } = props;
-  const sourceLabel = ticket.source === 'jira' ? 'Jira' : 'Helpdesk';
-  const sourceStyle =
-    ticket.source === 'jira'
-      ? 'bg-blue-600 text-white'
-      : 'bg-purple-600 text-white';
+  const { ticket, onOpenDetail, onOpenComment } = props;
+  const accent = sourceAccentColor(ticket.source);
+  const isJira = ticket.source === 'jira';
+  const sla = estimateSlaPercentRemaining(ticket.createdAt, ticket.updatedAt);
+  const triageScore = computeTriageScore({
+    priority: ticket.priority,
+    status: ticket.status,
+    createdAt: ticket.createdAt,
+    updatedAt: ticket.updatedAt,
+    slaPercentRemaining: sla,
+  });
+  const externalUrl = ticketExternalUrl(ticket);
+
+  const openDetail = (): void => {
+    onOpenDetail?.(ticket);
+  };
+
+  const onKey = (e: KeyboardEvent): void => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openDetail();
+    }
+  };
 
   return (
     <article
-      className={`rounded-lg border border-slate-200 bg-white p-4 shadow-sm ${
-        onOpenDetail !== undefined ? 'cursor-pointer hover:border-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400' : ''
-      }`}
-      data-testid="ticket-card"
-      role={onOpenDetail !== undefined ? 'button' : undefined}
-      tabIndex={onOpenDetail !== undefined ? 0 : undefined}
-      onClick={() => {
-        onOpenDetail?.(ticket);
-      }}
-      onKeyDown={(e) => {
-        if (onOpenDetail === undefined) {
-          return;
-        }
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onOpenDetail(ticket);
-        }
-      }}
+      className="rounded-xl border border-gray-200 bg-white px-4 py-3.5 transition-shadow hover:shadow-md"
+      style={{ borderTopWidth: 3, borderTopColor: accent }}
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <span
-          className={`rounded px-2 py-0.5 text-xs font-medium ${sourceStyle}`}
-          data-testid="ticket-source"
-        >
-          {sourceLabel}
-        </span>
-        <span
-          className={`rounded px-2 py-0.5 text-xs font-medium ${priorityClass[ticket.priority]}`}
-          data-testid="ticket-priority"
-        >
-          {ticket.priority}
-        </span>
-        <span
-          className={`rounded px-2 py-0.5 text-xs font-medium ${statusClass[ticket.status]}`}
-          data-testid="ticket-status"
-        >
-          {ticket.status}
-        </span>
-        <span
-          className="font-mono text-xs text-slate-600"
-          data-testid="ticket-id"
-        >{`${ticket.externalId} · ${ticket.ticketId}`}</span>
+      <div
+        className={`mb-2.5 flex items-start justify-between gap-2 ${onOpenDetail !== undefined ? 'cursor-pointer' : ''}`}
+        onClick={openDetail}
+        onKeyDown={onKey}
+        role={onOpenDetail !== undefined ? 'button' : undefined}
+        tabIndex={onOpenDetail !== undefined ? 0 : undefined}
+      >
+        <h3 className="flex-1 text-sm font-bold leading-snug text-gray-900">{ticket.summary}</h3>
+        <div className="flex items-center gap-2">
+          <TriageScoreRing score={triageScore} />
+          <Badge label={ticket.priority} color={priorityColors[ticket.priority] ?? usdColors.gray} sm />
+        </div>
       </div>
-      <h2 className="mt-2 text-sm font-medium text-slate-900" data-testid="ticket-summary">
-        {ticket.summary}
-      </h2>
+
+      <div
+        className={`mb-3 grid grid-cols-2 gap-x-2.5 gap-y-1.5 text-xs ${onOpenDetail !== undefined ? 'cursor-pointer' : ''}`}
+        onClick={openDetail}
+      >
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Source</div>
+          <div className="flex items-center gap-1 font-semibold">
+            <StatusDot color={accent} size={8} />
+            {isJira ? 'Jira' : 'ManageEngine'}
+          </div>
+        </div>
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Status</div>
+          <span className="inline-block rounded border border-gray-200 bg-gray-50 px-2 py-0.5 font-semibold capitalize">
+            {formatStatusLabel(ticket.status)}
+          </span>
+        </div>
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Assignee</div>
+          <span className="font-semibold">{formatAssignee(ticket.assigneeId)}</span>
+        </div>
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
+            {isJira ? 'Ticket ID' : 'Customer'}
+          </div>
+          <span className="font-semibold">{isJira ? ticket.externalId : formatCustomer(ticket)}</span>
+        </div>
+      </div>
+
+      <div className={`mb-3 ${onOpenDetail !== undefined ? 'cursor-pointer' : ''}`} onClick={openDetail}>
+        <SlaBar value={sla} />
+      </div>
+
+      <div className="flex items-center gap-1.5 border-t border-gray-100 pt-2.5">
+        <span className="flex-1" />
+        {externalUrl !== undefined ? (
+          <a
+            href={externalUrl}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => { e.stopPropagation(); }}
+            className="rounded-md border px-2.5 py-1 text-[11px] font-bold"
+            style={{ borderColor: accent, color: accent, backgroundColor: isJira ? '#eff6ff' : '#f5f3ff' }}
+          >
+            {isJira ? 'Jira' : 'ME'}
+          </a>
+        ) : null}
+        {onOpenComment !== undefined ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenComment(ticket);
+            }}
+            className="rounded-md border px-2.5 py-1 text-[11px] font-bold text-white"
+            style={{ borderColor: isJira ? usdColors.blue : usdColors.indigo, backgroundColor: isJira ? usdColors.blue : usdColors.indigo }}
+          >
+            {isJira ? 'Comment' : 'Reply'}
+          </button>
+        ) : null}
+        {onOpenDetail !== undefined ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              openDetail();
+            }}
+            className="rounded-md border border-gray-200 bg-white px-2.5 py-1 text-[11px] font-bold text-gray-700"
+          >
+            Details
+          </button>
+        ) : null}
+      </div>
     </article>
   );
 }

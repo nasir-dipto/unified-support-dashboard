@@ -1,3 +1,4 @@
+// DESIGN REFERENCE ONLY — do not import or use in production code
 import { useState, useEffect } from "react";
 
 const C = {

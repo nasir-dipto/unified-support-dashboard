@@ -24,6 +24,14 @@ const baseTicket: TicketApiDto = {
 
 let ticketDetail: TicketApiDto = { ...baseTicket };
 
+vi.mock('../../hooks/useAI', () => ({
+  useAiInvoke: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+    isError: false,
+  }),
+}));
+
 vi.mock('../../hooks/useTickets', () => ({
   useTicketDetail: () => ({
     data: { data: ticketDetail },
@@ -88,7 +96,7 @@ describe('DetailModal', () => {
     const bubble = screen.getByTestId('ticket-original-description');
     expect(screen.getByText('Issue Description')).toBeTruthy();
     expect(screen.getByText('Body text')).toBeTruthy();
-    expect(screen.getByText(formatTicketTimestamp('2026-01-15T12:00:00.000Z'))).toBeTruthy();
+    expect(bubble).toHaveTextContent(formatTicketTimestamp('2026-01-15T12:00:00.000Z'));
     expect(screen.getByText('Hello thread')).toBeTruthy();
     const list = bubble.parentElement;
     expect(list?.firstElementChild).toBe(bubble);

@@ -38,6 +38,7 @@ describe('LoginView', () => {
         </Routes>
       </MemoryRouter>,
     );
+    await user.type(screen.getByLabelText(/organization id/i), 'demo-org');
     await user.type(screen.getByLabelText(/email/i), 'u@example.com');
     await user.type(screen.getByLabelText(/^password/i), 'secret1234');
     const submitButton = screen.getByRole('button', { name: /sign in/i });

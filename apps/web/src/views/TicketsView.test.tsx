@@ -47,7 +47,8 @@ function renderWithQuery(ui: ReactElement): ReturnType<typeof render> {
 describe('TicketsView', () => {
   it('renders ticket cards from query data', () => {
     renderWithQuery(<TicketsView />);
-    expect(screen.getByTestId('ticket-summary')).toHaveTextContent('Hello');
+    expect(screen.getByText('Hello')).toBeInTheDocument();
+    expect(screen.getByText('Ticket Queue')).toBeInTheDocument();
   });
 
   it('renders activity sidebar', () => {

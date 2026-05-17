@@ -25,6 +25,11 @@ export const serverEnvSchema = z.object({
   /** Org id stamped on tickets ingested from Jira when the payload has no org. */
   JIRA_DEFAULT_ORG_ID: z.string().min(1).default('demo-org'),
   /**
+   * Comma-separated Jira project keys to sync/process (e.g. `SCRUM,TPDI,TRL`).
+   * When unset or empty, all accessible projects are included.
+   */
+  JIRA_INCLUDE_PROJECTS: z.string().optional(),
+  /**
    * ManageEngine ServiceDesk Plus Cloud API base (e.g. https://servicedeskplus.uk/app/itdesk/api/v3).
    * All HD REST calls use this URL only (not zohoapis host).
    */

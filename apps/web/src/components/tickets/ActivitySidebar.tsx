@@ -1,4 +1,5 @@
 import type { WsOutboundEnvelope } from '@usd/shared-types';
+import { StatusDot, usdColors } from '@usd/ui';
 import type { ReactElement } from 'react';
 import { filterUrgentWsEvents, useNotificationsStore } from '../../store/notifications.store';
 
@@ -26,46 +27,47 @@ export function ActivitySidebar(): ReactElement {
 
   return (
     <aside
-      className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
+      className="rounded-xl border border-gray-200 bg-white p-4"
       aria-label="Live activity"
     >
-      <h2 className="text-sm font-semibold text-slate-900">Activity</h2>
-      <p className="mt-1 text-xs text-slate-500">Last 50 realtime events (newest first).</p>
+      <div className="flex items-center gap-2">
+        <StatusDot color={usdColors.teal} size={10} />
+        <h2 className="text-sm font-bold text-gray-900">Live activity</h2>
+      </div>
+      <p className="mt-1 text-xs text-gray-500">Last 50 realtime events (newest first).</p>
 
       {urgent.length > 0 ? (
         <section className="mt-4 border-b border-red-100 pb-4">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-red-700">
-            Urgent alerts
-          </h3>
+          <h3 className="text-xs font-bold uppercase tracking-wide text-usd-red">Urgent alerts</h3>
           <ul className="mt-2 space-y-2">
             {urgent.map((ev, idx) => (
               <li
                 key={`${ev.ticketId}-${ev.type}-${String(idx)}`}
-                className="rounded bg-red-50 px-2 py-1 text-xs text-red-900"
+                className="rounded-lg border border-red-100 bg-red-50 px-2 py-1.5 text-xs text-red-900"
               >
-                <span className="font-mono">{ev.ticketId}</span> · {summarizeEvent(ev)}
+                <span className="font-mono font-bold">{ev.ticketId}</span> · {summarizeEvent(ev)}
               </li>
             ))}
           </ul>
         </section>
       ) : null}
 
-      <ul className="mt-4 max-h-[480px] space-y-3 overflow-y-auto text-xs">
+      <ul className="mt-4 max-h-[480px] space-y-2 overflow-y-auto">
         {events.map((ev, idx) => (
           <li
             key={`${ev.type}-${ev.ticketId}-${String(idx)}`}
-            className="border-l-2 border-slate-200 pl-2"
+            className="rounded-lg border border-gray-100 px-2 py-2 text-xs"
           >
             <div className="flex flex-wrap gap-1">
-              <span className="rounded bg-slate-100 px-1 font-medium text-slate-700">{ev.type}</span>
-              <span className="font-mono text-slate-600">{ev.ticketId}</span>
+              <span className="rounded bg-gray-100 px-1.5 font-semibold text-gray-700">{ev.type}</span>
+              <span className="font-mono text-gray-500">{ev.ticketId}</span>
             </div>
-            <p className="mt-1 text-slate-700">{summarizeEvent(ev)}</p>
+            <p className="mt-1 text-gray-700">{summarizeEvent(ev)}</p>
           </li>
         ))}
       </ul>
       {events.length === 0 ? (
-        <p className="mt-4 text-xs text-slate-500">Waiting for websocket events…</p>
+        <p className="mt-4 text-xs text-gray-400">Waiting for websocket events…</p>
       ) : null}
     </aside>
   );

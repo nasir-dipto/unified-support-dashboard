@@ -6,6 +6,10 @@ import { getServerEnv, loadServerEnv, resetServerEnvForTests } from '../config/l
 import { upsertTicket } from '../db/tables/tickets.js';
 import { resetDocumentClientForTests } from '../db/dynamo.client.js';
 import { mapJiraIssueToTicket } from '../jira/mapIssueToTicket.js';
+import {
+  filterJiraProjectsByInclude,
+  getJiraIncludeProjectsFromEnv,
+} from '../jira/jiraIncludeProjects.js';
 import { fetchIssuesByProject, fetchProjects } from '../services/jira.service.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -30,7 +34,17 @@ function bootstrapEnv(): void {
 async function main(): Promise<void> {
   bootstrapEnv();
   const env = getServerEnv();
-  const projects = await fetchProjects();
+  const includeProjects = getJiraIncludeProjectsFromEnv(env);
+  const allProjects = await fetchProjects();
+  const projects = filterJiraProjectsByInclude(allProjects, includeProjects);
+  if (includeProjects === null) {
+    console.info(`Jira reconcile: all ${String(projects.length)} accessible project(s).`);
+  } else {
+    const keys = projects.map((p) => p.key).join(', ');
+    console.info(
+      `Jira reconcile: ${String(projects.length)} project(s) included (JIRA_INCLUDE_PROJECTS): ${keys}`,
+    );
+  }
   for (const p of projects) {
     let nextPageToken: string | undefined;
     let hasMore = true;
