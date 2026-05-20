@@ -18,23 +18,56 @@ function hdScalarToString(value: unknown): string {
 }
 
 /**
- * Resolves comment body text from an HD conversation row.
+ * Extracts plain text from SDP fields that may be a string or `{ display_value, value, content }`.
  */
-export function extractHdConversationBody(row: Json): string {
-  const desc = row.description;
-  if (typeof desc === 'string' && desc.trim().length > 0) {
-    return desc.trim();
+function extractSdpTextField(raw: unknown): string {
+  if (typeof raw === 'string') {
+    return raw.trim();
   }
-  if (typeof desc === 'object' && desc !== null) {
-    const d = desc as Json;
-    const content = d.content;
+  if (typeof raw === 'number' || typeof raw === 'boolean') {
+    return String(raw).trim();
+  }
+  if (raw !== null && typeof raw === 'object' && !Array.isArray(raw)) {
+    const o = raw as Json;
+    const content = o.content;
     if (typeof content === 'string' && content.trim().length > 0) {
       return content.trim();
     }
+    const display = o.display_value;
+    if (typeof display === 'string' && display.trim().length > 0) {
+      return display.trim();
+    }
+    const value = o.value;
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim();
+    }
   }
-  const content = row.content;
-  if (typeof content === 'string' && content.trim().length > 0) {
-    return content.trim();
+  return '';
+}
+
+/**
+ * Resolves comment body text from an HD conversation or note row.
+ * Conversations list omits `description`; notes list returns it as a plain string.
+ */
+export function extractHdConversationBody(row: Json): string {
+  const fromDescription = extractSdpTextField(row.description);
+  if (fromDescription.length > 0) {
+    return fromDescription;
+  }
+  const fromContent = extractSdpTextField(row.content);
+  if (fromContent.length > 0) {
+    return fromContent;
+  }
+  const fromText = extractSdpTextField(row.text);
+  if (fromText.length > 0) {
+    return fromText;
+  }
+  const nestedNote = row.request_note;
+  if (nestedNote !== null && typeof nestedNote === 'object' && !Array.isArray(nestedNote)) {
+    const nestedBody = extractSdpTextField((nestedNote as Json).description);
+    if (nestedBody.length > 0) {
+      return nestedBody;
+    }
   }
   return '';
 }
@@ -55,6 +88,30 @@ export function mapHdConversationSource(row: Json): CommentSource {
 }
 
 /**
+ * Merges HD conversation metadata with note body text keyed by conversation id.
+ */
+export function mergeHdConversationWithNote(conversation: Json, note?: Json): Json {
+  if (note === undefined) {
+    return conversation;
+  }
+  const noteDescription = note.description;
+  const merged: Json = { ...conversation };
+  if (noteDescription !== undefined) {
+    merged.description = noteDescription;
+  }
+  if (merged.created_by === undefined && note.created_by !== undefined) {
+    merged.created_by = note.created_by;
+  }
+  if (merged.created_time === undefined && note.created_time !== undefined) {
+    merged.created_time = note.created_time;
+  }
+  if (merged.show_to_requester === undefined && note.show_to_requester !== undefined) {
+    merged.show_to_requester = note.show_to_requester;
+  }
+  return merged;
+}
+
+/**
  * Maps one HD conversation row to a DynamoDB comment record (idempotent sync key).
  */
 export function mapConversationToRecord(params: {
@@ -71,7 +128,7 @@ export function mapConversationToRecord(params: {
   const body = extractHdConversationBody(params.conversation);
   const created = hdScalarToString(params.conversation.created_time);
   const createdAt = created.length > 0 ? created : new Date().toISOString();
-  const sender = params.conversation.sender;
+  const sender = params.conversation.sender ?? params.conversation.created_by ?? params.conversation.performed_by;
   let authorDisplayName: string | undefined;
   let authorEmail: string | undefined;
   if (typeof sender === 'object' && sender !== null) {

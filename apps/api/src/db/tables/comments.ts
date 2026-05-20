@@ -1,5 +1,9 @@
 import { DeleteCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
-import type { SupportTicketCommentRecord, TicketCommentApiDto } from '@usd/shared-types';
+import type {
+  CommentSource,
+  SupportTicketCommentRecord,
+  TicketCommentApiDto,
+} from '@usd/shared-types';
 import {
   supportTicketCommentRecordSchema,
   ticketCommentApiDtoSchema,
@@ -15,6 +19,32 @@ const DEFAULT_PAGE = 200;
  */
 export function buildTicketCommentSortKey(ticketId: string, commentId: string): string {
   return `${ticketId}#${commentId}`;
+}
+
+/**
+ * Infers `commentSource` for legacy rows written before Phase 5A enrichment.
+ */
+export function inferCommentSourceFromCommentId(commentId: string): CommentSource {
+  if (commentId.startsWith('jira_')) {
+    return 'jira_comment';
+  }
+  if (commentId.startsWith('hd_')) {
+    return 'hd_note';
+  }
+  return 'usd_comment';
+}
+
+/**
+ * Fills missing `commentSource` on raw DynamoDB items so Zod parse succeeds.
+ */
+export function normalizeCommentRecordRow(
+  row: Record<string, unknown>,
+): Record<string, unknown> {
+  const commentId = typeof row.commentId === 'string' ? row.commentId : '';
+  if (row.commentSource === undefined || row.commentSource === null) {
+    return { ...row, commentSource: inferCommentSourceFromCommentId(commentId) };
+  }
+  return row;
 }
 
 /**
@@ -125,7 +155,11 @@ export async function listTicketComments(
     }),
   );
   const items = (out.Items ?? [])
-    .map((row) => supportTicketCommentRecordSchema.safeParse(row))
+    .map((row) =>
+      supportTicketCommentRecordSchema.safeParse(
+        normalizeCommentRecordRow(row as Record<string, unknown>),
+      ),
+    )
     .filter((r): r is { success: true; data: SupportTicketCommentRecord } => r.success)
     .map((r) => ticketCommentApiDtoSchema.parse(r.data));
   return { items: sortCommentsAscending(items), total };

@@ -26,7 +26,7 @@ export function mapJiraCommentToRecord(params: {
   ticketId: string;
   comment: Json;
 }): SupportTicketCommentRecord | null {
-  const sourceId = jiraScalarToString(params.comment.id);
+  const sourceId = jiraScalarToString(params.comment.id).trim();
   if (sourceId.length === 0) {
     return null;
   }

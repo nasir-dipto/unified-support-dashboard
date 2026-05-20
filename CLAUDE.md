@@ -187,7 +187,7 @@ Follow jira.service.ts pattern:
 - No direct Anthropic calls from frontend
 - 145 tests passing
 
-## Current test count: 164 (38 API + 34 web + 8 UI + 7 shared-types)
+## Current test count: 173 (38 API + 34 web + 8 UI + 7 shared-types)
 
 ## Phase 5A — Communication Enrichment — COMPLETE
 ### Goal
@@ -203,7 +203,8 @@ Sync full conversation history from Jira and HD so AI has rich context.
 
 ### HD conversations API (confirmed working)
 - Endpoint: GET /requests/{internalId}/conversations?input_data={"list_info":{"row_count":50}}
-- Returns type: NOTES or EMAIL
+- Returns type: NOTES or EMAIL (metadata only — **no `description` body** on list rows)
+- Note bodies: GET /requests/{internalId}/notes (merge by `id` during sync)
 - Requires Accept: application/vnd.manageengine.sdp.v3+json
 - Email conversations only appear when HD mail server is configured
 

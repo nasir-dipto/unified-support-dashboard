@@ -1,9 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { buildTicketCommentSortKey, sortCommentsAscending } from './comments.js';
+import {
+  buildTicketCommentSortKey,
+  inferCommentSourceFromCommentId,
+  normalizeCommentRecordRow,
+  sortCommentsAscending,
+} from './comments.js';
 
 describe('comments table helpers', () => {
   it('buildTicketCommentSortKey prefixes ticket id for begins_with queries', () => {
     expect(buildTicketCommentSortKey('jira_ABC-1', '01JCOMMENT')).toBe('jira_ABC-1#01JCOMMENT');
+  });
+
+  it('inferCommentSourceFromCommentId maps legacy id prefixes', () => {
+    expect(inferCommentSourceFromCommentId('jira_9')).toBe('jira_comment');
+    expect(inferCommentSourceFromCommentId('hd_9')).toBe('hd_note');
+    expect(inferCommentSourceFromCommentId('01JULID')).toBe('usd_comment');
+  });
+
+  it('normalizeCommentRecordRow fills missing commentSource', () => {
+    expect(
+      normalizeCommentRecordRow({ commentId: '01JULID', body: 'x' }).commentSource,
+    ).toBe('usd_comment');
   });
 
   it('sortCommentsAscending orders by createdAt', () => {

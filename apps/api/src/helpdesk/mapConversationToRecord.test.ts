@@ -3,6 +3,7 @@ import {
   extractHdConversationBody,
   mapConversationToRecord,
   mapHdConversationSource,
+  mergeHdConversationWithNote,
 } from './mapConversationToRecord.js';
 
 describe('mapConversationToRecord', () => {
@@ -33,5 +34,41 @@ describe('mapConversationToRecord', () => {
 
   it('extractHdConversationBody reads description string', () => {
     expect(extractHdConversationBody({ description: '  hello  ' })).toBe('hello');
+  });
+
+  it('extractHdConversationBody reads SDP display_value object', () => {
+    expect(
+      extractHdConversationBody({
+        description: { display_value: 'Note body from SDP', value: '1778860892126' },
+      }),
+    ).toBe('Note body from SDP');
+  });
+
+  it('mergeHdConversationWithNote copies description from notes row', () => {
+    const merged = mergeHdConversationWithNote(
+      { id: '4445000000193845', type: 'NOTES' },
+      { id: '4445000000193845', description: 'Test comment iteration' },
+    );
+    const rec = mapConversationToRecord({
+      orgId: 'o',
+      ticketId: 'hd_1',
+      conversation: merged,
+    });
+    expect(rec?.body).toBe('Test comment iteration');
+  });
+
+  it('uses created_by when sender is absent', () => {
+    const rec = mapConversationToRecord({
+      orgId: 'o',
+      ticketId: 'hd_1',
+      conversation: {
+        id: '1',
+        type: 'NOTES',
+        description: 'body',
+        created_by: { name: 'Agent', email_id: 'a@co.com' },
+      },
+    });
+    expect(rec?.authorDisplayName).toBe('Agent');
+    expect(rec?.authorEmail).toBe('a@co.com');
   });
 });
