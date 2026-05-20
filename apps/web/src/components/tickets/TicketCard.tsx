@@ -9,6 +9,7 @@ import {
   sourceAccentColor,
   ticketExternalUrl,
 } from '../../utils/ticket-display';
+import { SentimentBadge } from '../sentiment/SentimentBadge';
 import { computeTriageScore } from '../../utils/triage';
 import { TriageScoreRing } from './TriageScoreRing';
 
@@ -32,6 +33,8 @@ export function TicketCard(props: TicketCardProps): ReactElement {
     createdAt: ticket.createdAt,
     updatedAt: ticket.updatedAt,
     slaPercentRemaining: sla,
+    sentiment: ticket.sentiment ?? undefined,
+    churnRisk: ticket.churnRisk,
   });
   const externalUrl = ticketExternalUrl(ticket);
 
@@ -60,6 +63,7 @@ export function TicketCard(props: TicketCardProps): ReactElement {
       >
         <h3 className="flex-1 text-sm font-bold leading-snug text-gray-900">{ticket.summary}</h3>
         <div className="flex items-center gap-2">
+          {!isJira ? <SentimentBadge sentiment={ticket.sentiment} /> : null}
           <TriageScoreRing score={triageScore} />
           <Badge label={ticket.priority} color={priorityColors[ticket.priority] ?? usdColors.gray} sm />
         </div>

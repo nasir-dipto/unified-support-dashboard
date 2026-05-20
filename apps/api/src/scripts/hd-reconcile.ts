@@ -3,7 +3,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ensureDevJwtKeys } from '../config/ensureDevJwtKeys.js';
 import { getServerEnv, loadServerEnv, resetServerEnvForTests } from '../config/loadEnv.js';
-import { upsertTicket } from '../db/tables/tickets.js';
+import { markSentimentStale, upsertTicket } from '../db/tables/tickets.js';
+import { runIncrementalBatch } from '../sentiment/batchProcessor.js';
 import { resetDocumentClientForTests } from '../db/dynamo.client.js';
 import { mapHdRequestToTicket } from '../helpdesk/mapRequestToTicket.js';
 import { syncRequestConversations } from '../helpdesk/syncRequestConversations.js';
@@ -41,6 +42,7 @@ async function main(): Promise<void> {
         orgId: env.HD_DEFAULT_ORG_ID,
       });
       const saved = await upsertTicket(rec);
+      await markSentimentStale(env.HD_DEFAULT_ORG_ID, saved.ticketId);
       const internalId =
         typeof row.id === 'string'
           ? row.id
@@ -67,6 +69,10 @@ async function main(): Promise<void> {
     }
   }
   console.info(`Reconciled Helpdesk requests into org ${env.HD_DEFAULT_ORG_ID}.`);
+  const batch = await runIncrementalBatch(env.HD_DEFAULT_ORG_ID);
+  console.info(
+    `Sentiment batch: examined=${String(batch.examined)} analyzed=${String(batch.analyzed)} skipped=${String(batch.skipped)} errors=${String(batch.errors)}`,
+  );
 }
 
 void main().catch((e: unknown) => {

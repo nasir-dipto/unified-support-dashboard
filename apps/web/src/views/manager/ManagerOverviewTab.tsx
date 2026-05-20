@@ -1,7 +1,8 @@
 import type { TicketApiDto } from '@usd/shared-types';
 import { StatCard, SlaBar, usdColors } from '@usd/ui';
 import type { ReactElement } from 'react';
-import { EmptyStatePanel } from '../../components/skeletons/EmptyStatePanel';
+import { useState } from 'react';
+import { useAiInvoke } from '../../hooks/useAI';
 import { estimateSlaPercentRemaining } from '../../utils/ticket-display';
 
 export type ManagerOverviewTabProps = {
@@ -16,6 +17,8 @@ const openStatuses: TicketApiDto['status'][] = ['open', 'in_progress', 'pending'
  */
 export function ManagerOverviewTab(props: ManagerOverviewTabProps): ReactElement {
   const { tickets, onSelectTicket } = props;
+  const [briefing, setBriefing] = useState<string | null>(null);
+  const ai = useAiInvoke();
   const open = tickets.filter((t) => openStatuses.includes(t.status));
   const critical = tickets.filter((t) => t.priority === 'critical');
   const avgSla =
@@ -44,19 +47,46 @@ export function ManagerOverviewTab(props: ManagerOverviewTabProps): ReactElement
     { label: 'Resolved', count: tickets.filter((t) => t.status === 'resolved').length, color: usdColors.teal },
   ];
 
+  const generateBriefing = (): void => {
+    setBriefing(null);
+    void ai.mutateAsync({ feature: 'morning_briefing' }).then((res) => {
+      if ('briefing' in res) {
+        setBriefing(res.briefing);
+      }
+    });
+  };
+
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <div className="col-span-full rounded-xl border border-gray-200 bg-white p-5">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <div>
             <h3 className="font-bold text-gray-900">Morning briefing</h3>
             <p className="text-sm text-gray-500">AI-generated summary</p>
           </div>
+          <button
+            type="button"
+            disabled={ai.isPending}
+            onClick={generateBriefing}
+            className="rounded-lg bg-usd-indigo px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
+          >
+            {ai.isPending ? 'Generating…' : 'Generate AI briefing'}
+          </button>
         </div>
-        <EmptyStatePanel
-          title="AI briefing not available yet"
-          description="Click Generate when Phase 6 briefing API is ready. Metrics below use live ticket data."
-        />
+        <div className="mt-4">
+          {briefing !== null ? (
+            <pre className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">{briefing}</pre>
+          ) : (
+            <p className="text-sm italic text-gray-400">
+              Click Generate AI briefing for today&apos;s summary. Metrics below use live ticket data.
+            </p>
+          )}
+          {ai.isError ? (
+            <p className="mt-2 text-xs text-usd-red" role="alert">
+              Briefing unavailable. Try again later.
+            </p>
+          ) : null}
+        </div>
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white p-5">

@@ -1,6 +1,8 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { aiInvokeRequestSchema } from '@usd/shared-types';
 import { buildAiTicketContext } from '../ai/buildTicketContext.js';
+import { buildBriefingContext } from '../ai/buildBriefingContext.js';
+import { runMorningBriefing } from '../ai/briefing.js';
 import { runCommentDraft } from '../ai/commentDraft.js';
 import { runTriageSuggest } from '../ai/triage.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
@@ -32,6 +34,14 @@ export const postAiInvoke: RequestHandler[] = [
       throw new AppError('Invalid AI invoke body', 'VALIDATION', 400);
     }
     const body = parsed.data;
+
+    if (body.feature === 'morning_briefing') {
+      const { summary, promptText } = await buildBriefingContext(req.auth.orgId);
+      const result = await runMorningBriefing(summary, promptText);
+      res.status(200).json(result);
+      return;
+    }
+
     const ctx = await buildAiTicketContext(req.auth.orgId, body.ticketId);
 
     if (body.feature === 'triage_suggest') {

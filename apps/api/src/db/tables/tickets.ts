@@ -3,7 +3,11 @@ import {
   PutCommand,
   QueryCommand,
 } from '@aws-sdk/lib-dynamodb';
-import type { SupportTicketRecord, TicketApiDto } from '@usd/shared-types';
+import type {
+  SentimentAnalysisResult,
+  SupportTicketRecord,
+  TicketApiDto,
+} from '@usd/shared-types';
 import { supportTicketRecordSchema, ticketApiDtoSchema } from '@usd/shared-types';
 import { getServerEnv } from '../../config/loadEnv.js';
 import { AppError } from '../../utils/errors.js';
@@ -67,12 +71,33 @@ export async function upsertTicket(record: SupportTicketRecord): Promise<Support
     parsed.internalId !== undefined && parsed.internalId.length > 0
       ? parsed.internalId
       : prev?.internalId;
+  const sentiment =
+    parsed.sentiment !== undefined && parsed.sentiment !== null
+      ? parsed.sentiment
+      : prev?.sentiment;
+  const sentimentScore =
+    parsed.sentimentScore !== undefined && parsed.sentimentScore !== null
+      ? parsed.sentimentScore
+      : prev?.sentimentScore;
+  const churnRisk =
+    parsed.churnRisk !== undefined ? parsed.churnRisk : prev?.churnRisk;
+  const sentimentStale =
+    parsed.sentimentStale !== undefined ? parsed.sentimentStale : prev?.sentimentStale;
+  const sentimentAt =
+    parsed.sentimentAt !== undefined && parsed.sentimentAt !== null
+      ? parsed.sentimentAt
+      : prev?.sentimentAt;
   const merged = supportTicketRecordSchema.parse({
     ...parsed,
     createdAt,
     updatedAt: parsed.updatedAt,
     linkedTicketId,
     internalId,
+    sentiment,
+    sentimentScore,
+    churnRisk,
+    sentimentStale,
+    sentimentAt,
   });
   await doc.send(
     new PutCommand({
@@ -234,4 +259,131 @@ export async function linkTicketsBidirectional(params: {
     ticket: ticketApiDtoSchema.parse(updatedA),
     linkedTicket: ticketApiDtoSchema.parse(updatedB),
   };
+}
+
+/**
+ * Marks a Helpdesk ticket as needing sentiment re-analysis (no-op for Jira).
+ */
+export async function markSentimentStale(orgId: string, ticketId: string): Promise<void> {
+  const env = getServerEnv();
+  const doc = getDocumentClient();
+  const out = await doc.send(
+    new GetCommand({
+      TableName: env.SUPPORT_TICKETS_TABLE,
+      Key: { ticketId },
+    }),
+  );
+  const item = out.Item;
+  if (item === undefined) {
+    return;
+  }
+  const rec = supportTicketRecordSchema.parse(item);
+  if (rec.orgId !== orgId || rec.source !== 'helpdesk') {
+    return;
+  }
+  const updated = supportTicketRecordSchema.parse({
+    ...rec,
+    sentimentStale: true,
+    updatedAt: new Date().toISOString(),
+  });
+  await doc.send(
+    new PutCommand({
+      TableName: env.SUPPORT_TICKETS_TABLE,
+      Item: updated,
+    }),
+  );
+}
+
+export type ListHdTicketsForSentimentParams = {
+  orgId: string;
+  staleOnly: boolean;
+};
+
+/**
+ * Lists Helpdesk tickets for an org via orgId GSI (paginates until exhausted).
+ */
+export async function listHdTicketsForSentiment(
+  params: ListHdTicketsForSentimentParams,
+): Promise<SupportTicketRecord[]> {
+  const env = getServerEnv();
+  const doc = getDocumentClient();
+  const items: SupportTicketRecord[] = [];
+  let exclusiveStartKey: Record<string, unknown> | undefined;
+  do {
+    const out = await doc.send(
+      new QueryCommand({
+        TableName: env.SUPPORT_TICKETS_TABLE,
+        IndexName: ORG_CREATED_GSI,
+        KeyConditionExpression: 'orgId = :o',
+        FilterExpression:
+          '#src = :hd' + (params.staleOnly ? ' AND sentimentStale = :stale' : ''),
+        ExpressionAttributeNames: { '#src': 'source' },
+        ExpressionAttributeValues: {
+          ':o': params.orgId,
+          ':hd': 'helpdesk',
+          ...(params.staleOnly ? { ':stale': true } : {}),
+        },
+        ...(exclusiveStartKey !== undefined ? { ExclusiveStartKey: exclusiveStartKey } : {}),
+      }),
+    );
+    for (const raw of out.Items ?? []) {
+      const parsed = supportTicketRecordSchema.safeParse(raw);
+      if (parsed.success) {
+        items.push(parsed.data);
+      }
+    }
+    exclusiveStartKey = out.LastEvaluatedKey as Record<string, unknown> | undefined;
+  } while (exclusiveStartKey !== undefined);
+  return items;
+}
+
+/**
+ * Persists sentiment analysis results and clears the stale flag.
+ */
+export async function updateTicketSentiment(
+  orgId: string,
+  ticketId: string,
+  result: SentimentAnalysisResult,
+): Promise<SupportTicketRecord> {
+  const env = getServerEnv();
+  const doc = getDocumentClient();
+  const out = await doc.send(
+    new GetCommand({
+      TableName: env.SUPPORT_TICKETS_TABLE,
+      Key: { ticketId },
+    }),
+  );
+  const item = out.Item;
+  if (item === undefined) {
+    throw new AppError('Ticket not found', 'NOT_FOUND', 404);
+  }
+  const rec = supportTicketRecordSchema.parse(item);
+  if (rec.orgId !== orgId || rec.source !== 'helpdesk') {
+    throw new AppError('Sentiment applies to Helpdesk tickets only', 'VALIDATION', 400);
+  }
+  const now = new Date().toISOString();
+  const updated = supportTicketRecordSchema.parse({
+    ...rec,
+    sentiment: result.sentiment,
+    sentimentScore: result.sentimentScore,
+    churnRisk: result.churnRisk,
+    sentimentStale: false,
+    sentimentAt: now,
+    updatedAt: now,
+  });
+  await doc.send(
+    new PutCommand({
+      TableName: env.SUPPORT_TICKETS_TABLE,
+      Item: updated,
+    }),
+  );
+  return updated;
+}
+
+/**
+ * Lists Helpdesk tickets with sentiment for summary aggregation.
+ */
+export async function listHdTicketsWithSentiment(orgId: string): Promise<SupportTicketRecord[]> {
+  const all = await listHdTicketsForSentiment({ orgId, staleOnly: false });
+  return all;
 }

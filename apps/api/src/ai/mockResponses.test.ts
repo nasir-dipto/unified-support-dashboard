@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   degradedCommentDraft,
+  degradedMorningBriefing,
   degradedTriageSuggest,
   mockCommentDraft,
+  mockMorningBriefing,
+  mockSentimentAnalysis,
   mockTriageSuggest,
 } from './mockResponses.js';
 
@@ -49,6 +52,39 @@ describe('mockResponses', () => {
     });
     expect(pro.tone).toBe('empathetic');
     expect(pro.draft).toContain('frustrating');
+  });
+
+  it('mockSentimentAnalysis detects negative keywords', () => {
+    const res = mockSentimentAnalysis({
+      ticket: {
+        ticketId: 'hd_1',
+        orgId: 'o',
+        source: 'helpdesk',
+        externalId: '1',
+        summary: 'Cannot login frustrated',
+        priority: 'critical',
+        status: 'open',
+        createdAt: 't',
+        updatedAt: 't',
+      },
+      commentCount: 2,
+    });
+    expect(res.sentiment).toBe('negative');
+    expect(res.churnRisk).toBe(true);
+  });
+
+  it('mockMorningBriefing returns bullet points', () => {
+    const res = mockMorningBriefing({
+      negativeCount: 3,
+      positiveCount: 1,
+      criticalOpen: 2,
+      churnRiskCount: 1,
+    });
+    expect(res.briefing).toContain('•');
+  });
+
+  it('degradedMorningBriefing sets degraded', () => {
+    expect(degradedMorningBriefing().degraded).toBe(true);
   });
 
   it('degradedCommentDraft preserves tone', () => {

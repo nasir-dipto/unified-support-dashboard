@@ -7,6 +7,7 @@ import {
   listTicketComments,
   upsertTicketComment,
 } from '../db/tables/comments.js';
+import { markSentimentStale } from '../db/tables/tickets.js';
 import {
   fetchRequestConversations,
   fetchRequestNotes,
@@ -80,6 +81,9 @@ export async function syncRequestConversations(params: {
       await upsertTicketComment(record);
       synced += 1;
     }
+  }
+  if (synced > 0) {
+    await markSentimentStale(params.orgId, params.ticketId);
   }
   return synced;
 }
