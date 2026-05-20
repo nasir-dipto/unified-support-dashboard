@@ -6,7 +6,7 @@ import {
   sdpRequestSchema,
 } from '@usd/shared-types';
 import { getServerEnv } from '../config/loadEnv.js';
-import { upsertTicket, getTicketRecordOrUndefined } from '../db/tables/tickets.js';
+import { getTicketRecordOrUndefined, markSentimentStale, upsertTicket } from '../db/tables/tickets.js';
 import { mapHdRequestToTicket } from '../helpdesk/mapRequestToTicket.js';
 import { getJiraIncludeProjectsFromEnv, isJiraIssueKeyIncluded } from '../jira/jiraIncludeProjects.js';
 import { mapJiraIssueToTicket } from '../jira/mapIssueToTicket.js';
@@ -107,6 +107,7 @@ export const postHelpdeskWebhook: RequestHandler = asyncHandler(async (req, res)
   });
   const prev = await getTicketRecordOrUndefined(record.ticketId);
   const merged = await upsertTicket(record);
+  await markSentimentStale(env.HD_DEFAULT_ORG_ID, merged.ticketId);
   broadcastTicketLifecycleEvent(prev, merged);
   if (env.NODE_ENV === 'development' || env.DYNAMODB_ENDPOINT !== undefined) {
     enqueueSqsEvent('helpdesk.webhook', req.body);

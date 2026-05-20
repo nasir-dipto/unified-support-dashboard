@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   aiInvokeRequestSchema,
   commentDraftResponseSchema,
+  morningBriefingResponseSchema,
   triageSuggestResponseSchema,
 } from './schemas.js';
 
@@ -45,6 +46,19 @@ describe('ai schemas', () => {
     });
     expect(p.suggestedAssignee).toBe('Jane Agent');
     expect(p.degraded).toBe(true);
+  });
+
+  it('parses morning_briefing request', () => {
+    const p = aiInvokeRequestSchema.parse({ feature: 'morning_briefing' });
+    expect(p.feature).toBe('morning_briefing');
+  });
+
+  it('parses morning briefing response', () => {
+    const p = morningBriefingResponseSchema.parse({
+      briefing: '• Risk summary',
+      degraded: false,
+    });
+    expect(p.briefing).toContain('Risk');
   });
 
   it('parses comment draft response with tone', () => {

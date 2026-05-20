@@ -24,3 +24,15 @@ export type MockDraftInput = {
   tone: CommentDraftTone;
   commentCount: number;
 };
+
+export type MockSentimentInput = {
+  ticket: TicketApiDto;
+  commentCount: number;
+};
+
+export type MockBriefingInput = {
+  negativeCount: number;
+  positiveCount: number;
+  criticalOpen: number;
+  churnRiskCount: number;
+};

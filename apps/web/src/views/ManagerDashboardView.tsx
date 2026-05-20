@@ -8,6 +8,7 @@ import { estimateSlaPercentRemaining } from '../utils/ticket-display';
 import { ManagerInsightsTab } from './manager/ManagerInsightsTab';
 import { ManagerOverviewTab } from './manager/ManagerOverviewTab';
 import { ManagerReportingTab } from './manager/ManagerReportingTab';
+import { useSentimentSummary } from '../hooks/useSentiment';
 import { ManagerSentimentTab } from './manager/ManagerSentimentTab';
 import { ManagerTeamTab } from './manager/ManagerTeamTab';
 
@@ -20,7 +21,9 @@ const openStatuses: TicketApiDto['status'][] = ['open', 'in_progress', 'pending'
  */
 export function ManagerDashboardView(): ReactElement {
   const { data, isLoading } = useTicketsList();
+  const sentimentQuery = useSentimentSummary();
   const tickets = data?.data ?? [];
+  const negativeSentiment = sentimentQuery.data?.counts.negative ?? 0;
   const [tab, setTab] = useState<MgrTab>('overview');
   const [detailId, setDetailId] = useState<string | null>(null);
 
@@ -38,7 +41,11 @@ export function ManagerDashboardView(): ReactElement {
 
   const tabs: { id: MgrTab; label: string; badge?: number }[] = [
     { id: 'overview', label: 'Overview' },
-    { id: 'sentiment', label: 'Sentiment analysis' },
+    {
+      id: 'sentiment',
+      label: 'Sentiment analysis',
+      badge: negativeSentiment > 0 ? negativeSentiment : undefined,
+    },
     { id: 'insights', label: 'AI insights' },
     { id: 'reporting', label: 'Reporting' },
     { id: 'team', label: 'Team' },
@@ -57,7 +64,12 @@ export function ManagerDashboardView(): ReactElement {
         <StatCard label="Total tickets" value={tickets.length} color={usdColors.indigo} />
         <StatCard label="Open" value={open.length} color={usdColors.green} />
         <StatCard label="Critical" value={critical.length} color={usdColors.red} />
-        <StatCard label="Negative sentiment" value="—" color={usdColors.coral} sub="Phase 6" />
+        <StatCard
+          label="Negative sentiment"
+          value={sentimentQuery.isLoading ? '…' : negativeSentiment}
+          color={usdColors.coral}
+          sub="Helpdesk"
+        />
         <StatCard label="Avg SLA" value={`${String(avgSla)}%`} color={usdColors.teal} />
         <StatCard label="SLA breach risk" value="—" color={usdColors.amber} sub="Phase 8" />
       </div>
@@ -91,7 +103,9 @@ export function ManagerDashboardView(): ReactElement {
             onSelectTicket={(t) => { setDetailId(t.ticketId); }}
           />
         ) : null}
-        {tab === 'sentiment' ? <ManagerSentimentTab /> : null}
+        {tab === 'sentiment' ? (
+          <ManagerSentimentTab onSelectTicket={(id) => { setDetailId(id); }} />
+        ) : null}
         {tab === 'insights' ? <ManagerInsightsTab /> : null}
         {tab === 'reporting' ? <ManagerReportingTab tickets={tickets} /> : null}
         {tab === 'team' ? <ManagerTeamTab /> : null}

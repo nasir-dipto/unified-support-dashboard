@@ -29,6 +29,12 @@ describe('invokeAi', () => {
     });
   });
 
+  it('parses morning_briefing response', async () => {
+    postMock.mockResolvedValueOnce({ data: { briefing: '• Summary' } });
+    const result = await invokeAi({ feature: 'morning_briefing' });
+    expect(result).toMatchObject({ briefing: '• Summary' });
+  });
+
   it('parses comment_draft with tone', async () => {
     postMock.mockResolvedValueOnce({
       data: { draft: 'Hello', tone: 'technical', degraded: true },

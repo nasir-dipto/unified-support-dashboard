@@ -3,6 +3,11 @@ import { z } from 'zod';
 /** Ticket origin system (Jira or Helpdesk). */
 export const ticketSourceSchema = z.enum(['jira', 'helpdesk']);
 
+/** Customer-facing sentiment label on Helpdesk tickets. */
+export const ticketSentimentSchema = z.enum(['positive', 'neutral', 'negative']);
+
+export type TicketSentiment = z.infer<typeof ticketSentimentSchema>;
+
 /** Normalized priority for USD. */
 export const ticketPrioritySchema = z.enum(['critical', 'high', 'medium', 'low']);
 export type TicketPriority = z.infer<typeof ticketPrioritySchema>;
@@ -39,6 +44,14 @@ export const supportTicketRecordSchema = z.object({
   linkedTicketId: z.string().min(1).optional(),
   createdAt: z.string().min(1),
   updatedAt: z.string().min(1),
+  /** Helpdesk-only customer sentiment (null on Jira tickets). */
+  sentiment: ticketSentimentSchema.nullable().optional(),
+  sentimentScore: z.number().min(-1).max(1).nullable().optional(),
+  churnRisk: z.boolean().optional(),
+  /** True when conversation changed and batch analysis is pending. */
+  sentimentStale: z.boolean().optional(),
+  /** ISO timestamp of last sentiment analysis. */
+  sentimentAt: z.string().min(1).nullable().optional(),
 });
 
 export type SupportTicketRecord = z.infer<typeof supportTicketRecordSchema>;
@@ -62,6 +75,11 @@ export const ticketApiDtoSchema = supportTicketRecordSchema.pick({
   linkedTicketId: true,
   createdAt: true,
   updatedAt: true,
+  sentiment: true,
+  sentimentScore: true,
+  churnRisk: true,
+  sentimentStale: true,
+  sentimentAt: true,
 });
 
 export type TicketApiDto = z.infer<typeof ticketApiDtoSchema>;

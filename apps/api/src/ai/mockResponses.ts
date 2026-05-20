@@ -1,9 +1,11 @@
 import type {
   CommentDraftResponse,
   CommentDraftTone,
+  MorningBriefingResponse,
+  SentimentAnalysisResult,
   TriageSuggestResponse,
 } from '@usd/shared-types';
-import type { MockDraftInput, MockTriageInput } from './types.js';
+import type { MockBriefingInput, MockDraftInput, MockSentimentInput, MockTriageInput } from './types.js';
 
 const DEGRADED_TRIAGE_MESSAGE =
   'AI temporarily unavailable. Please review manually.';
@@ -93,4 +95,73 @@ export function degradedCommentDraft(tone: CommentDraftTone): CommentDraftRespon
     tone,
     degraded: true,
   };
+}
+
+const NEGATIVE_HINTS = ['frustrat', 'angry', 'urgent', 'broken', 'fail', 'cannot', "can't", 'unacceptable'];
+const POSITIVE_HINTS = ['thank', 'resolved', 'appreciate', 'great', 'works'];
+
+/**
+ * Returns realistic mock sentiment for a Helpdesk ticket (USE_MOCK_AI=true).
+ */
+export function mockSentimentAnalysis(input: MockSentimentInput): SentimentAnalysisResult {
+  const { ticket, commentCount } = input;
+  const text = `${ticket.summary} ${ticket.description ?? ''}`.toLowerCase();
+  let negativeHits = 0;
+  let positiveHits = 0;
+  for (const w of NEGATIVE_HINTS) {
+    if (text.includes(w)) {
+      negativeHits += 1;
+    }
+  }
+  for (const w of POSITIVE_HINTS) {
+    if (text.includes(w)) {
+      positiveHits += 1;
+    }
+  }
+  if (ticket.priority === 'critical' || ticket.priority === 'high') {
+    negativeHits += 1;
+  }
+  if (ticket.status === 'resolved' || ticket.status === 'closed') {
+    positiveHits += 1;
+  }
+  if (commentCount === 0) {
+    return { sentiment: 'neutral', sentimentScore: 0, churnRisk: false };
+  }
+  if (negativeHits > positiveHits) {
+    const score = Math.max(-1, -0.35 - negativeHits * 0.15);
+    return {
+      sentiment: 'negative',
+      sentimentScore: score,
+      churnRisk: ticket.priority === 'critical' || ticket.priority === 'high',
+    };
+  }
+  if (positiveHits > negativeHits) {
+    return { sentiment: 'positive', sentimentScore: 0.55, churnRisk: false };
+  }
+  return { sentiment: 'neutral', sentimentScore: 0.05, churnRisk: false };
+}
+
+const DEGRADED_BRIEFING_MESSAGE =
+  'AI temporarily unavailable. Review the Sentiment tab and open tickets manually.';
+
+/**
+ * Returns a realistic mock morning briefing (USE_MOCK_AI=true).
+ */
+export function mockMorningBriefing(input: MockBriefingInput): MorningBriefingResponse {
+  return {
+    briefing: [
+      `• Overall: ${String(input.positiveCount)} positive, ${String(input.negativeCount)} negative Helpdesk tickets in view.`,
+      `• At-risk: ${String(input.churnRiskCount)} ticket(s) flagged for churn risk — prioritize enterprise accounts.`,
+      `• Trend: Negative volume ${input.negativeCount > input.positiveCount ? 'elevated' : 'stable'} week over week.`,
+      `• SLA: ${String(input.criticalOpen)} critical ticket(s) open — verify assignees and response times.`,
+      '• Action: Review top negative accounts and schedule CSM check-ins before end of day.',
+    ].join('\n'),
+  };
+}
+
+/**
+ * Returns degraded morning briefing (Bedrock failure) — HTTP 200.
+ */
+export function degradedMorningBriefing(): MorningBriefingResponse {
+  return { briefing: DEGRADED_BRIEFING_MESSAGE, degraded: true };
 }

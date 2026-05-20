@@ -53,7 +53,7 @@ Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentim
 - Phase 4: COMPLETE — WebSocket, DetailModal, ActivitySidebar, cross-linking
 - Phase 5A: COMPLETE — comment sync + unified thread (branch: feature/phase-5-ai)
 - Phase 5B: COMPLETE — AI triage, action suggestion, comment draft (branch: feature/phase-5b-ai)
-- Phase 6: NOT STARTED — sentiment + briefings
+- Phase 6: COMPLETE — sentiment + briefings (branch: feature/phase-6-sentiment)
 - Phase 7: NOT STARTED — knowledge base (pgvector)
 - Phase 8: NOT STARTED — reports + notifications
 - Phase 9: NOT STARTED — admin + hardening
@@ -237,7 +237,14 @@ Sync full conversation history from Jira and HD so AI has rich context.
 - TicketCard: client-side triage score ring (0–100)
 - shared-types: discriminated AI request/response (tone, degraded, suggestedAssignee)
 
-## Current test count: 214 (154 API + 42 web + 8 UI + 10 shared-types)
+## Phase 6 — COMPLETE
+- HD-only sentiment (Bedrock batch, dirty flag, 1hr min interval)
+- POST /api/ai/invoke `morning_briefing` (Overview + Sentiment tabs)
+- GET /api/sentiment/summary — Recharts in MgrView Sentiment tab
+- `pnpm sync:hd` runs incremental sentiment batch; `pnpm sentiment:batch` for full
+- Sentiment badge on TicketCard (Helpdesk only)
+
+## Current test count: 252 (172 API + 62 web + 8 UI + 11 shared-types)
 
 ## Deferred to Phase 6
 - Webhook comment sync: when Jira/HD fires webhook for new comment, sync to support_ticket_comments
@@ -258,7 +265,14 @@ Sync full conversation history from Jira and HD so AI has rich context.
 - Phase 5A: Communication enrichment (PR #8)
 - Phase 5B: AI features (PR #9)
 
-## Current test count: 214 (154 API + 42 web + 8 UI + 10 shared-types)
+## Phase 6 — COMPLETE
+- HD-only sentiment (Bedrock batch, dirty flag, 1hr min interval)
+- POST /api/ai/invoke `morning_briefing` (Overview + Sentiment tabs)
+- GET /api/sentiment/summary — Recharts in MgrView Sentiment tab
+- `pnpm sync:hd` runs incremental sentiment batch; `pnpm sentiment:batch` for full
+- Sentiment badge on TicketCard (Helpdesk only)
+
+## Current test count: 252 (172 API + 62 web + 8 UI + 11 shared-types)
 
 ## Phase 6 — Sentiment Analysis & Briefings
 ### Architecture decisions (confirmed)

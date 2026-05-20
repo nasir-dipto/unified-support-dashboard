@@ -19,7 +19,12 @@ import {
   deleteTicketComment,
   listTicketComments,
 } from '../db/tables/comments.js';
-import { getTicketById, linkTicketsBidirectional, listTickets } from '../db/tables/tickets.js';
+import {
+  getTicketById,
+  linkTicketsBidirectional,
+  listTickets,
+  markSentimentStale,
+} from '../db/tables/tickets.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
 import * as helpdeskService from '../services/helpdesk.service.js';
 import * as jiraService from '../services/jira.service.js';
@@ -161,6 +166,9 @@ export const postTicketComment: RequestHandler[] = [
     } catch (err) {
       await deleteTicketComment(req.auth.orgId, ticketCommentKey);
       throw err;
+    }
+    if (ticket.source === 'helpdesk') {
+      await markSentimentStale(req.auth.orgId, ticketId);
     }
     broadcastWsEnvelope({
       type: 'comment_added',

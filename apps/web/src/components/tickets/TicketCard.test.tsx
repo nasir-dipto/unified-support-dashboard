@@ -36,6 +36,23 @@ describe('TicketCard', () => {
     expect(screen.getByTitle(/^Triage score \d+$/)).toBeInTheDocument();
   });
 
+  it('shows sentiment badge on Helpdesk tickets only', () => {
+    const hd: TicketApiDto = {
+      ...sample,
+      ticketId: 'hd_9',
+      source: 'helpdesk',
+      externalId: '9',
+      sentiment: 'negative',
+    };
+    const { unmount } = render(<TicketCard ticket={hd} />);
+    expect(screen.getByText('negative')).toBeInTheDocument();
+    unmount();
+    cleanup();
+    const jiraOnly: TicketApiDto = { ...sample, sentiment: 'negative' };
+    render(<TicketCard ticket={jiraOnly} />);
+    expect(screen.queryByText('negative')).toBeNull();
+  });
+
   it('renders Helpdesk source and HD-prefixed ticket id', () => {
     const hd: TicketApiDto = {
       ...sample,

@@ -1,7 +1,11 @@
 import { z } from 'zod';
 
 /** Supported AI feature identifiers for POST /api/ai/invoke */
-export const aiFeatureSchema = z.enum(['triage_suggest', 'comment_draft']);
+export const aiFeatureSchema = z.enum([
+  'triage_suggest',
+  'comment_draft',
+  'morning_briefing',
+]);
 
 export type AiFeature = z.infer<typeof aiFeatureSchema>;
 
@@ -30,10 +34,17 @@ export const commentDraftRequestSchema = z.object({
 
 export type CommentDraftRequest = z.infer<typeof commentDraftRequestSchema>;
 
+export const morningBriefingRequestSchema = z.object({
+  feature: z.literal('morning_briefing'),
+});
+
+export type MorningBriefingRequest = z.infer<typeof morningBriefingRequestSchema>;
+
 /** POST /api/ai/invoke body — server builds context from DB; no client `context`. */
 export const aiInvokeRequestSchema = z.discriminatedUnion('feature', [
   triageSuggestRequestSchema,
   commentDraftRequestSchema,
+  morningBriefingRequestSchema,
 ]);
 
 export type AiInvokeRequest = z.infer<typeof aiInvokeRequestSchema>;
@@ -56,9 +67,17 @@ export const commentDraftResponseSchema = z.object({
 
 export type CommentDraftResponse = z.infer<typeof commentDraftResponseSchema>;
 
+export const morningBriefingResponseSchema = z.object({
+  briefing: z.string(),
+  ...aiResponseBaseSchema,
+});
+
+export type MorningBriefingResponse = z.infer<typeof morningBriefingResponseSchema>;
+
 export const aiInvokeResponseSchema = z.union([
   triageSuggestResponseSchema,
   commentDraftResponseSchema,
+  morningBriefingResponseSchema,
 ]);
 
 export type AiInvokeResponse = z.infer<typeof aiInvokeResponseSchema>;
