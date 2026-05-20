@@ -243,3 +243,19 @@ Sync full conversation history from Jira and HD so AI has rich context.
 - Webhook comment sync: when Jira/HD fires webhook for new comment, sync to support_ticket_comments
 - Currently: reconciliation handles comment sync (not real-time)
 - Phase 6 will add real-time comment sync via webhooks alongside sentiment analysis
+
+## Phase 5B — COMPLETE (PR #9)
+- POST /api/ai/invoke (triage_suggest + comment_draft)
+- bedrock.service.ts — Bedrock invocation, 10s timeout, USE_MOCK_AI=true fallback
+- Server-side context: ticket + full comment thread + linked ticket
+- Triage score ring on TicketCard (client-side, 0-100)
+- AI Suggest Action + AI Draft Comment in DetailModal
+- Tone pills: professional / empathetic / technical
+- Degraded response on timeout (HTTP 200, manual review message)
+- 214 tests passing
+
+## Phase 5 — COMPLETE (5A + 5B)
+- Phase 5A: Communication enrichment (PR #8)
+- Phase 5B: AI features (PR #9)
+
+## Current test count: 214 (154 API + 42 web + 8 UI + 10 shared-types)
