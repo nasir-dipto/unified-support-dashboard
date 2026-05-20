@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { TicketApiDto } from '@usd/shared-types';
 import {
@@ -23,10 +24,11 @@ const baseTicket: TicketApiDto = {
 };
 
 let ticketDetail: TicketApiDto = { ...baseTicket };
+const mutateAsyncMock = vi.fn();
 
 vi.mock('../../hooks/useAI', () => ({
   useAiInvoke: () => ({
-    mutateAsync: vi.fn(),
+    mutateAsync: mutateAsyncMock,
     isPending: false,
     isError: false,
   }),
@@ -104,6 +106,7 @@ describe('DetailModal', () => {
   afterEach(() => {
     cleanup();
     ticketDetail = { ...baseTicket };
+    mutateAsyncMock.mockReset();
   });
 
   it('renders original description as first conversation item for Jira', () => {
@@ -137,5 +140,41 @@ describe('DetailModal', () => {
     renderModal();
     expect(screen.queryByTestId('ticket-original-description')).toBeNull();
     expect(screen.queryByText('Issue Description')).toBeNull();
+  });
+
+  it('calls triage_suggest when AI suggest is clicked', async () => {
+    const user = userEvent.setup();
+    mutateAsyncMock.mockResolvedValue({
+      engineerAction: 'Check auth logs',
+      riskLevel: 'HIGH',
+      suggestedAssignee: 'bob',
+    });
+    renderModal();
+    await user.click(screen.getByRole('button', { name: /ai: suggest action/i }));
+    await waitFor(() => {
+      expect(mutateAsyncMock).toHaveBeenCalledWith({
+        feature: 'triage_suggest',
+        ticketId: 'jira_X',
+      });
+    });
+    expect(screen.getByText('Check auth logs')).toBeTruthy();
+    expect(screen.getByText(/Suggested assignee/i)).toBeTruthy();
+    expect(screen.getByText('bob')).toBeTruthy();
+  });
+
+  it('drafts comment with selected tone', async () => {
+    const user = userEvent.setup();
+    mutateAsyncMock.mockResolvedValue({ draft: 'Draft body', tone: 'technical' });
+    renderModal();
+    await user.click(screen.getByRole('button', { name: /^technical$/i }));
+    await user.click(screen.getByRole('button', { name: /ai: draft comment/i }));
+    await waitFor(() => {
+      expect(mutateAsyncMock).toHaveBeenCalledWith({
+        feature: 'comment_draft',
+        ticketId: 'jira_X',
+        tone: 'technical',
+      });
+    });
+    expect(screen.getByPlaceholderText(/internal comment/i)).toHaveValue('Draft body');
   });
 });

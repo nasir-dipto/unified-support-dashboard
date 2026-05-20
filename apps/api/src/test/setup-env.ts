@@ -38,5 +38,8 @@ if (process.env.SUPPORT_TICKET_COMMENTS_TABLE === undefined) {
 if (process.env.HD_DEFAULT_ORG_ID === undefined) {
   process.env.HD_DEFAULT_ORG_ID = 'demo-org';
 }
+if (process.env.USE_MOCK_AI === undefined) {
+  process.env.USE_MOCK_AI = 'true';
+}
 
 loadServerEnv();

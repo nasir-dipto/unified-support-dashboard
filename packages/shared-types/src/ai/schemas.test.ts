@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { aiInvokeRequestSchema, triageSuggestResponseSchema } from './schemas.js';
+import {
+  aiInvokeRequestSchema,
+  commentDraftResponseSchema,
+  triageSuggestResponseSchema,
+} from './schemas.js';
 
 describe('ai schemas', () => {
-  it('parses invoke request', () => {
+  it('parses triage_suggest request without context', () => {
     const p = aiInvokeRequestSchema.parse({
       feature: 'triage_suggest',
       ticketId: 'hd_1',
@@ -10,11 +14,44 @@ describe('ai schemas', () => {
     expect(p.feature).toBe('triage_suggest');
   });
 
-  it('parses triage response', () => {
+  it('parses comment_draft request with tone', () => {
+    const p = aiInvokeRequestSchema.parse({
+      feature: 'comment_draft',
+      ticketId: 'jira_X',
+      tone: 'empathetic',
+    });
+    if (p.feature !== 'comment_draft') {
+      throw new Error('expected comment_draft');
+    }
+    expect(p.tone).toBe('empathetic');
+  });
+
+  it('defaults comment_draft tone to professional', () => {
+    const p = aiInvokeRequestSchema.parse({
+      feature: 'comment_draft',
+      ticketId: 'jira_X',
+    });
+    if (p.feature === 'comment_draft') {
+      expect(p.tone).toBe('professional');
+    }
+  });
+
+  it('parses triage response with suggestedAssignee and degraded', () => {
     const p = triageSuggestResponseSchema.parse({
       engineerAction: 'Check logs',
       riskLevel: 'LOW',
+      suggestedAssignee: 'Jane Agent',
+      degraded: true,
     });
-    expect(p.engineerAction).toBe('Check logs');
+    expect(p.suggestedAssignee).toBe('Jane Agent');
+    expect(p.degraded).toBe(true);
+  });
+
+  it('parses comment draft response with tone', () => {
+    const p = commentDraftResponseSchema.parse({
+      draft: 'Hello',
+      tone: 'technical',
+    });
+    expect(p.tone).toBe('technical');
   });
 });

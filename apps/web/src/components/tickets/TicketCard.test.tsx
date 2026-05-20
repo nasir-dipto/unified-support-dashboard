@@ -31,6 +31,11 @@ describe('TicketCard', () => {
     expect(screen.getByText('DEMO-1')).toBeInTheDocument();
   });
 
+  it('renders triage score ring from client formula', () => {
+    render(<TicketCard ticket={sample} />);
+    expect(screen.getByTitle(/^Triage score \d+$/)).toBeInTheDocument();
+  });
+
   it('renders Helpdesk source and HD-prefixed ticket id', () => {
     const hd: TicketApiDto = {
       ...sample,

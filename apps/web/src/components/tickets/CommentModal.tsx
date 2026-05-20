@@ -1,5 +1,5 @@
-import type { TicketApiDto } from '@usd/shared-types';
-import { Badge, Overlay, priorityColors, usdColors } from '@usd/ui';
+import type { CommentDraftTone, TicketApiDto } from '@usd/shared-types';
+import { Badge, Overlay, Pill, priorityColors, usdColors } from '@usd/ui';
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { useAiInvoke } from '../../hooks/useAI';
@@ -22,6 +22,7 @@ export type CommentModalProps = {
 export function CommentModal(props: CommentModalProps): ReactElement {
   const { ticket, onClose } = props;
   const [text, setText] = useState('');
+  const [draftTone, setDraftTone] = useState<CommentDraftTone>('professional');
   const postComment = usePostTicketComment(ticket?.ticketId);
   const ai = useAiInvoke();
 
@@ -34,11 +35,13 @@ export function CommentModal(props: CommentModalProps): ReactElement {
   const externalUrl = ticketExternalUrl(ticket);
 
   const draftAi = (): void => {
-    void ai.mutateAsync({ feature: 'comment_draft', ticketId: ticket.ticketId }).then((res) => {
-      if ('draft' in res) {
-        setText(res.draft);
-      }
-    });
+    void ai
+      .mutateAsync({ feature: 'comment_draft', ticketId: ticket.ticketId, tone: draftTone })
+      .then((res) => {
+        if ('draft' in res) {
+          setText(res.draft);
+        }
+      });
   };
 
   const send = (): void => {
@@ -79,6 +82,16 @@ export function CommentModal(props: CommentModalProps): ReactElement {
           {ticket.description}
         </p>
       ) : null}
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        {(['professional', 'empathetic', 'technical'] as const).map((tone) => (
+          <Pill
+            key={tone}
+            label={tone.charAt(0).toUpperCase() + tone.slice(1)}
+            active={draftTone === tone}
+            onClick={() => { setDraftTone(tone); }}
+          />
+        ))}
+      </div>
       <div className="mb-2 flex items-center justify-between">
         <span className="text-[13px] font-bold text-gray-900">
           {isJira ? 'Add internal comment' : 'Reply to customer'}
