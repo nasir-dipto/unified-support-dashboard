@@ -26,4 +26,41 @@ describe('computeTriageScore', () => {
       }),
     ).toBe(5);
   });
+
+  it('adds SLA points when under 25% remaining', () => {
+    const score = computeTriageScore({
+      priority: 'medium',
+      status: 'open',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-02T00:00:00.000Z',
+      slaPercentRemaining: 0,
+    });
+    expect(score).toBe(50);
+  });
+
+  it('adds sentiment, churn, and escalated modifiers', () => {
+    expect(
+      computeTriageScore({
+        priority: 'high',
+        status: 'open',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-02T00:00:00.000Z',
+        sentiment: 'negative',
+        churnRisk: true,
+        escalated: true,
+      }),
+    ).toBe(65);
+  });
+
+  it('does not add SLA points at or above 25% remaining', () => {
+    expect(
+      computeTriageScore({
+        priority: 'critical',
+        status: 'open',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-02T00:00:00.000Z',
+        slaPercentRemaining: 25,
+      }),
+    ).toBe(40);
+  });
 });

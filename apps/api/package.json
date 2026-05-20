@@ -18,6 +18,7 @@
     "cleanup:legacy-comments": "tsx src/scripts/cleanup-legacy-comments.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.1050.0",
     "@aws-sdk/client-dynamodb": "^3.750.0",
     "@aws-sdk/client-secrets-manager": "^3.750.0",
     "@aws-sdk/lib-dynamodb": "^3.750.0",

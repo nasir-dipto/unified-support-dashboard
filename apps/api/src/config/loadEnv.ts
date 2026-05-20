@@ -43,6 +43,8 @@ export function loadServerEnv(): ParsedEnv {
     WS_MODE: process.env.WS_MODE,
     SUPPORT_TICKET_COMMENTS_TABLE: process.env.SUPPORT_TICKET_COMMENTS_TABLE,
     LAMBDA_WEBHOOK_WORKER: process.env.LAMBDA_WEBHOOK_WORKER,
+    USE_MOCK_AI: process.env.USE_MOCK_AI,
+    BEDROCK_MODEL_ID: process.env.BEDROCK_MODEL_ID,
   };
   const parsed = serverEnvRefinedSchema.safeParse(raw);
   if (!parsed.success) {

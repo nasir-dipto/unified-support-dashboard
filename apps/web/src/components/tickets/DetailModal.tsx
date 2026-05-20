@@ -1,5 +1,10 @@
-import type { CommentReplyKind, TicketApiDto, TriageSuggestResponse } from '@usd/shared-types';
-import { Badge, Overlay, SlaBar, priorityColors, usdColors } from '@usd/ui';
+import type {
+  CommentDraftTone,
+  CommentReplyKind,
+  TicketApiDto,
+  TriageSuggestResponse,
+} from '@usd/shared-types';
+import { Badge, Overlay, Pill, SlaBar, priorityColors, usdColors } from '@usd/ui';
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -77,6 +82,7 @@ export function DetailModal(props: DetailModalProps): ReactElement {
   const orgId = useAuthStore((s) => s.user?.orgId);
 
   const [commentDraft, setCommentDraft] = useState('');
+  const [draftTone, setDraftTone] = useState<CommentDraftTone>('professional');
   const [linkDraft, setLinkDraft] = useState('');
   const [linkErr, setLinkErr] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<TriageSuggestResponse | null>(null);
@@ -113,7 +119,25 @@ export function DetailModal(props: DetailModalProps): ReactElement {
       .catch(() => {
         setSuggestion({
           engineerAction: 'AI suggestion unavailable. Review ticket manually.',
+          degraded: true,
         });
+      });
+  };
+
+  const draftCommentAi = (): void => {
+    if (ticket === undefined) {
+      return;
+    }
+    void ai
+      .mutateAsync({
+        feature: 'comment_draft',
+        ticketId: ticket.ticketId,
+        tone: draftTone,
+      })
+      .then((res) => {
+        if ('draft' in res) {
+          setCommentDraft(res.draft);
+        }
       });
   };
 
@@ -197,8 +221,17 @@ export function DetailModal(props: DetailModalProps): ReactElement {
             <div className="mb-4 border-t border-gray-100 pt-3">
               <div className="mb-2 text-[11px] font-bold uppercase tracking-wide text-gray-400">
                 Recommended action
+                {suggestion.degraded === true ? (
+                  <span className="ml-2 font-normal normal-case text-amber-600">(degraded)</span>
+                ) : null}
               </div>
               <p className="rounded-lg bg-gray-50 p-3 text-[13px]">{suggestion.engineerAction}</p>
+              {suggestion.suggestedAssignee !== undefined ? (
+                <p className="mt-2 text-xs text-gray-600">
+                  Suggested assignee:{' '}
+                  <span className="font-semibold">{suggestion.suggestedAssignee}</span>
+                </p>
+              ) : null}
               {suggestion.riskLevel !== undefined ? (
                 <div className="mt-2 flex items-center gap-2 rounded-lg px-3 py-2">
                   <Badge
@@ -261,6 +294,21 @@ export function DetailModal(props: DetailModalProps): ReactElement {
           ))}
         </ul>
         <div className="mt-3 space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">
+              Draft tone
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {(['professional', 'empathetic', 'technical'] as const).map((tone) => (
+                <Pill
+                  key={tone}
+                  label={tone.charAt(0).toUpperCase() + tone.slice(1)}
+                  active={draftTone === tone}
+                  onClick={() => { setDraftTone(tone); }}
+                />
+              ))}
+            </div>
+          </div>
           <textarea
             className="min-h-[80px] w-full rounded-lg border border-gray-200 p-2 text-sm"
             placeholder={
@@ -270,6 +318,14 @@ export function DetailModal(props: DetailModalProps): ReactElement {
             onChange={(e) => { setCommentDraft(e.target.value); }}
             disabled={postComment.isPending}
           />
+          <button
+            type="button"
+            disabled={ai.isPending || ticket === undefined}
+            onClick={draftCommentAi}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 py-2 text-sm font-bold text-indigo-900 disabled:opacity-60"
+          >
+            {ai.isPending ? 'Generating draft…' : 'AI: draft comment'}
+          </button>
           <div className="flex flex-wrap gap-2">
             {ticket?.source === 'jira' ? (
               <button

@@ -2,17 +2,13 @@ import {
   aiInvokeRequestSchema,
   commentDraftResponseSchema,
   triageSuggestResponseSchema,
-  type AiFeature,
+  type AiInvokeRequest,
   type CommentDraftResponse,
   type TriageSuggestResponse,
 } from '@usd/shared-types';
 import { apiClient } from './client';
 
-export type InvokeAiParams = {
-  feature: AiFeature;
-  ticketId: string;
-  context?: Record<string, unknown>;
-};
+export type InvokeAiParams = AiInvokeRequest;
 
 /**
  * Calls POST /api/ai/invoke for triage or comment draft features.

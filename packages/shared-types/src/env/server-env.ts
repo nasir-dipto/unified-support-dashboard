@@ -66,6 +66,15 @@ export const serverEnvSchema = z.object({
   JWT_KEY_SECRET_ARN: z.string().min(1).optional(),
   ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(900),
   REFRESH_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(60 * 60 * 24 * 14),
+  /**
+   * When `true`, AI routes return mock JSON (no Bedrock). Default for local dev.
+   */
+  USE_MOCK_AI: z.enum(['true', 'false']).optional(),
+  /** Bedrock foundation model id for Claude invoke. */
+  BEDROCK_MODEL_ID: z
+    .string()
+    .min(1)
+    .default('anthropic.claude-3-5-sonnet-20241022-v2:0'),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;

@@ -51,7 +51,8 @@ Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentim
 - Phase 2: COMPLETE — Jira integration, tickets API, webhooks
 - Phase 3: COMPLETE —  webhooks
 - Phase 4: COMPLETE — WebSocket, DetailModal, ActivitySidebar, cross-linking
-- Phase 5: IN PROGRESS — AI triage + action suggestion (branch: feature/phase-5-ai)
+- Phase 5A: COMPLETE — comment sync + unified thread (branch: feature/phase-5-ai)
+- Phase 5B: COMPLETE — AI triage, action suggestion, comment draft (branch: feature/phase-5b-ai)
 - Phase 6: NOT STARTED — sentiment + briefings
 - Phase 7: NOT STARTED — knowledge base (pgvector)
 - Phase 8: NOT STARTED — reports + notifications
@@ -229,7 +230,14 @@ Sync full conversation history from Jira and HD so AI has rich context.
 - All 31 tickets showing (limit 100)
 - Legacy comment cleanup script
 
-## Current test count: 180 (131 API + 34 web + 8 UI + 7 shared-types)
+## Phase 5B — COMPLETE
+- POST /api/ai/invoke — triage_suggest + comment_draft (server-built context, no client context)
+- Bedrock service (10s timeout, degraded HTTP 200 on failure); USE_MOCK_AI=true for local
+- DetailModal: AI suggest action, AI draft comment, Pill tone toggle (professional/empathetic/technical)
+- TicketCard: client-side triage score ring (0–100)
+- shared-types: discriminated AI request/response (tone, degraded, suggestedAssignee)
+
+## Current test count: 214 (154 API + 42 web + 8 UI + 10 shared-types)
 
 ## Deferred to Phase 6
 - Webhook comment sync: when Jira/HD fires webhook for new comment, sync to support_ticket_comments
