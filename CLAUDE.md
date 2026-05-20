@@ -80,9 +80,10 @@ Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentim
 
 ## Jira project tracking
 - Personal: dknasir007.atlassian.net/jira/software/projects/USD
-  USD-1 Epic, USD-2..11 Stories (USD-6 Done, USD-7 In Progress)
-- Corporate: trialinteractive.atlassian.net/jira/software/projects/TAS
-  TAS-2 Epic, TAS-3..12 Tasks (TAS-7 Done, TAS-8 In Progress)
+  USD-1 Epic, USD-2..11 Stories (USD-8 Done, USD-9 In Progress — Phase 7)
+- Corporate: trialinteractive.atlassian.net/jira/software/projects/TIAI
+  TIAI-2 Epic, TIAI-3..12 Tasks (TIAI-9 Done, TIAI-10 In Progress — Phase 7)
+  _(Corporate project key renamed from TAS → TIAI; issue numbers unchanged: TIAI-8 = Phase 5, etc.)_
 - End of each phase: transition current story Done, next In Progress (both Jiras)
 
 ## Phase 5 — AI triage + action suggestion
