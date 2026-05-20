@@ -81,7 +81,7 @@ export const ticketDetailResponseSchema = z.object({
 export type TicketDetailResponse = z.infer<typeof ticketDetailResponseSchema>;
 
 export const ticketsListQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).optional().default(25),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(100),
   cursor: z.string().min(1).optional(),
 });
 

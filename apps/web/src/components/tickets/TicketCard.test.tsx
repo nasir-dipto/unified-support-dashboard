@@ -31,15 +31,17 @@ describe('TicketCard', () => {
     expect(screen.getByText('DEMO-1')).toBeInTheDocument();
   });
 
-  it('renders Helpdesk source', () => {
+  it('renders Helpdesk source and HD-prefixed ticket id', () => {
     const hd: TicketApiDto = {
       ...sample,
       ticketId: 'hd_1',
       source: 'helpdesk',
-      externalId: '1',
+      externalId: '12',
       status: 'pending',
     };
     render(<TicketCard ticket={hd} />);
     expect(screen.getByText('ManageEngine')).toBeInTheDocument();
+    expect(screen.getByText('HD-12')).toBeInTheDocument();
+    expect(screen.getByText('Ticket ID')).toBeInTheDocument();
   });
 });

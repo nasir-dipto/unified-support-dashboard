@@ -13,7 +13,7 @@ import {
 } from '../components/tickets/TicketFilters';
 import { TicketStatsRow } from '../components/tickets/TicketStatsRow';
 import { useUsdWebSocket } from '../hooks/useWebSocket';
-import { useTicketsList } from '../hooks/useTickets';
+import { DEFAULT_TICKETS_LIST_LIMIT, useTicketsList } from '../hooks/useTickets';
 import { useAuthStore } from '../store/auth.store';
 
 function filterTickets(
@@ -48,7 +48,7 @@ function filterTickets(
 export function TechnicianTicketsView(): ReactElement {
   useUsdWebSocket();
   const userId = useAuthStore((s) => s.user?.userId);
-  const { data, isLoading, error } = useTicketsList();
+  const { data, isLoading, error } = useTicketsList({ limit: DEFAULT_TICKETS_LIST_LIMIT });
   const [tab, setTab] = useState<TicketViewTab>('all');
   const [priority, setPriority] = useState<PriorityFilter>('all');
   const [search, setSearch] = useState('');

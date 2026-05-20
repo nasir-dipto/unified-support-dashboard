@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as ticketsApi from '../api/tickets';
 import { useAuthStore } from '../store/auth.store';
-import { useTicketsList } from './useTickets';
+import { DEFAULT_TICKETS_LIST_LIMIT, useTicketsList } from './useTickets';
 
 function wrapper(client: QueryClient) {
   return function W(props: { children: ReactNode }) {
@@ -40,6 +40,6 @@ describe('useTicketsList', () => {
     await waitFor(() => {
       expect(result.current.isSuccess).toBe(true);
     });
-    expect(spy).toHaveBeenCalled();
+    expect(spy).toHaveBeenCalledWith({ limit: DEFAULT_TICKETS_LIST_LIMIT, cursor: undefined });
   });
 });

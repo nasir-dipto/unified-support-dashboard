@@ -13,14 +13,21 @@ export type TicketsListParams = {
   cursor?: string;
 };
 
+/** Default list page size — show full queue without pagination for now. */
+export const DEFAULT_TICKETS_LIST_LIMIT = 100;
+
 /**
  * TanStack Query: paginated ticket list for the signed-in org.
  */
 export function useTicketsList(params?: TicketsListParams) {
   const orgId = useAuthStore((s) => s.user?.orgId);
+  const listParams: TicketsListParams = {
+    limit: params?.limit ?? DEFAULT_TICKETS_LIST_LIMIT,
+    cursor: params?.cursor,
+  };
   return useQuery({
-    queryKey: ['tickets', orgId, params?.limit, params?.cursor],
-    queryFn: async () => fetchTicketsList(params),
+    queryKey: ['tickets', orgId, listParams.limit, listParams.cursor],
+    queryFn: async () => fetchTicketsList(listParams),
     enabled: orgId !== undefined && orgId.length > 0,
   });
 }

@@ -118,6 +118,30 @@ export type MapIssueInput = {
   nowIso?: string;
 };
 
+type JiraUserRef = {
+  displayName?: string | undefined;
+  emailAddress?: string | undefined;
+  accountId?: string | undefined;
+};
+
+/**
+ * Maps Jira assignee/reporter to a display label (never raw `accountId`).
+ */
+export function mapJiraUserDisplayName(user: JiraUserRef | null | undefined): string | undefined {
+  if (user === null || user === undefined) {
+    return undefined;
+  }
+  const displayName = user.displayName?.trim();
+  if (displayName !== undefined && displayName.length > 0) {
+    return displayName;
+  }
+  const email = user.emailAddress?.trim();
+  if (email !== undefined && email.length > 0) {
+    return email;
+  }
+  return undefined;
+}
+
 /**
  * Builds a `support_tickets` item from a Jira issue (`ticketId` = `jira_` + issue key).
  */
@@ -129,16 +153,8 @@ export function mapJiraIssueToTicket(input: MapIssueInput): SupportTicketRecord 
   const summary = fields.summary ?? '(no summary)';
   const priority = ticketPrioritySchema.parse(mapJiraPriorityName(fields.priority?.name));
   const status = ticketStatusSchema.parse(mapJiraStatusName(fields.status?.name));
-  const assigneeId =
-    fields.assignee?.accountId ??
-    (fields.assignee?.displayName !== undefined && fields.assignee.displayName.length > 0
-      ? fields.assignee.displayName
-      : undefined);
-  const reporterId =
-    fields.reporter?.accountId ??
-    (fields.reporter?.displayName !== undefined && fields.reporter.displayName.length > 0
-      ? fields.reporter.displayName
-      : undefined);
+  const assigneeId = mapJiraUserDisplayName(fields.assignee);
+  const reporterId = mapJiraUserDisplayName(fields.reporter);
   return {
     ticketId: `jira_${issue.key}`,
     orgId,

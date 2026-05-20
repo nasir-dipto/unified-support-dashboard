@@ -82,6 +82,7 @@ describe('syncIssueComments', () => {
           commentId: '01KRP3QWS4BSHT6G45GJ2A4K04',
           ticketId: 'jira_SCRUM-6',
           body: 'Test Comment',
+          commentSource: 'usd_comment',
           createdAt: '2026-01-01T00:00:00Z',
         },
       ],
