@@ -6,6 +6,7 @@ import { getServerEnv, loadServerEnv, resetServerEnvForTests } from '../config/l
 import { upsertTicket } from '../db/tables/tickets.js';
 import { resetDocumentClientForTests } from '../db/dynamo.client.js';
 import { mapHdRequestToTicket } from '../helpdesk/mapRequestToTicket.js';
+import { syncRequestConversations } from '../helpdesk/syncRequestConversations.js';
 import { fetchRequestsPage } from '../services/helpdesk.service.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -39,7 +40,23 @@ async function main(): Promise<void> {
         request: row,
         orgId: env.HD_DEFAULT_ORG_ID,
       });
-      await upsertTicket(rec);
+      const saved = await upsertTicket(rec);
+      const internalId =
+        typeof row.id === 'string'
+          ? row.id
+          : typeof row.id === 'number'
+            ? String(row.id)
+            : saved.internalId;
+      if (internalId !== undefined && internalId.length > 0) {
+        const synced = await syncRequestConversations({
+          orgId: env.HD_DEFAULT_ORG_ID,
+          ticketId: saved.ticketId,
+          internalId,
+        });
+        if (synced > 0) {
+          console.info(`  ${saved.ticketId}: synced ${String(synced)} conversation(s)`);
+        }
+      }
     }
     if (page.requests.length === 0) {
       hasMore = false;

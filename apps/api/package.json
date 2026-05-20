@@ -14,7 +14,8 @@
     "db:seed": "tsx src/scripts/seed-admin.ts",
     "sync:jira": "tsx src/scripts/jira-reconcile.ts",
     "sync:hd": "tsx src/scripts/hd-reconcile.ts",
-    "cleanup:hd-duplicates": "tsx src/scripts/cleanup-hd-duplicates.ts"
+    "cleanup:hd-duplicates": "tsx src/scripts/cleanup-hd-duplicates.ts",
+    "cleanup:legacy-comments": "tsx src/scripts/cleanup-legacy-comments.ts"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.750.0",

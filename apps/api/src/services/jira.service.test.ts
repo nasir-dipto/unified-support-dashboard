@@ -2,6 +2,7 @@ import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadServerEnv, resetServerEnvForTests } from '../config/loadEnv.js';
 import {
+  fetchIssueComments,
   fetchIssuesByProject,
   fetchProjects,
   fetchSingleIssue,
@@ -73,6 +74,19 @@ describe('jira.service', () => {
       .reply(200, { key: 'SUP-1', fields: {} });
     const issue = await fetchSingleIssue('SUP-1');
     expect(issue).toMatchObject({ key: 'SUP-1' });
+  });
+
+  it('fetchIssueComments returns comments array', async () => {
+    nock(base)
+      .get('/rest/api/3/issue/SUP-1/comment')
+      .query({ startAt: '0', maxResults: '100' })
+      .reply(200, {
+        comments: [{ id: '100', body: { type: 'doc', version: 1, content: [] } }],
+        total: 1,
+      });
+    const out = await fetchIssueComments('SUP-1');
+    expect(out.comments).toHaveLength(1);
+    expect(out.total).toBe(1);
   });
 
   it('postComment posts ADF body', async () => {

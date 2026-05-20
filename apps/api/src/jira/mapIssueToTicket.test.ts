@@ -4,6 +4,7 @@ import {
   mapJiraIssueToTicket,
   mapJiraPriorityName,
   mapJiraStatusName,
+  mapJiraUserDisplayName,
   normalizeJiraDescription,
 } from './mapIssueToTicket.js';
 
@@ -69,6 +70,31 @@ describe('normalizeJiraDescription', () => {
   });
 });
 
+describe('mapJiraUserDisplayName', () => {
+  it('prefers displayName over accountId and email', () => {
+    expect(
+      mapJiraUserDisplayName({
+        accountId: '712020:4e50a99e-7546-48de-a440-938f53b23a38',
+        displayName: 'Nasir Dipto',
+        emailAddress: 'n@example.com',
+      }),
+    ).toBe('Nasir Dipto');
+  });
+
+  it('falls back to email when displayName is absent', () => {
+    expect(
+      mapJiraUserDisplayName({
+        accountId: '712020:uuid',
+        emailAddress: 'n@example.com',
+      }),
+    ).toBe('n@example.com');
+  });
+
+  it('returns undefined when only accountId is present', () => {
+    expect(mapJiraUserDisplayName({ accountId: '712020:uuid' })).toBeUndefined();
+  });
+});
+
 describe('mapJiraIssueToTicket', () => {
   it('builds jira ticket id and fields', () => {
     const rec = mapJiraIssueToTicket({
@@ -80,7 +106,10 @@ describe('mapJiraIssueToTicket', () => {
           description: sampleAdf,
           priority: { name: 'High' },
           status: { name: 'Open' },
-          assignee: { accountId: 'acc1' },
+          assignee: {
+            accountId: '712020:4e50a99e-7546-48de-a440-938f53b23a38',
+            displayName: 'Jane Agent',
+          },
           reporter: { displayName: 'Bob' },
         },
       },
@@ -93,7 +122,7 @@ describe('mapJiraIssueToTicket', () => {
     expect(rec.description).toBe('Password reset not working');
     expect(rec.priority).toBe('high');
     expect(rec.status).toBe('open');
-    expect(rec.assigneeId).toBe('acc1');
+    expect(rec.assigneeId).toBe('Jane Agent');
     expect(rec.reporterId).toBe('Bob');
   });
 });

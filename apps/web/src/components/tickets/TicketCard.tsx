@@ -4,8 +4,8 @@ import type { ReactElement, KeyboardEvent } from 'react';
 import {
   estimateSlaPercentRemaining,
   formatAssignee,
-  formatCustomer,
   formatStatusLabel,
+  formatTicketDisplayId,
   sourceAccentColor,
   ticketExternalUrl,
 } from '../../utils/ticket-display';
@@ -87,10 +87,8 @@ export function TicketCard(props: TicketCardProps): ReactElement {
           <span className="font-semibold">{formatAssignee(ticket.assigneeId)}</span>
         </div>
         <div>
-          <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">
-            {isJira ? 'Ticket ID' : 'Customer'}
-          </div>
-          <span className="font-semibold">{isJira ? ticket.externalId : formatCustomer(ticket)}</span>
+          <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Ticket ID</div>
+          <span className="font-semibold">{formatTicketDisplayId(ticket)}</span>
         </div>
       </div>
 

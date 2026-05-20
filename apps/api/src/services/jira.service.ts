@@ -219,6 +219,30 @@ export async function fetchSingleIssue(issueKey: string): Promise<Json> {
   return data as Json;
 }
 
+export type JiraCommentHit = Json;
+
+/**
+ * Lists comments on a Jira issue (`GET /rest/api/3/issue/{key}/comment`).
+ */
+export async function fetchIssueComments(
+  issueKey: string,
+  options?: { startAt?: number; maxResults?: number },
+): Promise<{ comments: JiraCommentHit[]; total: number }> {
+  const key = encodeURIComponent(issueKey);
+  const startAt = options?.startAt ?? 0;
+  const maxResults = options?.maxResults ?? 100;
+  const res = await jiraFetch(
+    `/rest/api/3/issue/${key}/comment?startAt=${String(startAt)}&maxResults=${String(maxResults)}`,
+  );
+  const body: unknown = await res.json();
+  const root = typeof body === 'object' && body !== null ? (body as Json) : {};
+  const rawComments = root.comments;
+  const comments = Array.isArray(rawComments) ? (rawComments as JiraCommentHit[]) : [];
+  const total =
+    typeof root.total === 'number' ? root.total : comments.length;
+  return { comments, total };
+}
+
 /**
  * Posts an issue comment (document body for Jira Cloud v3).
  */

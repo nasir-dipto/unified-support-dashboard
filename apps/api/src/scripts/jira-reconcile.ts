@@ -10,6 +10,7 @@ import {
   filterJiraProjectsByInclude,
   getJiraIncludeProjectsFromEnv,
 } from '../jira/jiraIncludeProjects.js';
+import { syncIssueComments } from '../jira/syncIssueComments.js';
 import { fetchIssuesByProject, fetchProjects } from '../services/jira.service.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -59,7 +60,15 @@ async function main(): Promise<void> {
           issue,
           orgId: env.JIRA_DEFAULT_ORG_ID,
         });
-        await upsertTicket(rec);
+        const saved = await upsertTicket(rec);
+        const synced = await syncIssueComments({
+          orgId: env.JIRA_DEFAULT_ORG_ID,
+          ticketId: saved.ticketId,
+          issueKey: issue.key,
+        });
+        if (synced > 0) {
+          console.info(`  ${issue.key}: synced ${String(synced)} comment(s)`);
+        }
       }
       if (page.nextPageToken === undefined) {
         hasMore = false;

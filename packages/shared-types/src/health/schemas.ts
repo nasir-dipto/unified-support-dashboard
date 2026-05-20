@@ -14,6 +14,9 @@ export const healthDetailResponseSchema = z.object({
   websocket: z.object({
     connections: z.number().int().nonnegative(),
   }),
+  helpdesk: z.object({
+    emailReplyEnabled: z.boolean(),
+  }),
   uptime: z.number().nonnegative(),
 });
 

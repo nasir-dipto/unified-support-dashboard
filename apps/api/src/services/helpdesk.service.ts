@@ -205,6 +205,116 @@ export type HelpdeskCommentTicketRef = {
  * SDP **Cloud** expects the wrapper key `request_note` (on‑prem docs use `note`; Cloud
  * returns EXTRA_KEY_FOUND_IN_JSON for `note`). Payload: `{"request_note":{"description":"…"}}`.
  */
+/** Fields required on conversation list rows (metadata only; body text comes from `/notes`). */
+export const CONVERSATION_LIST_FIELDS_REQUIRED = [
+  'id',
+  'type',
+  'created_time',
+  'show_to_requester',
+  'created_by',
+] as const;
+
+/** Fields required on notes list rows (includes plain-text `description`). */
+export const REQUEST_NOTES_FIELDS_REQUIRED = [
+  'id',
+  'description',
+  'created_time',
+  'show_to_requester',
+  'created_by',
+  'performed_by',
+] as const;
+
+/**
+ * Builds SDP v3 `input_data` for listing request conversations.
+ */
+export function buildConversationsListInputData(rowCount: number): string {
+  const payload = {
+    list_info: {
+      row_count: rowCount,
+      fields_required: [...CONVERSATION_LIST_FIELDS_REQUIRED],
+    },
+  };
+  return encodeURIComponent(JSON.stringify(payload));
+}
+
+/**
+ * Builds SDP v3 `input_data` for listing request notes (includes note body in `description`).
+ */
+export function buildNotesListInputData(rowCount: number): string {
+  const payload = {
+    list_info: {
+      row_count: rowCount,
+      fields_required: [...REQUEST_NOTES_FIELDS_REQUIRED],
+    },
+  };
+  return encodeURIComponent(JSON.stringify(payload));
+}
+
+export type HelpdeskConversationRow = Json;
+
+/**
+ * Lists conversations for a request using internal id (`GET /requests/{internalId}/conversations`).
+ */
+export async function fetchRequestConversations(
+  internalId: string,
+  options?: { rowCount?: number },
+): Promise<{ conversations: HelpdeskConversationRow[] }> {
+  const id = encodeURIComponent(internalId);
+  const rowCount = options?.rowCount ?? 50;
+  const inputData = buildConversationsListInputData(rowCount);
+  const res = await helpdeskFetch(`/requests/${id}/conversations?input_data=${inputData}`);
+  const body: unknown = await res.json();
+  const root = typeof body === 'object' && body !== null ? (body as Json) : {};
+  const raw = root.conversations;
+  const conversations = Array.isArray(raw) ? (raw as HelpdeskConversationRow[]) : [];
+  return { conversations };
+}
+
+export type HelpdeskNoteRow = Json;
+
+/**
+ * Lists notes for a request (`GET /requests/{internalId}/notes`) — includes `description` body text.
+ */
+export async function fetchRequestNotes(
+  internalId: string,
+  options?: { rowCount?: number },
+): Promise<{ notes: HelpdeskNoteRow[] }> {
+  const id = encodeURIComponent(internalId);
+  const rowCount = options?.rowCount ?? 50;
+  const inputData = buildNotesListInputData(rowCount);
+  const res = await helpdeskFetch(`/requests/${id}/notes?input_data=${inputData}`);
+  const body: unknown = await res.json();
+  const root = typeof body === 'object' && body !== null ? (body as Json) : {};
+  const rawNotes = root.notes ?? root.request_notes;
+  const notes = Array.isArray(rawNotes) ? (rawNotes as HelpdeskNoteRow[]) : [];
+  return { notes };
+}
+
+/**
+ * Posts a customer-visible email reply (`POST /requests/{internalId}/reply`).
+ */
+export async function postCustomerEmailReply(
+  ticket: HelpdeskCommentTicketRef,
+  bodyText: string,
+): Promise<void> {
+  const requestId = ticket.internalId ?? ticket.externalId;
+  const id = encodeURIComponent(requestId);
+  const inputDataJson = JSON.stringify({
+    reply: {
+      description: bodyText,
+    },
+  });
+  const formBody = new URLSearchParams({ input_data: inputDataJson }).toString();
+  const res = await helpdeskFetch(`/requests/${id}/reply`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: formBody,
+  });
+  void res;
+}
+
 export async function postComment(ticket: HelpdeskCommentTicketRef, bodyText: string): Promise<void> {
   const requestId = ticket.internalId ?? ticket.externalId;
   const id = encodeURIComponent(requestId);

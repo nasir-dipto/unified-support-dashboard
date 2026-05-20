@@ -1,4 +1,5 @@
 import {
+  type CommentReplyKind,
   postTicketCommentResponseSchema,
   ticketCommentsListResponseSchema,
   ticketCrossLinkResponseSchema,
@@ -29,20 +30,23 @@ export async function fetchTicketDetail(ticketId: string) {
 }
 
 /**
- * Lists USD comments stored for the ticket (newest first).
+ * Lists conversation comments for the ticket (oldest first).
  */
 export async function fetchTicketComments(ticketId: string) {
   const res = await apiClient.get(`/api/tickets/${encodeURIComponent(ticketId)}/comments`);
   return ticketCommentsListResponseSchema.parse(res.data);
 }
 
+export type PostTicketCommentParams = {
+  body: string;
+  replyKind?: CommentReplyKind;
+};
+
 /**
  * Posts a USD comment mirrored to Jira or Helpdesk.
  */
-export async function postTicketComment(ticketId: string, body: string) {
-  const res = await apiClient.post(`/api/tickets/${encodeURIComponent(ticketId)}/comments`, {
-    body,
-  });
+export async function postTicketComment(ticketId: string, params: PostTicketCommentParams) {
+  const res = await apiClient.post(`/api/tickets/${encodeURIComponent(ticketId)}/comments`, params);
   return postTicketCommentResponseSchema.parse(res.data);
 }
 

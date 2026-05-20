@@ -4,6 +4,7 @@ import {
   fetchTicketDetail,
   fetchTicketsList,
   postTicketComment,
+  type PostTicketCommentParams,
 } from '../api/tickets';
 import { useAuthStore } from '../store/auth.store';
 
@@ -12,14 +13,21 @@ export type TicketsListParams = {
   cursor?: string;
 };
 
+/** Default list page size — show full queue without pagination for now. */
+export const DEFAULT_TICKETS_LIST_LIMIT = 100;
+
 /**
  * TanStack Query: paginated ticket list for the signed-in org.
  */
 export function useTicketsList(params?: TicketsListParams) {
   const orgId = useAuthStore((s) => s.user?.orgId);
+  const listParams: TicketsListParams = {
+    limit: params?.limit ?? DEFAULT_TICKETS_LIST_LIMIT,
+    cursor: params?.cursor,
+  };
   return useQuery({
-    queryKey: ['tickets', orgId, params?.limit, params?.cursor],
-    queryFn: async () => fetchTicketsList(params),
+    queryKey: ['tickets', orgId, listParams.limit, listParams.cursor],
+    queryFn: async () => fetchTicketsList(listParams),
     enabled: orgId !== undefined && orgId.length > 0,
   });
 }
@@ -63,7 +71,8 @@ export function usePostTicketComment(ticketId: string | undefined) {
   const orgId = useAuthStore((s) => s.user?.orgId);
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: string) => postTicketComment(ticketId ?? '', body),
+    mutationFn: async (params: PostTicketCommentParams) =>
+      postTicketComment(ticketId ?? '', params),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['ticket-comments', orgId, ticketId] });
       await qc.invalidateQueries({ queryKey: ['ticket', orgId, ticketId] });

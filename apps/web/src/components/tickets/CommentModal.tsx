@@ -46,7 +46,8 @@ export function CommentModal(props: CommentModalProps): ReactElement {
     if (body.length === 0) {
       return;
     }
-    void postComment.mutateAsync(body).then(() => {
+    const replyKind = isJira ? 'jira_comment' : 'hd_note';
+    void postComment.mutateAsync({ body, replyKind }).then(() => {
       setText('');
       onClose();
     });

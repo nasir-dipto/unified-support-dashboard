@@ -9,6 +9,7 @@ describe('healthDetailResponseSchema', () => {
       dynamodb: 'connected',
       redis: 'connected',
       websocket: { connections: 2 },
+      helpdesk: { emailReplyEnabled: false },
       uptime: 120,
     });
     expect(parsed.status).toBe('ok');

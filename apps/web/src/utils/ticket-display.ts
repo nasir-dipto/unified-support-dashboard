@@ -49,6 +49,17 @@ export function formatAssignee(assigneeId: string | undefined): string {
 }
 
 /**
+ * Ticket id shown on cards — Jira issue key or `HD-{displayId}` for Helpdesk.
+ */
+export function formatTicketDisplayId(ticket: TicketApiDto): string {
+  if (ticket.source === 'jira') {
+    return ticket.externalId;
+  }
+  const displayId = ticket.externalId.trim();
+  return displayId.length > 0 ? `HD-${displayId}` : '—';
+}
+
+/**
  * Customer label for helpdesk tickets.
  */
 export function formatCustomer(ticket: TicketApiDto): string {

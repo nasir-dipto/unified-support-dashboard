@@ -187,4 +187,33 @@ Follow jira.service.ts pattern:
 - No direct Anthropic calls from frontend
 - 145 tests passing
 
-## Current test count: 145 (33 API + 32 web + 8 UI + 4 shared-types)
+## Current test count: 173 (38 API + 34 web + 8 UI + 7 shared-types)
+
+## Phase 5A — Communication Enrichment — COMPLETE
+### Goal
+Sync full conversation history from Jira and HD so AI has rich context.
+
+### Built
+- Sync Jira comments during reconciliation: GET /rest/api/3/issue/{key}/comment
+- Sync HD conversations during reconciliation: GET /requests/{internalId}/conversations
+- `support_ticket_comments` includes `commentSource`: jira_comment, hd_note, hd_email, usd_comment
+- DetailModal unified thread sorted by `createdAt` ascending with source badges
+- Reply actions: Add Note (HD), Comment (Jira), Reply to Customer (HD email when `HELPDESK_EMAIL_REPLY_ENABLED=true`)
+- Webhooks do **not** sync comments (reconcile only)
+
+### HD conversations API (confirmed working)
+- Endpoint: GET /requests/{internalId}/conversations?input_data={"list_info":{"row_count":50}}
+- Returns type: NOTES or EMAIL (metadata only — **no `description` body** on list rows)
+- Note bodies: GET /requests/{internalId}/notes (merge by `id` during sync)
+- Requires Accept: application/vnd.manageengine.sdp.v3+json
+- Email conversations only appear when HD mail server is configured
+
+### Jira comments API
+- Endpoint: GET /rest/api/3/issuey}/comment
+- Returns comments array with author, body (ADF), created timestamp
+
+### commentSource values
+- jira_comment: comment from Jira issue
+- hd_note: technician note from HD (show_to_requester: false)
+- hd_email: customer email from HD (show_to_requester: true)
+- usd_comment: comment posted through USD
