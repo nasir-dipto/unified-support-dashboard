@@ -32,6 +32,20 @@ vi.mock('../../hooks/useAI', () => ({
   }),
 }));
 
+vi.mock('../../hooks/useHealthDetail', () => ({
+  useHealthDetail: () => ({
+    data: {
+      status: 'ok',
+      version: '1.0.0',
+      dynamodb: 'connected',
+      redis: 'connected',
+      websocket: { connections: 0 },
+      helpdesk: { emailReplyEnabled: false },
+      uptime: 1,
+    },
+  }),
+}));
+
 vi.mock('../../hooks/useTickets', () => ({
   useTicketDetail: () => ({
     data: { data: ticketDetail },
@@ -44,7 +58,8 @@ vi.mock('../../hooks/useTickets', () => ({
           ticketId: 'jira_X',
           commentId: 'c1',
           body: 'Hello thread',
-          createdAt: 't',
+          commentSource: 'jira_comment',
+          createdAt: '2026-01-16T10:00:00.000Z',
         },
       ],
       total: 1,
@@ -100,7 +115,8 @@ describe('DetailModal', () => {
     expect(screen.getByText('Hello thread')).toBeTruthy();
     const list = bubble.parentElement;
     expect(list?.firstElementChild).toBe(bubble);
-    expect(screen.getByRole('button', { name: /post comment/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^comment$/i })).toBeTruthy();
+    expect(screen.getByText('Jira comment')).toBeTruthy();
   });
 
   it('renders Original Request label for Helpdesk', () => {

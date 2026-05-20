@@ -187,20 +187,19 @@ Follow jira.service.ts pattern:
 - No direct Anthropic calls from frontend
 - 145 tests passing
 
-## Current test count: 145 (33 API + 32 web + 8 UI + 4 shared-types)
+## Current test count: 164 (38 API + 34 web + 8 UI + 7 shared-types)
 
-## Phase 5A — Communication Enrichment (before AI features)
+## Phase 5A — Communication Enrichment — COMPLETE
 ### Goal
 Sync full conversation history from Jira and HD so AI has rich context.
 
-### What to build
+### Built
 - Sync Jira comments during reconciliation: GET /rest/api/3/issue/{key}/comment
 - Sync HD conversations during reconciliation: GET /requests/{internalId}/conversations
-- Store all in support_ticket_comments with commentSource field:
-  jira_comment, hd_note, hd_email, usd_comment
-- Update DetailModal unified thread — show all sources sorted by timestamp
-- Visual labels per source type
-- Three reply options: Add Note (HD), Comment (Jira), Reply to Customer (HD email)
+- `support_ticket_comments` includes `commentSource`: jira_comment, hd_note, hd_email, usd_comment
+- DetailModal unified thread sorted by `createdAt` ascending with source badges
+- Reply actions: Add Note (HD), Comment (Jira), Reply to Customer (HD email when `HELPDESK_EMAIL_REPLY_ENABLED=true`)
+- Webhooks do **not** sync comments (reconcile only)
 
 ### HD conversations API (confirmed working)
 - Endpoint: GET /requests/{internalId}/conversations?input_data={"list_info":{"row_count":50}}

@@ -43,6 +43,11 @@ export const serverEnvSchema = z.object({
   HD_DEFAULT_ORG_ID: z.string().min(1).default('demo-org'),
   /** Shared secret matched against `x-sdp-webhook-secret` on POST /api/webhooks/helpdesk. */
   HD_WEBHOOK_SECRET: z.string().min(1).optional(),
+  /**
+   * When `true`, USD enables POST customer email replies to Helpdesk (`/requests/{id}/reply`).
+   * Default false — UI shows disabled "Reply to Customer" until mail is configured in HD.
+   */
+  HELPDESK_EMAIL_REPLY_ENABLED: z.enum(['true', 'false']).optional(),
   /** Local Express attaches `ws`; production uses API Gateway WebSocket later. */
   WS_MODE: z.enum(['local', 'gateway']).default('local'),
   /** When `true`, skips inline JWT env requirements for queue worker Lambdas. */

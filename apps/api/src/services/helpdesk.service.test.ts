@@ -3,10 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadServerEnv, resetServerEnvForTests } from '../config/loadEnv.js';
 import { resetZohoAuthCacheForTests } from './zohoAuth.service.js';
 import {
+  buildConversationsListInputData,
   buildRequestsListInputData,
+  fetchRequestConversations,
   fetchRequestsPage,
   helpdeskFetch,
   postComment,
+  postCustomerEmailReply,
   REQUEST_LIST_FIELDS_REQUIRED,
 } from './helpdesk.service.js';
 
@@ -74,6 +77,35 @@ describe('helpdesk.service', () => {
     expect(out.requests[0]?.subject).toBe('A');
     expect(out.requests[0]?.description).toBe('Details here');
     expect(out.hasMore).toBe(false);
+  });
+
+  it('fetchRequestConversations parses conversations array', async () => {
+    nock('https://accounts.zoho.uk')
+      .post('/oauth/v2/token')
+      .reply(200, { access_token: 'conv-tok', expires_in: 3600 });
+    const inputData = buildConversationsListInputData(50);
+    nock('https://sdp.example')
+      .get(`/api/v3/requests/4445000000000077/conversations?input_data=${inputData}`)
+      .reply(200, {
+        conversations: [{ id: '9', type: 'NOTES', description: 'hi' }],
+      });
+    const out = await fetchRequestConversations('4445000000000077');
+    expect(out.conversations).toHaveLength(1);
+  });
+
+  it('postCustomerEmailReply posts to /reply', async () => {
+    nock('https://accounts.zoho.uk')
+      .post('/oauth/v2/token')
+      .reply(200, { access_token: 'reply-tok', expires_in: 3600 });
+    nock('https://sdp.example')
+      .post('/api/v3/requests/4445000000000077/reply')
+      .matchHeader('content-type', /application\/x-www-form-urlencoded/)
+      .reply(200, { status: 'ok' });
+    await postCustomerEmailReply(
+      { externalId: '77', internalId: '4445000000000077' },
+      'email body',
+    );
+    expect(nock.isDone()).toBe(true);
   });
 
   it('postComment submits input_data as x-www-form-urlencoded', async () => {

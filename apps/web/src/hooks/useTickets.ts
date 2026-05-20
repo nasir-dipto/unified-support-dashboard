@@ -4,6 +4,7 @@ import {
   fetchTicketDetail,
   fetchTicketsList,
   postTicketComment,
+  type PostTicketCommentParams,
 } from '../api/tickets';
 import { useAuthStore } from '../store/auth.store';
 
@@ -63,7 +64,8 @@ export function usePostTicketComment(ticketId: string | undefined) {
   const orgId = useAuthStore((s) => s.user?.orgId);
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: string) => postTicketComment(ticketId ?? '', body),
+    mutationFn: async (params: PostTicketCommentParams) =>
+      postTicketComment(ticketId ?? '', params),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ['ticket-comments', orgId, ticketId] });
       await qc.invalidateQueries({ queryKey: ['ticket', orgId, ticketId] });

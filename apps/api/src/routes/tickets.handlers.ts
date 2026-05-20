@@ -1,5 +1,7 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import {
+  type CommentReplyKind,
+  type TicketApiDto,
   postTicketCommentBodySchema,
   postTicketCommentResponseSchema,
   ticketCommentsListResponseSchema,
@@ -9,6 +11,8 @@ import {
   ticketsListQuerySchema,
   ticketsListResponseSchema,
 } from '@usd/shared-types';
+import { getServerEnv } from '../config/loadEnv.js';
+import { isHelpdeskEmailReplyEnabled } from '../config/helpdeskEmail.js';
 import {
   buildTicketCommentSortKey,
   createTicketComment,
@@ -85,7 +89,21 @@ function ticketIdFromParams(params: { ticketId?: string }): string {
 }
 
 /**
- * GET /api/tickets/:ticketId/comments — newest-first USD comments for the ticket.
+ * Resolves reply kind with defaults (Jira → jira_comment, HD → hd_note) and validates source pairing.
+ */
+function resolveReplyKind(ticket: TicketApiDto, requested: CommentReplyKind | undefined): CommentReplyKind {
+  const kind = requested ?? (ticket.source === 'jira' ? 'jira_comment' : 'hd_note');
+  if (ticket.source === 'jira' && kind !== 'jira_comment') {
+    throw new AppError('Jira tickets only support jira_comment replies', 'VALIDATION', 400);
+  }
+  if (ticket.source === 'helpdesk' && kind === 'jira_comment') {
+    throw new AppError('Helpdesk tickets cannot use jira_comment', 'VALIDATION', 400);
+  }
+  return kind;
+}
+
+/**
+ * GET /api/tickets/:ticketId/comments — oldest-first conversation comments for the ticket.
  */
 export const getTicketComments: RequestHandler[] = [
   requireAuth,
@@ -115,6 +133,14 @@ export const postTicketComment: RequestHandler[] = [
     }
     const ticketId = ticketIdFromParams(req.params);
     const ticket = await getTicketById(req.auth.orgId, ticketId);
+    const replyKind = resolveReplyKind(ticket, parsed.data.replyKind);
+    if (replyKind === 'hd_email' && !isHelpdeskEmailReplyEnabled(getServerEnv())) {
+      throw new AppError(
+        'Customer email replies are disabled (HELPDESK_EMAIL_REPLY_ENABLED)',
+        'CONFIG',
+        503,
+      );
+    }
     const created = await createTicketComment({
       orgId: req.auth.orgId,
       ticketId,
@@ -123,14 +149,14 @@ export const postTicketComment: RequestHandler[] = [
       authorEmail: req.auth.email,
     });
     const ticketCommentKey = buildTicketCommentSortKey(ticketId, created.commentId);
+    const hdRef = { internalId: ticket.internalId, externalId: ticket.externalId };
     try {
-      if (ticket.source === 'jira') {
+      if (replyKind === 'jira_comment') {
         await jiraService.postComment(ticket.externalId, parsed.data.body);
+      } else if (replyKind === 'hd_note') {
+        await helpdeskService.postComment(hdRef, parsed.data.body);
       } else {
-        await helpdeskService.postComment(
-          { internalId: ticket.internalId, externalId: ticket.externalId },
-          parsed.data.body,
-        );
+        await helpdeskService.postCustomerEmailReply(hdRef, parsed.data.body);
       }
     } catch (err) {
       await deleteTicketComment(req.auth.orgId, ticketCommentKey);
@@ -144,6 +170,7 @@ export const postTicketComment: RequestHandler[] = [
         ticketId,
         commentId: created.commentId,
         body: created.body,
+        commentSource: created.commentSource,
         authorUserId: created.authorUserId,
         authorEmail: created.authorEmail,
         createdAt: created.createdAt,

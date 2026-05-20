@@ -12,6 +12,7 @@ describe('health.handlers', () => {
       dynamodb: 'connected',
       redis: 'connected',
       websocket: { connections: 0 },
+      helpdesk: { emailReplyEnabled: false },
       uptime: 42,
     });
     const res = await request(createApp()).get('/api/health/detail');
@@ -32,6 +33,7 @@ describe('health.handlers', () => {
       dynamodb: 'error',
       redis: 'connected',
       websocket: { connections: 1 },
+      helpdesk: { emailReplyEnabled: true },
       uptime: 10,
     });
     const res = await request(createApp()).get('/api/health/detail');

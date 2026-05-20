@@ -1,12 +1,19 @@
-import type { TicketApiDto, TriageSuggestResponse } from '@usd/shared-types';
+import type { CommentReplyKind, TicketApiDto, TriageSuggestResponse } from '@usd/shared-types';
 import { Badge, Overlay, SlaBar, priorityColors, usdColors } from '@usd/ui';
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { postTicketCrossLink } from '../../api/tickets';
 import { useAiInvoke } from '../../hooks/useAI';
+import { useHealthDetail } from '../../hooks/useHealthDetail';
 import { usePostTicketComment, useTicketComments, useTicketDetail } from '../../hooks/useTickets';
 import { useAuthStore } from '../../store/auth.store';
+import {
+  commentSourceColor,
+  commentSourceLabel,
+  HD_EMAIL_REPLY_DISABLED_TOOLTIP,
+  sortThreadComments,
+} from '../../utils/comment-display';
 import {
   estimateSlaPercentRemaining,
   formatAssignee,
@@ -64,6 +71,7 @@ export function DetailModal(props: DetailModalProps): ReactElement {
   const detailQuery = useTicketDetail(activeTicketId);
   const commentsQuery = useTicketComments(activeTicketId);
   const postComment = usePostTicketComment(activeTicketId);
+  const healthQuery = useHealthDetail(open);
   const ai = useAiInvoke();
   const qc = useQueryClient();
   const orgId = useAuthStore((s) => s.user?.orgId);
@@ -78,7 +86,8 @@ export function DetailModal(props: DetailModalProps): ReactElement {
   }
 
   const ticket = detailQuery.data?.data;
-  const comments = commentsQuery.data?.data ?? [];
+  const comments = sortThreadComments(commentsQuery.data?.data ?? []);
+  const emailReplyEnabled = healthQuery.data?.helpdesk.emailReplyEnabled ?? false;
   const originalDescriptionEntry =
     ticket !== undefined && hasDisplayableDescription(ticket.description) ? ticket : undefined;
 
@@ -114,6 +123,16 @@ export function DetailModal(props: DetailModalProps): ReactElement {
     setLinkDraft('');
     setLinkErr(null);
     setSuggestion(null);
+  };
+
+  const submitReply = (replyKind: CommentReplyKind): void => {
+    const body = commentDraft.trim();
+    if (body.length === 0) {
+      return;
+    }
+    void postComment.mutateAsync({ body, replyKind }).then(() => {
+      setCommentDraft('');
+    });
   };
 
   return (
@@ -224,10 +243,19 @@ export function DetailModal(props: DetailModalProps): ReactElement {
           ) : null}
           {comments.map((c) => (
             <li key={c.commentId} className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm">
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>{formatTicketTimestamp(c.createdAt)}</span>
-                {c.authorEmail !== undefined ? <span>{c.authorEmail}</span> : null}
+              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
+                <Badge
+                  label={commentSourceLabel(c.commentSource)}
+                  color={commentSourceColor(c.commentSource)}
+                  sm
+                />
+                <time dateTime={c.createdAt}>{formatTicketTimestamp(c.createdAt)}</time>
               </div>
+              {(c.authorDisplayName !== undefined || c.authorEmail !== undefined) ? (
+                <p className="mt-1 text-xs text-gray-500">
+                  {c.authorDisplayName ?? c.authorEmail}
+                </p>
+              ) : null}
               <p className="mt-2 whitespace-pre-wrap">{c.body}</p>
             </li>
           ))}
@@ -235,22 +263,52 @@ export function DetailModal(props: DetailModalProps): ReactElement {
         <div className="mt-3 space-y-2">
           <textarea
             className="min-h-[80px] w-full rounded-lg border border-gray-200 p-2 text-sm"
-            placeholder="Write a comment…"
+            placeholder={
+              ticket?.source === 'jira' ? 'Add an internal comment…' : 'Write a note or reply…'
+            }
             value={commentDraft}
             onChange={(e) => { setCommentDraft(e.target.value); }}
             disabled={postComment.isPending}
           />
-          <button
-            type="button"
-            className="rounded-lg px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
-            style={{ backgroundColor: usdColors.indigo }}
-            disabled={postComment.isPending || commentDraft.trim().length === 0}
-            onClick={() => {
-              void postComment.mutateAsync(commentDraft.trim()).then(() => { setCommentDraft(''); });
-            }}
-          >
-            Post comment
-          </button>
+          <div className="flex flex-wrap gap-2">
+            {ticket?.source === 'jira' ? (
+              <button
+                type="button"
+                className="rounded-lg px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+                style={{ backgroundColor: usdColors.blue }}
+                disabled={postComment.isPending || commentDraft.trim().length === 0}
+                onClick={() => { submitReply('jira_comment'); }}
+              >
+                Comment
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="rounded-lg px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+                  style={{ backgroundColor: usdColors.purple }}
+                  disabled={postComment.isPending || commentDraft.trim().length === 0}
+                  onClick={() => { submitReply('hd_note'); }}
+                >
+                  Add Note
+                </button>
+                <button
+                  type="button"
+                  title={emailReplyEnabled ? undefined : HD_EMAIL_REPLY_DISABLED_TOOLTIP}
+                  className="rounded-lg px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{ backgroundColor: usdColors.teal }}
+                  disabled={
+                    !emailReplyEnabled ||
+                    postComment.isPending ||
+                    commentDraft.trim().length === 0
+                  }
+                  onClick={() => { submitReply('hd_email'); }}
+                >
+                  Reply to Customer
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </section>
 

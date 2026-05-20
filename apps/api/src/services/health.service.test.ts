@@ -72,5 +72,24 @@ describe('health.service', () => {
     expect(detail.status).toBe('degraded');
     expect(detail.redis).toBe('error');
     expect(detail.dynamodb).toBe('connected');
+    expect(detail.helpdesk.emailReplyEnabled).toBe(false);
+  });
+
+  it('buildHealthDetail reflects HELPDESK_EMAIL_REPLY_ENABLED', async () => {
+    resetServerEnvForTests();
+    process.env.AWS_REGION = 'us-east-1';
+    process.env.REDIS_URL = 'redis://127.0.0.1:6379';
+    process.env.HELPDESK_EMAIL_REPLY_ENABLED = 'true';
+    loadServerEnv();
+    vi.spyOn(redisPing, 'pingRedis').mockResolvedValue(true);
+    const { DynamoDBClient } = await import('@aws-sdk/client-dynamodb');
+    vi.mocked(DynamoDBClient).mockImplementation(
+      () =>
+        ({
+          send: vi.fn().mockResolvedValue({ TableNames: [] }),
+        }) as unknown as InstanceType<typeof DynamoDBClient>,
+    );
+    const detail = await buildHealthDetail();
+    expect(detail.helpdesk.emailReplyEnabled).toBe(true);
   });
 });

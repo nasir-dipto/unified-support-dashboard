@@ -3,6 +3,8 @@ dist/
 .env
 .env.local
 .env.*.local
+.cursor/jira-corporate.env
+.cursor/jira-personal.env
 *.log
 .DS_Store
 .turbo/

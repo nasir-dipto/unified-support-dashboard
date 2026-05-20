@@ -139,16 +139,35 @@ export const jiraWebhookBodySchema = z
 
 export type JiraWebhookBody = z.infer<typeof jiraWebhookBodySchema>;
 
+/** Origin of a row in `support_ticket_comments`. */
+export const commentSourceSchema = z.enum([
+  'jira_comment',
+  'hd_note',
+  'hd_email',
+  'usd_comment',
+]);
+
+export type CommentSource = z.infer<typeof commentSourceSchema>;
+
+/** Upstream action when posting a new comment through USD. */
+export const commentReplyKindSchema = z.enum(['jira_comment', 'hd_note', 'hd_email']);
+
+export type CommentReplyKind = z.infer<typeof commentReplyKindSchema>;
+
 /** Stored USD comment on a ticket (`support_ticket_comments`). */
 export const supportTicketCommentRecordSchema = z.object({
   orgId: z.string().min(1),
-  /** Sort key: `${ticketId}#${commentUlid}` */
+  /** Sort key: `${ticketId}#${commentId}` */
   ticketCommentKey: z.string().min(1),
   ticketId: z.string().min(1),
   commentId: z.string().min(1),
   body: z.string(),
+  commentSource: commentSourceSchema,
+  /** External id from Jira/HD for idempotent sync (optional for USD-authored rows). */
+  sourceCommentId: z.string().min(1).optional(),
   authorUserId: z.string().min(1).optional(),
   authorEmail: z.string().min(1).optional(),
+  authorDisplayName: z.string().min(1).optional(),
   createdAt: z.string().min(1),
 });
 
@@ -171,6 +190,8 @@ export type TicketCommentsListResponse = z.infer<typeof ticketCommentsListRespon
 
 export const postTicketCommentBodySchema = z.object({
   body: z.string().min(1).max(16000),
+  /** Defaults: Jira → `jira_comment`, Helpdesk → `hd_note`. */
+  replyKind: commentReplyKindSchema.optional(),
 });
 
 export type PostTicketCommentBody = z.infer<typeof postTicketCommentBodySchema>;

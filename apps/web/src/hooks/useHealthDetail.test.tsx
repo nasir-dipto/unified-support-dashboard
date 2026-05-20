@@ -11,6 +11,7 @@ vi.mock('../api/health.js', () => ({
     dynamodb: 'connected',
     redis: 'connected',
     websocket: { connections: 0 },
+    helpdesk: { emailReplyEnabled: false },
     uptime: 1,
   }),
 }));

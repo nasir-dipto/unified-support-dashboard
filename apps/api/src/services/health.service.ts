@@ -1,5 +1,6 @@
 import { DynamoDBClient, ListTablesCommand } from '@aws-sdk/client-dynamodb';
 import type { HealthDetailResponse, HealthDependencyStatus } from '@usd/shared-types';
+import { isHelpdeskEmailReplyEnabled } from '../config/helpdeskEmail.js';
 import { getServerEnv } from '../config/loadEnv.js';
 import { pingRedis } from './redisPing.js';
 import { getLocalWsConnectionCount } from './websocket.service.js';
@@ -49,6 +50,7 @@ export async function buildHealthDetail(): Promise<HealthDetailResponse> {
     checkDynamoDbConnectivity(),
     checkRedisConnectivity(),
   ]);
+  const env = getServerEnv();
   const degraded = dynamodb === 'error' || redis === 'error';
   return {
     status: degraded ? 'degraded' : 'ok',
@@ -56,6 +58,7 @@ export async function buildHealthDetail(): Promise<HealthDetailResponse> {
     dynamodb,
     redis,
     websocket: { connections: getLocalWsConnectionCount() },
+    helpdesk: { emailReplyEnabled: isHelpdeskEmailReplyEnabled(env) },
     uptime: Math.floor(process.uptime()),
   };
 }
