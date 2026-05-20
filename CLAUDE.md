@@ -326,3 +326,14 @@ Sync full conversation history from Jira and HD so AI has rich context.
 - Merged incident view — Phase 9
 - Sentiment alerts/notifications — Phase 8
 - Churn risk email to CSM — Phase 8
+
+## Phase 6 — COMPLETE (PR #10)
+- Sentiment analysis on HD tickets only (positive/neutral/negative + churnRisk)
+- Dirty flag pattern (sentimentStale) + incremental + nightly batch
+- GET /api/sentiment/summary endpoint
+- MgrView Sentiment tab — real Recharts (LineChart, BarChart, StackedBarChart)
+- Morning briefing via POST /api/ai/invoke (morning_briefing)
+- Sentiment badge on HD TicketCards only
+- 252 tests passing
+
+## Current test count: 252
