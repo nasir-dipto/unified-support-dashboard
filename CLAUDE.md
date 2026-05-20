@@ -259,3 +259,56 @@ Sync full conversation history from Jira and HD so AI has rich context.
 - Phase 5B: AI features (PR #9)
 
 ## Current test count: 214 (154 API + 42 web + 8 UI + 10 shared-types)
+
+## Phase 6 — Sentiment Analysis & Briefings
+### Architecture decisions (confirmed)
+
+#### Sentiment scope
+- HD tickets ONLY — customer-facing conversations
+- Jira tickets: NO sentiment (internal engineering)
+- Linked tickets: HD sentiment surfaces on Jira ticket in unified view (Phase 9)
+
+#### When sentiment runs
+- After sync:hd — set sentimentStale=true on updated tickets
+- Batch runs after sync — analyses only sentimentStale=true tickets
+- Nightly full batch — refreshes all HD tickets
+- Minimum interval: never re-analyse same ticket more than once per hour
+- NEVER call Bedrock per comment — batch only
+
+#### Dirty flag pattern
+- New comment/sync → sentimentStale=true (DynamoDB update only, instant)
+- Batch picks up stale tickets → calls Bedrock once per ticket
+- Clears sentimentStale=false after analysis
+
+#### New ticket fields
+- sentiment: positive | neutral | negative | null
+- sentimentScore: -1.0 to +1.0 | null
+- churnRisk: true | false
+- sentimentStale: tntimentAt: ISO timestamp of last analysis
+
+#### Charts (Recharts)
+- Sentiment trend: LineChart (week by week)
+- Tickets by sentiment: BarChart (filterable)
+- Per-customer breakdown: BarChart with score
+- Category breakdown: StackedBarChart
+
+### What to build
+- apps/api/src/services/sentiment.service.ts — Bedrock sentiment, USE_MOCK_AI fallback
+- apps/api/src/scripts/sentiment-batch.ts — incremental + full batch processor
+- apps/api/src/routes/sentiment.routes.ts — GET /api/sentiment/summary
+- apps/api/src/ai/briefing.ts — morning briefing generator (morning_briefing feature)
+- Update packages/shared-types tickets/schemas.ts — add sentiment fields
+- Update apps/api/src/scripts/hd-reconcile.ts — set sentimentStale=true after sync
+- Update apps/api/src/routes/webhooks.handlers.ts — set sentimentStale=true on HD webhook
+- Fill MgrView Sentiment tab — real Recharts charts
+- Sentiment badge on TicketCard (HD only)
+- Morning briefing in Manager Overview tab
+- POST /api/ai/invoke: add morning_briefinr
+
+### What is NOT in Phase 6
+- Webhook comment sync (real-time) — Phase 9
+- Sentiment on Jira tickets — never (by design)
+- Customer email reply — Phase 9 (mail server needed)
+- Merged incident view — Phase 9
+- Sentiment alerts/notifications — Phase 8
+- Churn risk email to CSM — Phase 8
