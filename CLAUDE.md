@@ -230,3 +230,8 @@ Sync full conversation history from Jira and HD so AI has rich context.
 - Legacy comment cleanup script
 
 ## Current test count: 180 (131 API + 34 web + 8 UI + 7 shared-types)
+
+## Deferred to Phase 6
+- Webhook comment sync: when Jira/HD fires webhook for new comment, sync to support_ticket_comments
+- Currently: reconciliation handles comment sync (not real-time)
+- Phase 6 will add real-time comment sync via webhooks alongside sentiment analysis
