@@ -217,3 +217,16 @@ Sync full conversation history from Jira and HD so AI has rich context.
 - hd_note: technician note from HD (show_to_requester: false)
 - hd_email: customer email from HD (show_to_requester: true)
 - usd_comment: comment posted through USD
+
+## Phase 5A — COMPLETE (PR #8)
+- Sync Jira comments + HD conversations during reconciliation
+- commentSource: jira_comment | hd_note | hd_email | usd_comment
+- Unified conversation thread in DetailModal (sorted ascending)
+- Three reply options: Comment (Jira), Add Note (HD), Reply to Customer (HD email)
+- HELPDESK_EMAIL_REPLY_ENABLED flag
+- HD ticket ID showing as HD-1 etc on TicketCard
+- Jira assignee displayName fix
+- All 31 tickets showing (limit 100)
+- Legacy comment cleanup script
+
+## Current test count: 180 (131 API + 34 web + 8 UI + 7 shared-types)
