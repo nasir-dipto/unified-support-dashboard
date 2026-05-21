@@ -10,7 +10,7 @@
 
 ## Phase 2 — COMPLETE (PR #3)
 - Jira REST client (JQL search), tickets API, HMAC webhook, TicketCard
-- TanStack Query introduced, db:setup/seed/sync:jira scripts
+- TanStack Query, db:setup/seed/sync:jira scripts
 - 47 tests
 
 ## Phase 3 — COMPLETE (PR #4)
@@ -22,6 +22,68 @@
 - WebSocket (ws package, /ws path, JWT auth), WS_MODE=local|gateway
 - support_ticket_comments table, GET/POST comments, POST link
 - Post comment syncs to Jira + HD (private note via request_note)
-- DetailModal, ActivitySidebar (Zustand ring buffer ladisplay ID fix (hd_1 not hd_4445...), internalId field
+- DetailModal, ActivitySidebar (Zustand ring buffer last 50)
+- H fix (hd_1 not hd_4445...), internalId field
 - SQS Lambda handler, DLQ alarms, Lambda concurrency=10
 - 74 tests
+
+## Pre-Phase 5 improvements — COMPLETE (PR #6)
+- Integration tests in CI (94 tests, 0 skipped)
+- GET /api/health/detail endpoint
+- Startup env var validation warnings
+- DetailModal shows original ticket description
+- HD description field synced from SDP v3
+- Jira ADF converted to plain text
+
+## UI Redesign — COMPLETE (PR #7)
+- Full UI rebuilt matching docs/design-reference.tsx
+- packages/ui: Badge, SlaBar, StatCard, Pill, Toggle, Overlay, StatusDot
+- Role views: TechView (/tickets), MgrView (/manager), AdminView (/admin)
+- JIRA_INCLUDE_PROJECTS: admin-configurable project filter (empty = all)
+- 145 tests passing
+
+## Phase 5A — COMPLETE (PR #8)
+- Sync Jira comments + HD conversations during reconciliation
+- commentSource: jira_comment | hd_note | hd_email | usd_comment
+- Unified conversation thread in DetailModal (sorted ascending)
+- Three reply options: Comment (Jira), Add Note (HD), Reply tomer (HD email)
+- HELPDESK_EMAIL_REPLY_ENABLED flag
+- HD ticket ID showing as HD-1 etc on TicketCard
+- Jira assignee displayName fix, all 31 tickets showing (limit 100)
+- Legacy comment cleanup script
+- HD conversations API: GET /requests/{internalId}/conversations + notes merge
+- commentSource values: jira_comment | hd_note | hd_email | usd_comment
+
+## Phase 5B — COMPLETE (PR #9)
+- POST /api/ai/invoke (triage_suggest + comment_draft + kb_draft + morning_briefing)
+- bedrock.service.ts — Bedrock invocation, 10s timeout, USE_MOCK_AI=true fallback
+- Server-side context: ticket + full comment thread + linked ticket
+- Triage score ring on TicketCard (client-side, 0-100)
+- AI Suggest Action + AI Draft Comment in DetailModal
+- Tone pills: professional / empathetic / technical
+- Degraded response on timeout (HTTP 200, manual review message)
+- 214 tests passing
+
+## Phase 6 — COMPLETE (PR #10)
+- Sentiment analysis on HD tickets only (positive/neutral/negative + churnRisk)
+- Dirty flag pattern (sentimentStale) + incremental + nightly batch
+- 1-hour minimum re-analysis interval per ticket
+- GET /api/sentiment/summary endpoint
+- MgrView Sentiment tab — real Recharts (LineChart, BarChart, StackedBarChart)
+- Morning briefing via POST /api/ai/invoke (morning_briefing)
+- Sentiment badge on HD rds only
+- pnpm sentiment:batch --full for nightly refresh
+- 252 tests passing
+
+## Phase 7 — COMPLETE (PR #11)
+- PostgreSQL + pgvector (vector(1024), Titan amazon.titan-embed-text-v2:0)
+- KB article CRUD + semantic search (top 3 results, cosine similarity)
+- KB draft generation from HD + linked Jira context
+- Manual trigger only (Generate KB Draft button)
+- Embedding computed on publish only (not draft save)
+- Admin + Manager KB tab (draft/publish workflow)
+- Save as KB Draft persists state via API check on modal reopen
+- Source ticket IDs shown in admin and search results
+- pnpm kb:migrate script
+- CI: pgvector service, POSTGRES_URL, kb:migrate before tests
+- 269 tests passing

@@ -1,8 +1,8 @@
 # Unified Support Dashboard — Claude Code Context
 
-
 ## Reference
-- See CLAUDE-HISTORY.md for completed phase details (Phases 0-4)
+- See CLAUDE-HISTORY.md for completed phase details (Phases 0-7)
+
 ## What this is
 Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentiment, KB, reports.
 
@@ -11,7 +11,8 @@ Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentim
 - Backend: Node.js 20, Express 5, TypeScript strict, Zod, AWS SDK v3
 - Monorepo: pnpm workspaces + Turborepo
 - Infra: AWS CDK (TypeScript)
-- Testing: Vitest + RTL + Playwright
+- Database: DynamoDB (tickets/users/comments), PostgreSQL+pgvector (KB articles)
+- Testing: Vitest + RTL
 
 ## Key conventions
 - IDs: ULID. Never UUID
@@ -23,102 +24,74 @@ Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentim
 - Never commit .env files or secrets
 
 ## Running locally
-- docker compose up -d — start DynamoDB Local (:8000), Redis (:6379), Mailhog (:8025)
+- dockpose up -d — start all local services
 - pnpm dev — frontend (:5173) + backend (:3001)
-- pnpm test — pnpm lint && pnpm typecheck — before every push
+- pnpm lint && pnpm typecheck && pnpm test — before every push
+- export DYNAMODB_ENDPOINT=http://localhost:8000 && pnpm test — run with integration tests
 - pnpm --filter @usd/api db:setup — create DynamoDB Local tables
 - pnpm --filter @usd/api db:seed — seed admin (admin@usd.dev / Admin123!)
-- pnpm --filter @usd/api sync:jira — sync Jira tickets
-- pnpm --filter @usd/api sync:hd — sync HD tickets
-- export DYNAMODB_ENDPOINT=http://localhost:8000 && pnpm --filter @usd/api test
+- pnpm --filter @usd/api kb:migrate — run PostgreSQL migrations (first time only)
+- pnpm --filter @usd/api sync:jira — sync Jira tickets + comments
+- pnpm --filter @usd/api sync:hd — sync HD tickets + conversations + sentiment batch
+- pnpm --filter @usd/api sentiment:batch — full sentiment refresh
 
-## Local service replacements
-- DynamoDB → DynamoDB Local (:8000)
-- Redis → Redis (:6379)
+## Local services (docker compose up -d)
+- DynamoDB Local: port 8000
+- Redis: port 6379
+- Mailhog: port 8025 (email UI)
+- PostgreSQL (pgvector): port 5432
+
+## Local dev replacements
 - Bedrock → Mock (USE_MOCK_AI=true)
 - SES → Mailhog (:8025)
 
 ## Engineering practices
-- Feature branch for every phase — never commit to develop or main directly
-- Tests written same session as code — never deferred
+- Feature branch for every phase — never commit to deests written same session as code — never deferred
 - pnpm lint && pnpm typecheck && pnpm test before every push
 - Small focused commits, conventional messages
-- Update this CLAUDE.md after every phase
+- Update CLAUDE.md after every phase (archive completed details to CLAUDE-HISTORY.md)
 
 ## Phase status
-- Phase 0: COMPLETE — monorepo, CI, AWS CDK
-- Phase 1: COMPLETE — JWT auth, users/roles, LoginView
-- Phase 2: COMPLETE — Jira integration, tickets API, webhooks
-- Phase 3: COMPLETE —  webhooks
-- Phase 4: COMPLETE — WebSocket, DetailModal, ActivitySidebar, cross-linking
-- Phase 5A: COMPLETE — comment sync + unified thread (branch: feature/phase-5-ai)
-- Phase 5B: COMPLETE — AI triage, action suggestion, comment draft (branch: feature/phase-5b-ai)
-- Phase 6: COMPLETE — sentiment + briefings (branch: feature/phase-6-sentiment)
-- Phase 7: COMPLETE — knowledge base (pgvector) (branch: feature/phase-7-kb)
-- Phase 8: NOT STARTED — reports + notifications
-- Phase 9: NOT STARTED — admin + hardening
+- Phases 0-7: COMPLETE — see CLAUDE-HISTORY.md
+- Phase 8: IN PROGRESS — reports + notifications
+- Phase 9: NOT STARTED — admin + hardening + AWS deployment
 
-## Current test count: 94 (32 test files)
+## Current test count: 269 (179 API + 66 web + 16 shared-types + 8 UI)
 
 ## Architecture decisions
-- pgvector (RDS PostgreSQL) for KB search — not OpenSearch
-- No TTL on tickets — keep all history
-- metadata field on tickets for unknown custom fields
+- pgvector (RDS PostgreSQL) for KB search — not OpenSearch (~$15-25/mo)
+- No TTL on tickets — keep all history for KB/sentiment/reports
+- metadata field on tickets for unknown custom Jira/HD fields
 - Incremental sync: last 15 min only (not full sync)
 - HD tickets: ticketId=hd_{display_id}, internalId for API paths
-- WS_MODE=local (ws package) | gateway (API GW stub)
+- WS_MODE=local (ws package) | gateway (API GW stub, Phase 9)
 - Lambda concurrency: 10, DLQ alarms on both queues
+- Sentiment: HD only, dirty flag + batch (never per-comment Bedrock)
+- KB embeddings: computed on publish only (not draft save)
+- JIRA_INCLUDE_PROJECTS: empty = all projects (admin sets in Phase 9)
 
-## Permission model
+## Permission model (enforced in Phase 9)
 - technician: own tickets = full access, others = read only
-- manager: all tickets full access + reports + sentiment + AI
+- manager: all tickets full access + reports + sentiment + AI + KB review
 - super_admin: everything + user mgmt + integrations + delete
-- Implementation deferre Local dev credentials
+- Current: admin role has full access (role enforcement deferred to Phase 9)
+
+## Local dev credentials
 - Admin user: admin@usd.dev / Admin123! / orgId: demo-org
-- Jira: dknasir007.atlassian.net (SCRUM project)
+- Jira: dknasir007.atlassian.net (SCRUM + USD projects)
 - HD: servicedeskplus.uk (display IDs hd_1 to hd_12)
 
 ## Jira project tracking
 - Personal: dknasir007.atlassian.net/jira/software/projects/USD
-  USD-1 Epic, USD-2..11 Stories (USD-8 Done, USD-9 In Progress — Phase 7)
+  USD-1 Epic — USD-9 Done (Phase 7), USD-10 In Progress (Phase 8)
 - Corporate: trialinteractive.atlassian.net/jira/software/projects/TIAI
-  TIAI-2 Epic, TIAI-3..12 Tasks (TIAI-9 Done, TIAI-10 In Progress — Phase 7)
-  _(Corporate project key renamed from TAS → TIAI; issue numbers unchanged: TIAI-8 = Phase 5, etc.)_
+  TIAI-2 Epic — TIAI-10 Done (Phase 7), TIAI-11 In Progress (Phase 8)
 - End of each phase: transition current story Done, next In Progress (both Jiras)
-
-## Phase 5 — AI triage + action suggestion
-### What to build
-- apps/api/src/services/bedrock.service.ts — Bedrock invocation, 10s timeout, fallback. USE_MOCK_AI=true returns mock
-- apps/api/src/routes/ai.routes.ts — POST /api/ai/invoke
-- apps/api/src/ai/triage.ts — triage_suggest handler
-- apps/api/src/ai/commentDraft.ts — comment_draft handler
-- apps/api/src/ai/prompts.ts — prompt templates
-- apps/web/src/utils/triage.ts — client-side score (0-100, neb/src/components/tickets/TicketCard.tsx — triage score ring
-- apps/web/src/components/tickets/DetailModal.tsx — AI Suggest Action + AI Draft Comment buttons
-- apps/web/src/api/ai.ts — typed fetch wrapper
-- apps/web/src/hooks/useAI.ts — TanStack Query mutation
-
-### Triage score (client-side)
-priority: critical=40, high=30, medium=15, low=5
-SLA: <25% adds up to 35pts (linear)
-sentiment: negative+15, churnRisk+10
-escalated: +10. Max=100
-
-### Mock AI (USE_MOCK_AI=true)
-- triage_suggest: realistic suggestion based on priority
-- comment_draft: realistic draft comment
-
-### Tests
-- bedrock.service.ts unit (mock AWS SDK)
-- triage.ts 100% coverage
-- each AI handler unit test
-- TicketCard triage ring component test
-- DetailModal AI buttons component test
 
 ## Established patterns (always follow these)
 
 ### Adding a new API route
-1. Zod schema in packages/shared-types/src/[domain]/schemas.ts
+1. Zod schema in packages/shared-types/src/.ts
 2. Handler in apps/api/src/routes/[domain].handlers.ts
 3. Route registered in apps/api/src/routes/[domain].routes.ts
 4. Mounted in apps/api/src/app.ts
@@ -143,7 +116,7 @@ Follow jira.service.ts pattern:
 2. Add prompt template in apps/api/src/ai/prompts.ts
 3. Add handler in apps/api/src/ai/[feature].ts
 4. Register in apps/api/src/routes/ai.routes.ts
-5. Add mock response in bedrock.service.ts mock handler
+5. Add mock response in ai/mockResponses.ts
 6. Unit test for handler + mock response
 
 ### WebSocket broadcast (after any ticket mutation)
@@ -156,215 +129,30 @@ Follow jira.service.ts pattern:
 - Every GetItem result MUST verify orgId matches JWT orgId
 - Use upsertTicket for all ticket writes — never raw PutItem in routes
 
-## Pending fixes (before Phase 5)
-- DetailModal: show ticket.description as first item in conversation thread
-  - Label: "Original Request" (HD) or "Issue Description" (Jira)
-  - Show createdAt timestamp
-  - Hide if description is empty or "—"
-- Future (Phase 5+): sync full comment history from Jira/HD during reconciliation
-- Future (Phase 9): attachment proxy for inline images in DetailModal
+## Deferred items
+- Webhook comment sync (real-time) — Phase 9
+- Merged incident view (Jira+HD unified modal) — Phase 9
+- Customer email reply via HD — Phase 9 (mail server needed)
+- ActivitySidebar history on connect — Phase 9
+- Attachment proxy for inline images — Phase 9
+- Permission model enforcement — Phase 9
 
-## Pre-Phase 5 improvements (in progress)
-- Fix integration tests running in CI (add DYNAMODB_ENDPOINT to ci.yml test job)
-- Add GET /api/health/detail endpoint (DynamoDB, Redis, WebSocket connections, version)
-- Add startup env var validation warnings (missing JIRA_WEBHOOK_SECRET, HD_WEBHOOK_SECRET etc)
-
-## Pre-Phase 5 improvements — COMPLETE (PR #6)
-- Integration tests now run in CI (94 tests, 0 skipped)
-- GET /api/health/detail endpoint
-- Startup env var validation warnings
-- DetailModal shows original ticket description
-- HD description field synced from SDP v3
-- Jira ADF converted to plain text
-
-## Current test count: 94 (32 test files)
-
-## UI Redesign — COMPLETE (PR #7)
-- Full UI rebuilt matching docs/design-reference.tsx
-- packages/ui: Badge, SlaBar, StatCard, Pill, Toggle, Overlay, StatusDot
-- Role views: TechView (/tickets), MgrView (/manager), AdminView (/admin)
-- All roles land on /tickets after login
-- JIRA_INCLUDE_PROJECTS: admin-configurable project filter (empty = all)
-- No mock data in production code
-- No direct Anthropic calls from frontend
-- 145 tests passing
-
-## Current test count: 173 (38 API + 34 web + 8 UI + 7 shared-types)
-
-## Phase 5A — Communication Enrichment — COMPLETE
-### Goal
-Sync full conversation history from Jira and HD so AI has rich context.
-
-### Built
-- Sync Jira comments during reconciliation: GET /rest/api/3/issue/{key}/comment
-- Sync HD conversations during reconciliation: GET /requests/{internalId}/conversations
-- `support_ticket_comments` includes `commentSource`: jira_comment, hd_note, hd_email, usd_comment
-- DetailModal unified thread sorted by `createdAt` ascending with source badges
-- Reply actions: Add Note (HD), Comment (Jira), Reply to Customer (HD email when `HELPDESK_EMAIL_REPLY_ENABLED=true`)
-- Webhooks do **not** sync comments (reconcile only)
-
-### HD conversations API (confirmed working)
-- Endpoint: GET /requests/{internalId}/conversations?input_data={"list_info":{"row_count":50}}
-- Returns type: NOTES or EMAIL (metadata only — **no `description` body** on list rows)
-- Note bodies: GET /requests/{internalId}/notes (merge by `id` during sync)
-- Requires Accept: application/vnd.manageengine.sdp.v3+json
-- Email conversations only appear when HD mail server is configured
-
-### Jira comments API
-- Endpoint: GET /rest/api/3/issuey}/comment
-- Returns comments array with author, body (ADF), created timestamp
-
-### commentSource values
-- jira_comment: comment from Jira issue
-- hd_note: technician note from HD (show_to_requester: false)
-- hd_email: customer email from HD (show_to_requester: true)
-- usd_comment: comment posted through USD
-
-## Phase 5A — COMPLETE (PR #8)
-- Sync Jira comments + HD conversations during reconciliation
-- commentSource: jira_comment | hd_note | hd_email | usd_comment
-- Unified conversation thread in DetailModal (sorted ascending)
-- Three reply options: Comment (Jira), Add Note (HD), Reply to Customer (HD email)
-- HELPDESK_EMAIL_REPLY_ENABLED flag
-- HD ticket ID showing as HD-1 etc on TicketCard
-- Jira assignee displayName fix
-- All 31 tickets showing (limit 100)
-- Legacy comment cleanup script
-
-## Phase 5B — COMPLETE
-- POST /api/ai/invoke — triage_suggest + comment_draft (server-built context, no client context)
-- Bedrock service (10s timeout, degraded HTTP 200 on failure); USE_MOCK_AI=true for local
-- DetailModal: AI suggest action, AI draft comment, Pill tone toggle (professional/empathetic/technical)
-- TicketCard: client-side triage score ring (0–100)
-- shared-types: discriminated AI request/response (tone, degraded, suggestedAssignee)
-
-## Phase 6 — COMPLETE
-- HD-only sentiment (Bedrock batch, dirty flag, 1hr min interval)
-- POST /api/ai/invoke `morning_briefing` (Overview + Sentiment tabs)
-- GET /api/sentiment/summary — Recharts in MgrView Sentiment tab
-- `pnpm sync:hd` runs incremental sentiment batch; `pnpm sentiment:batch` for full
-- Sentiment badge on TicketCard (Helpdesk only)
-
-## Current test count: 252 (172 API + 62 web + 8 UI + 11 shared-types)
-
-## Deferred to Phase 6
-- Webhook comment sync: when Jira/HD fires webhook for new comment, sync to support_ticket_comments
-- Currently: reconciliation handles comment sync (not real-time)
-- Phase 6 will add real-time comment sync via webhooks alongside sentiment analysis
-
-## Phase 5B — COMPLETE (PR #9)
-- POST /api/ai/invoke (triage_suggest + comment_draft)
-- bedrock.service.ts — Bedrock invocation, 10s timeout, USE_MOCK_AI=true fallback
-- Server-side context: ticket + full comment thread + linked ticket
-- Triage score ring on TicketCard (client-side, 0-100)
-- AI Suggest Action + AI Draft Comment in DetailModal
-- Tone pills: professional / empathetic / technical
-- Degraded response on timeout (HTTP 200, manual review message)
-- 214 tests passing
-
-## Phase 5 — COMPLETE (5A + 5B)
-- Phase 5A: Communication enrichment (PR #8)
-- Phase 5B: AI features (PR #9)
-
-## Phase 6 — COMPLETE
-- HD-only sentiment (Bedrock batch, dirty flag, 1hr min interval)
-- POST /api/ai/invoke `morning_briefing` (Overview + Sentiment tabs)
-- GET /api/sentiment/summary — Recharts in MgrView Sentiment tab
-- `pnpm sync:hd` runs incremental sentiment batch; `pnpm sentiment:batch` for full
-- Sentiment badge on TicketCard (Helpdesk only)
-
-## Current test count: 252 (172 API + 62 web + 8 UI + 11 shared-types)
-
-## Phase 6 — Sentiment Analysis & Briefings
-### Architecture decisions (confirmed)
-
-#### Sentiment scope
-- HD tickets ONLY — customer-facing conversations
-- Jira tickets: NO sentiment (internal engineering)
-- Linked tickets: HD sentiment surfaces on Jira ticket in unified view (Phase 9)
-
-#### When sentiment runs
-- After sync:hd — set sentimentStale=true on updated tickets
-- Batch runs after sync — analyses only sentimentStale=true tickets
-- Nightly full batch — refreshes all HD tickets
-- Minimum interval: never re-analyse same ticket more than once per hour
-- NEVER call Bedrock per comment — batch only
-
-#### Dirty flag pattern
-- New comment/sync → sentimentStale=true (DynamoDB update only, instant)
-- Batch picks up stale tickets → calls Bedrock once per ticket
-- Clears sentimentStale=false after analysis
-
-#### New ticket fields
-- sentiment: positive | neutral | negative | null
-- sentimentScore: -1.0 to +1.0 | null
-- churnRisk: true | false
-- sentimentStale: tntimentAt: ISO timestamp of last analysis
-
-#### Charts (Recharts)
-- Sentiment trend: LineChart (week by week)
-- Tickets by sentiment: BarChart (filterable)
-- Per-customer breakdown: BarChart with score
-- Category breakdown: StackedBarChart
+## Phase 8 — Reports ### Architecture decisions (to be confirmed before building)
+- Reports: real-time computed on GET vs Redis-cached vs pre-computed nightly
+- Notification triggers: SLA breach (reconciliation check), churn risk (post-sentiment batch), critical ticket (webhook)
+- Email: AWS SES locally via Mailhog (already running)
+- Notification recipients: technician (own SLA), manager (churn/critical/digest), super_admin (everything)
 
 ### What to build
-- apps/api/src/services/sentiment.service.ts — Bedrock sentiment, USE_MOCK_AI fallback
-- apps/api/src/scripts/sentiment-batch.ts — incremental + full batch processor
-- apps/api/src/routes/sentiment.routes.ts — GET /api/sentiment/summary
-- apps/api/src/ai/briefing.ts — morning briefing generator (morning_briefing feature)
-- Update packages/shared-types tickets/schemas.ts — add sentiment fields
-- Update apps/api/src/scripts/hd-reconcile.ts — set sentimentStale=true after sync
-- Update apps/api/src/routes/webhooks.handlers.ts — set sentimentStale=true on HD webhook
-- Fill MgrView Sentiment tab — real Recharts charts
-- Sentiment badge on TicketCard (HD only)
-- Morning briefing in Manager Overview tab
-- POST /api/ai/invoke: add morning_briefinr
-
-### What is NOT in Phase 6
-- Webhook comment sync (real-time) — Phase 9
-- Sentiment on Jira tickets — never (by design)
-- Customer email reply — Phase 9 (mail server needed)
-- Merged incident view — Phase 9
-- Sentiment alerts/notifications — Phase 8
-- Churn risk email to CSM — Phase 8
-
-## Phase 6 — COMPLETE (PR #10)
-- Sentiment analysis on HD tickets only (positive/neutral/negative + churnRisk)
-- Dirty flag pattern (sentimentStale) + incremental + nightly batch
-- GET /api/sentiment/summary endpoint
-- MgrView Sentiment tab — real Recharts (LineChart, BarChart, StackedBarChart)
-- Morning briefing via POST /api/ai/invoke (morning_briefing)
-- Sentiment badge on HD TicketCards only
-- 252 tests passing
-
-## Phase 7 — COMPLETE (feature/phase-7-kb)
-- PostgreSQL + pgvector (`vector(1024)`), Titan `amazon.titan-embed-text-v2:0`
-- `kbId` = ULID; embedding computed on **publish only** (not draft save)
-- `POST /api/ai/invoke` `kb_draft` — returns draft JSON, not persisted
-- `GET/POST/PUT/DELETE /api/kb`, `POST /api/kb/:kbId/publish`, `POST /api/kb/search` (top 3 published)
-- DetailModal: Search KB (all tickets; note on open/in_progress) + Generate KB Draft
-- Admin + Manager dashboards: Knowledge Base tab (admin role)
-- CI: pgvector service, `POSTGRES_URL`, `kb:migrate` before tests
-- `pnpm --filter @usd/api kb:migrate` after `docker compose up -d postgres`
-
-## Current test count: 258 (177 API + 57 web + 8 UI + 16 shared-types)
-
-## Phase 7 — COMPLETE (PR #11)
-- PostgreSQL + pgvector (vector(1024), Titan embed v2)
-- KB article CRUD + semantic search (top 3 results)
-- KB draft generation from HD + linked Jira context
-- Manual trigger only (Generate KB Draft button)
-- Admin + Manager KB tab (draft/publish workflow)
-- Save as KB Draft persists state via API check
-- Source ticket IDs shown in admin and search results
-- pnpm kb:migrate script
-- 269 tests passing
-
-## Current test count: 269 (179 API + 66 web + 16 shared-types + 8 UI)
-
-## Local dev services (docker compose up -d)
-- DynamoDB Local: port 8000
-- Redis: port 6379
-- Mailhog: port 8025
-- PostgreSQL (pgvector): port 5432
-- Run after first docker compose up: pnpm --filter @usd/api kb:migrate
+- GET /api/reports/sla — SLA compliance by week/month
+- GET /api/reports/volume — ticket volume by source and period
+- GET /api/reports/resolution — avg resolution time by priority/source
+- GET /api/reports/team — tickets resolved per technician
+- apps/api/src/services/email.service.ts — SES/Mailhog email sender
+- apps/api/src/services/notifications.service.ts — notification rules engine
+- apps/api/src/routes/notifications.routes.ts — GET/POST /api/notifications
+- Update reconciliation: check SLA breach → trigger notification
+- Update sentiment batch: churn risk detected → trigger notification
+- Fill MgrView Reporting tab with real Recharts
+- In-app notification bell in header (WebSocket push)
+- Notification preferences in Admin settings
