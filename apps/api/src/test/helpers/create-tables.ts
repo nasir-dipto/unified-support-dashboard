@@ -1,13 +1,13 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import {
-  ensureAllUsdLocalDynamoTables,
-  ensureDynamoTableIfMissing,
-} from '../../db/ensureUsdLocalDynamoTables.js';
+import { ensureAllUsdLocalDynamoTables } from '../../db/ensureUsdLocalDynamoTables.js';
 
 /**
- * Creates Phase 1 DynamoDB tables on Local when missing (idempotent).
- * When `ticketsTable` is provided, ensures the full USD schema (including Phase 8
- * notification tables required for ticket list/detail SLA enrichment).
+ * Creates all USD DynamoDB tables on Local when missing (idempotent).
+ * Delegates to `ensureAllUsdLocalDynamoTables` so Phase 8 notification tables
+ * and every other app table exist before integration tests run.
+ *
+ * Table name parameters are retained for caller compatibility; schemas use
+ * fixed names from `ensureAllUsdLocalDynamoTables`.
  */
 export async function ensureSupportTablesExist(
   client: DynamoDBClient,
@@ -16,46 +16,9 @@ export async function ensureSupportTablesExist(
   ticketsTable?: string,
   commentsTable?: string,
 ): Promise<void> {
+  void usersTable;
+  void rolesTable;
+  void ticketsTable;
   void commentsTable;
-  if (ticketsTable !== undefined) {
-    await ensureAllUsdLocalDynamoTables(client);
-    return;
-  }
-  await ensureDynamoTableIfMissing(
-    client,
-    usersTable,
-    [
-      { AttributeName: 'orgId', AttributeType: 'S' },
-      { AttributeName: 'userId', AttributeType: 'S' },
-      { AttributeName: 'email', AttributeType: 'S' },
-    ],
-    [
-      { AttributeName: 'orgId', KeyType: 'HASH' },
-      { AttributeName: 'userId', KeyType: 'RANGE' },
-    ],
-    [
-      {
-        IndexName: 'orgId-email',
-        KeySchema: [
-          { AttributeName: 'orgId', KeyType: 'HASH' },
-          { AttributeName: 'email', KeyType: 'RANGE' },
-        ],
-        Projection: { ProjectionType: 'ALL' },
-      },
-    ],
-  );
-
-  await ensureDynamoTableIfMissing(
-    client,
-    rolesTable,
-    [
-      { AttributeName: 'orgId', AttributeType: 'S' },
-      { AttributeName: 'userId', AttributeType: 'S' },
-    ],
-    [
-      { AttributeName: 'orgId', KeyType: 'HASH' },
-      { AttributeName: 'userId', KeyType: 'RANGE' },
-    ],
-    [],
-  );
+  await ensureAllUsdLocalDynamoTables(client);
 }
