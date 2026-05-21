@@ -40,7 +40,7 @@ export function averageSlaPercentRemaining(tickets: TicketApiDto[]): number | nu
   const values = tickets
     .map((t) =>
       estimateSlaPercentRemaining(t.createdAt, t.updatedAt, {
-        dueAt: (t as TicketApiDto & { slaDueAt?: string }).slaDueAt,
+        dueAt: t.slaDueAt,
       }),
     )
     .filter((v): v is number => v !== null);

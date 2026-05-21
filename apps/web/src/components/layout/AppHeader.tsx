@@ -2,6 +2,7 @@ import { usdColors } from '@usd/ui';
 import type { ReactElement } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth.store';
+import { NotificationBell } from '../notifications/NotificationBell';
 import { canAccessAdminPanel } from '../../utils/roles';
 
 const roleLabels: Record<string, string> = {
@@ -75,6 +76,7 @@ export function AppHeader(): ReactElement {
       </nav>
 
       <div className="ml-auto flex items-center gap-3">
+        <NotificationBell />
         <div className="flex items-center gap-2">
           <div
             className="flex h-[30px] w-[30px] items-center justify-center rounded-full text-[11px] font-extrabold text-white"

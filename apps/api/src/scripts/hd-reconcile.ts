@@ -5,6 +5,7 @@ import { ensureDevJwtKeys } from '../config/ensureDevJwtKeys.js';
 import { getServerEnv, loadServerEnv, resetServerEnvForTests } from '../config/loadEnv.js';
 import { markSentimentStale, upsertTicket } from '../db/tables/tickets.js';
 import { runIncrementalBatch } from '../sentiment/batchProcessor.js';
+import { scanSlaBreachesForOrg } from '../services/notifications.service.js';
 import { resetDocumentClientForTests } from '../db/dynamo.client.js';
 import { mapHdRequestToTicket } from '../helpdesk/mapRequestToTicket.js';
 import { syncRequestConversations } from '../helpdesk/syncRequestConversations.js';
@@ -73,6 +74,8 @@ async function main(): Promise<void> {
   console.info(
     `Sentiment batch: examined=${String(batch.examined)} analyzed=${String(batch.analyzed)} skipped=${String(batch.skipped)} errors=${String(batch.errors)}`,
   );
+  const slaAlerts = await scanSlaBreachesForOrg(env.HD_DEFAULT_ORG_ID);
+  console.info(`SLA breach scan: ${String(slaAlerts)} ticket(s) notified.`);
 }
 
 void main().catch((e: unknown) => {

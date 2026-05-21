@@ -232,6 +232,20 @@ export async function ensureAllUsdLocalDynamoTables(
 
   await ensureDynamoTableIfMissing(
     client,
+    'support_notifications',
+    [
+      { AttributeName: 'orgId', AttributeType: 'S' },
+      { AttributeName: 'notificationId', AttributeType: 'S' },
+    ],
+    [
+      { AttributeName: 'orgId', KeyType: 'HASH' },
+      { AttributeName: 'notificationId', KeyType: 'RANGE' },
+    ],
+    [],
+  );
+
+  await ensureDynamoTableIfMissing(
+    client,
     'support_ticket_comments',
     [
       { AttributeName: 'orgId', AttributeType: 'S' },

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../app.js';
 import { getServerEnv, loadServerEnv, resetServerEnvForTests } from '../config/loadEnv.js';
 import * as tickets from '../db/tables/tickets.js';
+import * as notifications from '../services/notifications.service.js';
 
 describe('webhooks.handlers', () => {
   afterEach(() => {
@@ -22,6 +23,9 @@ describe('webhooks.handlers', () => {
   });
 
   it('POST /api/webhooks/helpdesk accepts valid secret and upserts', async () => {
+    vi.spyOn(tickets, 'markSentimentStale').mockResolvedValue(undefined);
+    vi.spyOn(notifications, 'notifyCriticalTicketIfNeeded').mockResolvedValue(undefined);
+    vi.spyOn(notifications, 'notifySlaBreachIfNeeded').mockResolvedValue(undefined);
     vi.spyOn(tickets, 'getTicketRecordOrUndefined').mockResolvedValue(undefined);
     const spy = vi.spyOn(tickets, 'upsertTicket').mockResolvedValue({
       ticketId: 'hd_12',

@@ -4,6 +4,7 @@ import {
   updateTicketSentiment,
 } from '../db/tables/tickets.js';
 import { analyzeHdTicketSentiment } from '../services/sentiment.service.js';
+import { notifyChurnRiskIfNeeded } from '../services/notifications.service.js';
 
 export type BatchRunResult = {
   examined: number;
@@ -49,7 +50,8 @@ async function processTicketList(
         result.skipped += 1;
         continue;
       }
-      await updateTicketSentiment(orgId, ticket.ticketId, analysis);
+      const updated = await updateTicketSentiment(orgId, ticket.ticketId, analysis);
+      await notifyChurnRiskIfNeeded(orgId, updated, analysis.churnRisk);
       result.analyzed += 1;
     } catch {
       result.errors += 1;
