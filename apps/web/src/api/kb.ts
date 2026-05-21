@@ -17,10 +17,29 @@ import { apiClient } from './client';
 /**
  * Lists KB articles for the current org.
  */
-export async function listKbArticles(status?: 'draft' | 'published'): Promise<KbArticle[]> {
-  const params = status !== undefined ? { status } : undefined;
-  const res = await apiClient.get('/api/kb', { params });
+export async function listKbArticles(
+  status?: 'draft' | 'published',
+  sourceTicketId?: string,
+): Promise<KbArticle[]> {
+  const params: { status?: string; sourceTicketId?: string } = {};
+  if (status !== undefined) {
+    params.status = status;
+  }
+  if (sourceTicketId !== undefined && sourceTicketId.length > 0) {
+    params.sourceTicketId = sourceTicketId;
+  }
+  const res = await apiClient.get('/api/kb', {
+    params: Object.keys(params).length > 0 ? params : undefined,
+  });
   return kbArticlesListResponseSchema.parse(res.data).data;
+}
+
+/**
+ * Returns true when a draft KB article already exists for the given ticket id.
+ */
+export async function checkKbDraftExists(ticketId: string): Promise<boolean> {
+  const articles = await listKbArticles('draft', ticketId);
+  return articles.length > 0;
 }
 
 /**

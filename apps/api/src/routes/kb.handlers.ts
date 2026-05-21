@@ -43,20 +43,27 @@ function requirePostgres(_req: Request, _res: Response, next: NextFunction): voi
 }
 
 /**
- * GET /api/kb — list articles (admin/manager).
+ * GET /api/kb — list articles (admin/manager), or filter by sourceTicketId (any authenticated role).
  */
 export const getKbList: RequestHandler[] = [
   requireAuth,
-  requireRole('admin'),
   requirePostgres,
   asyncHandler(async (req, res) => {
     if (req.auth === undefined) {
       throw new AppError('Unauthorized', 'UNAUTHORIZED', 401);
     }
+    const sourceTicketRaw = req.query.sourceTicketId;
+    const sourceTicketId =
+      typeof sourceTicketRaw === 'string' && sourceTicketRaw.trim().length > 0
+        ? sourceTicketRaw.trim()
+        : undefined;
+    if (sourceTicketId === undefined && !req.auth.roles.includes('admin')) {
+      throw new AppError('Forbidden', 'FORBIDDEN', 403);
+    }
     const statusRaw = req.query.status;
     const status =
       statusRaw === 'draft' || statusRaw === 'published' ? statusRaw : undefined;
-    const data = await listKbArticles(req.auth.orgId, status);
+    const data = await listKbArticles(req.auth.orgId, { status, sourceTicketId });
     res.status(200).json({ data, total: data.length });
   }),
 ];

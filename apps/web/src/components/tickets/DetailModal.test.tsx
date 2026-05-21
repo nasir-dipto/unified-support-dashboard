@@ -53,6 +53,9 @@ const kbSearchMock = vi.fn();
 const kbDraftMock = vi.fn();
 const createKbMock = vi.fn();
 
+let kbDraftExistsData = false;
+let kbDraftExistsLoading = false;
+
 vi.mock('../../hooks/useKb', () => ({
   useKbSearch: () => ({
     mutateAsync: kbSearchMock,
@@ -61,6 +64,11 @@ vi.mock('../../hooks/useKb', () => ({
   useKbDraft: () => ({
     mutateAsync: kbDraftMock,
     isPending: false,
+  }),
+  useKbDraftExists: () => ({
+    data: kbDraftExistsData,
+    isLoading: kbDraftExistsLoading,
+    isError: false,
   }),
   useCreateKbArticle: () => ({
     mutateAsync: createKbMock,
@@ -130,6 +138,8 @@ describe('DetailModal', () => {
     kbSearchMock.mockReset();
     kbDraftMock.mockReset();
     createKbMock.mockReset();
+    kbDraftExistsData = false;
+    kbDraftExistsLoading = false;
   });
 
   it('renders original description as first conversation item for Jira', () => {
@@ -230,6 +240,25 @@ describe('DetailModal', () => {
     expect(screen.getByDisplayValue('Fix VPN')).toBeTruthy();
   });
 
+  it('disables generate on open when draft already exists for ticket', () => {
+    kbDraftExistsData = true;
+    renderModal();
+    expect(screen.getByText(/draft saved — review in admin → knowledge base/i)).toBeTruthy();
+    const generateBtn = screen.getByRole('button', { name: /generate kb draft/i });
+    expect(generateBtn).toBeDisabled();
+    expect(generateBtn).toHaveAttribute(
+      'title',
+      'KB draft already saved for this ticket. Edit in Admin → Knowledge Base',
+    );
+  });
+
+  it('shows loading state while checking for existing draft', () => {
+    kbDraftExistsLoading = true;
+    renderModal();
+    expect(screen.getByText(/checking for existing kb draft/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /generate kb draft/i })).toBeDisabled();
+  });
+
   it('disables save and generate after KB draft is saved', async () => {
     const user = userEvent.setup();
     kbDraftMock.mockResolvedValue({
@@ -250,13 +279,11 @@ describe('DetailModal', () => {
     await waitFor(() => {
       expect(createKbMock).toHaveBeenCalled();
     });
-    expect(screen.getByText(/draft saved — review in admin → knowledge base/i)).toBeTruthy();
-    expect(screen.getByRole('button', { name: /save as kb draft/i })).toBeDisabled();
-    const generateBtn = screen.getByRole('button', { name: /generate kb draft/i });
-    expect(generateBtn).toBeDisabled();
-    expect(generateBtn).toHaveAttribute(
-      'title',
-      'KB draft already saved for this ticket. Edit in Admin → Knowledge Base',
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /save as kb draft/i })).toBeDisabled();
+    });
+    expect(screen.getAllByText(/draft saved — review in admin → knowledge base/i).length).toBeGreaterThan(
+      0,
     );
   });
 });

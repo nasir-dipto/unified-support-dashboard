@@ -145,4 +145,33 @@ postgresDescribe('KB API (Postgres + DynamoDB Local)', () => {
     const results = kbSearchResponseSchema.parse(search.body);
     expect(results.data.length).toBeGreaterThan(0);
   });
+
+  it('GET /api/kb?sourceTicketId filters drafts for any authenticated user', async () => {
+    const app = createApp();
+    const token = await adminToken(app);
+    const created = await request(app)
+      .post('/api/kb')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        title: 'Filter test',
+        problem: 'p',
+        rootCause: 'r',
+        resolutionSteps: 's',
+        tags: [],
+        sourceTicketIds: [TICKET_ID],
+      });
+    const kbId = kbArticleSchema.parse((created.body as { data: unknown }).data).kbId;
+
+    const filtered = await request(app)
+      .get('/api/kb')
+      .query({ sourceTicketId: TICKET_ID, status: 'draft' })
+      .set('Authorization', `Bearer ${token}`);
+    expect(filtered.status).toBe(200);
+    const list = (filtered.body as { data: { kbId: string }[] }).data;
+    expect(list.some((a) => a.kbId === kbId)).toBe(true);
+
+    await request(app)
+      .delete(`/api/kb/${kbId}`)
+      .set('Authorization', `Bearer ${token}`);
+  });
 });

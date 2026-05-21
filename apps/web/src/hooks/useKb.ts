@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CreateKbArticleBody, UpdateKbArticleBody } from '@usd/shared-types';
 import {
+  checkKbDraftExists,
   createKbArticle,
   deleteKbArticle,
   generateKbDraft,
@@ -20,6 +21,23 @@ export function useKbArticles(status?: 'draft' | 'published') {
     queryKey: ['kb', orgId, status],
     queryFn: async () => listKbArticles(status),
     enabled: orgId !== undefined,
+  });
+}
+
+/**
+ * Checks whether a draft KB article already exists for a ticket (runs when modal opens).
+ */
+export function useKbDraftExists(ticketId: string | undefined, enabled: boolean) {
+  const orgId = useAuthStore((s) => s.user?.orgId);
+  return useQuery({
+    queryKey: ['kb-draft-exists', orgId, ticketId],
+    queryFn: async () => {
+      if (ticketId === undefined) {
+        return false;
+      }
+      return checkKbDraftExists(ticketId);
+    },
+    enabled: enabled && ticketId !== undefined && orgId !== undefined,
   });
 }
 
@@ -56,8 +74,11 @@ export function useCreateKbArticle() {
   const orgId = useAuthStore((s) => s.user?.orgId);
   return useMutation({
     mutationFn: async (body: CreateKbArticleBody) => createKbArticle(body),
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
       await qc.invalidateQueries({ queryKey: ['kb', orgId] });
+      for (const ticketId of variables.sourceTicketIds) {
+        await qc.invalidateQueries({ queryKey: ['kb-draft-exists', orgId, ticketId] });
+      }
     },
   });
 }

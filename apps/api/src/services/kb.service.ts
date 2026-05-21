@@ -52,23 +52,34 @@ function rowToArticle(row: KbRow): KbArticle {
   };
 }
 
+export type ListKbArticlesFilter = {
+  status?: 'draft' | 'published';
+  /** When set, only articles whose source_ticket_ids contain this ticket id. */
+  sourceTicketId?: string;
+};
+
 /**
- * Lists KB articles for an org, optionally filtered by status.
+ * Lists KB articles for an org with optional status and source ticket filters.
  */
 export async function listKbArticles(
   orgId: string,
-  status?: 'draft' | 'published',
+  filter?: ListKbArticlesFilter,
 ): Promise<KbArticle[]> {
-  const rows =
-    status !== undefined
-      ? await queryPostgres<KbRow>(
-          `SELECT * FROM kb_articles WHERE org_id = $1 AND status = $2 ORDER BY updated_at DESC`,
-          [orgId, status],
-        )
-      : await queryPostgres<KbRow>(
-          `SELECT * FROM kb_articles WHERE org_id = $1 ORDER BY updated_at DESC`,
-          [orgId],
-        );
+  const conditions = ['org_id = $1'];
+  const params: unknown[] = [orgId];
+  let paramIndex = 2;
+  if (filter?.status !== undefined) {
+    conditions.push(`status = $${String(paramIndex)}`);
+    params.push(filter.status);
+    paramIndex += 1;
+  }
+  if (filter?.sourceTicketId !== undefined && filter.sourceTicketId.length > 0) {
+    conditions.push(`$${String(paramIndex)} = ANY(source_ticket_ids)`);
+    params.push(filter.sourceTicketId);
+    paramIndex += 1;
+  }
+  const sql = `SELECT * FROM kb_articles WHERE ${conditions.join(' AND ')} ORDER BY updated_at DESC`;
+  const rows = await queryPostgres<KbRow>(sql, params);
   return rows.map(rowToArticle);
 }
 

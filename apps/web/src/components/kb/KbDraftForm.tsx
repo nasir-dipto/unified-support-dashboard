@@ -17,6 +17,8 @@ export type KbDraftFormProps = {
 export function KbDraftForm(props: KbDraftFormProps): ReactElement {
   const { draft, saved = false, onSaved } = props;
   const createKb = useCreateKbArticle();
+  const [savedInSession, setSavedInSession] = useState(false);
+  const isSaved = saved || savedInSession;
   const [title, setTitle] = useState(draft.title);
   const [problem, setProblem] = useState(draft.problem);
   const [rootCause, setRootCause] = useState(draft.rootCause);
@@ -37,18 +39,19 @@ export function KbDraftForm(props: KbDraftFormProps): ReactElement {
         sourceTicketIds: draft.sourceTicketIds,
       })
       .then(() => {
+        setSavedInSession(true);
         onSaved?.();
       });
   };
 
   return (
     <div className="space-y-3 rounded-lg border border-indigo-100 bg-indigo-50/50 p-3">
-      {saved ? (
+      {isSaved ? (
         <p className="text-sm font-semibold text-teal-800" role="status">
           Draft saved — review in Admin → Knowledge Base
         </p>
       ) : null}
-      {draft.degraded === true && !saved ? (
+      {draft.degraded === true && !isSaved ? (
         <p className="text-xs text-amber-700">AI degraded — review fields before saving.</p>
       ) : null}
       <label className="block text-xs font-bold uppercase text-gray-500">
@@ -56,7 +59,7 @@ export function KbDraftForm(props: KbDraftFormProps): ReactElement {
         <input
           className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm disabled:bg-gray-100"
           value={title}
-          disabled={saved}
+          disabled={isSaved}
           onChange={(e) => { setTitle(e.target.value); }}
         />
       </label>
@@ -65,7 +68,7 @@ export function KbDraftForm(props: KbDraftFormProps): ReactElement {
         <textarea
           className="mt-1 min-h-[60px] w-full rounded-lg border border-gray-200 p-2 text-sm disabled:bg-gray-100"
           value={problem}
-          disabled={saved}
+          disabled={isSaved}
           onChange={(e) => { setProblem(e.target.value); }}
         />
       </label>
@@ -74,7 +77,7 @@ export function KbDraftForm(props: KbDraftFormProps): ReactElement {
         <textarea
           className="mt-1 min-h-[50px] w-full rounded-lg border border-gray-200 p-2 text-sm disabled:bg-gray-100"
           value={rootCause}
-          disabled={saved}
+          disabled={isSaved}
           onChange={(e) => { setRootCause(e.target.value); }}
         />
       </label>
@@ -83,7 +86,7 @@ export function KbDraftForm(props: KbDraftFormProps): ReactElement {
         <textarea
           className="mt-1 min-h-[80px] w-full rounded-lg border border-gray-200 p-2 text-sm disabled:bg-gray-100"
           value={resolutionSteps}
-          disabled={saved}
+          disabled={isSaved}
           onChange={(e) => { setResolutionSteps(e.target.value); }}
         />
       </label>
@@ -92,13 +95,13 @@ export function KbDraftForm(props: KbDraftFormProps): ReactElement {
         <input
           className="mt-1 w-full rounded-lg border border-gray-200 px-2 py-1.5 text-sm disabled:bg-gray-100"
           value={tags}
-          disabled={saved}
+          disabled={isSaved}
           onChange={(e) => { setTags(e.target.value); }}
         />
       </label>
       <button
         type="button"
-        disabled={saved || createKb.isPending}
+        disabled={isSaved || createKb.isPending}
         onClick={saveDraft}
         className="w-full rounded-lg py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-60"
         style={{ backgroundColor: usdColors.indigo }}

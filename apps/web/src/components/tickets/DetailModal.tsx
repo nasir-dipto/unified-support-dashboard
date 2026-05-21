@@ -14,7 +14,7 @@ import { postTicketCrossLink } from '../../api/tickets';
 import { KbDraftForm } from '../kb/KbDraftForm';
 import { KbSearchResults } from '../kb/KbSearchResults';
 import { useAiInvoke } from '../../hooks/useAI';
-import { useKbDraft, useKbSearch } from '../../hooks/useKb';
+import { useKbDraft, useKbDraftExists, useKbSearch } from '../../hooks/useKb';
 import { useHealthDetail } from '../../hooks/useHealthDetail';
 import { usePostTicketComment, useTicketComments, useTicketDetail } from '../../hooks/useTickets';
 import { useAuthStore } from '../../store/auth.store';
@@ -93,7 +93,9 @@ export function DetailModal(props: DetailModalProps): ReactElement {
   const [suggestion, setSuggestion] = useState<TriageSuggestResponse | null>(null);
   const [kbResults, setKbResults] = useState<KbSearchResult[]>([]);
   const [kbDraft, setKbDraft] = useState<KbDraftResponse | null>(null);
-  const [draftSaved, setDraftSaved] = useState(false);
+  const kbDraftExists = useKbDraftExists(activeTicketId, open);
+  const draftSaved = kbDraftExists.data === true;
+  const kbDraftChecking = kbDraftExists.isLoading;
   const kbSearch = useKbSearch(ticketId ?? undefined);
   const kbDraftMut = useKbDraft();
 
@@ -189,7 +191,6 @@ export function DetailModal(props: DetailModalProps): ReactElement {
     setSuggestion(null);
     setKbResults([]);
     setKbDraft(null);
-    setDraftSaved(false);
   };
 
   const submitReply = (replyKind: CommentReplyKind): void => {
@@ -413,10 +414,18 @@ export function DetailModal(props: DetailModalProps): ReactElement {
 
       <section className="mt-4 border-t border-gray-100 pt-4">
         <h3 className="text-sm font-bold text-gray-900">Knowledge base</h3>
+        {kbDraftChecking ? (
+          <p className="mt-2 text-sm text-gray-500">Checking for existing KB draft…</p>
+        ) : null}
+        {!kbDraftChecking && draftSaved ? (
+          <p className="mt-2 text-sm font-semibold text-teal-800" role="status">
+            Draft saved — review in Admin → Knowledge Base
+          </p>
+        ) : null}
         <div className="mt-2 flex flex-col gap-2 sm:flex-row">
           <button
             type="button"
-            disabled={kbSearch.isPending || ticket === undefined}
+            disabled={kbDraftChecking || kbSearch.isPending || ticket === undefined}
             onClick={searchKb}
             className="flex-1 rounded-lg border border-teal-200 bg-teal-50 py-2 text-sm font-bold text-teal-900 disabled:opacity-60"
           >
@@ -424,7 +433,9 @@ export function DetailModal(props: DetailModalProps): ReactElement {
           </button>
           <button
             type="button"
-            disabled={draftSaved || kbDraftMut.isPending || ticket === undefined}
+            disabled={
+              kbDraftChecking || draftSaved || kbDraftMut.isPending || ticket === undefined
+            }
             title={kbGenerateTooltip}
             onClick={generateKbDraft}
             className="flex-1 rounded-lg border border-indigo-200 bg-indigo-50 py-2 text-sm font-bold text-indigo-900 disabled:cursor-not-allowed disabled:opacity-60"
@@ -441,11 +452,7 @@ export function DetailModal(props: DetailModalProps): ReactElement {
         </div>
         {kbDraft !== null ? (
           <div className="mt-3">
-            <KbDraftForm
-              draft={kbDraft}
-              saved={draftSaved}
-              onSaved={() => { setDraftSaved(true); }}
-            />
+            <KbDraftForm draft={kbDraft} saved={draftSaved} />
           </div>
         ) : null}
       </section>
