@@ -227,3 +227,21 @@ Follow jira.service.ts pattern:
 - Update reconciliation: check SLA breach → trigger notification
 - Update sentiment batch: churn risk → trigger notification
 - Update webhooks: critical ticket → trigger notification
+
+## Phase 8 — COMPLETE (PR #13)
+- Reports: volume trend, resolution trend, SLA compliance, team performance
+- Redis cache (1hr TTL) for all reports
+- CSV export on all reports
+- SLA policy configurable (Admin → Settings), defaults Critical=2h/High=4h/Medium=8h/Low=24h
+- slaDueAt computed server-side on all ticket DTOs
+- support_notifications DynamoDB table
+- Notification bell in header (all roles), unread badge, dropdown
+- WebSocket notifications in AppShell (instant updates on all views)
+- SLA breach + critical ticket + churn risk notification triggers
+- Email service (nodemailer, Mailhog local, admin-configured SMTP)
+- Admin → SMTP tab: real form with test connection
+- Admin → Settings tab: SLA policy editor + notification preferences
+- Source timestamps fix: Jira/HD original creation dates now stored
+- 293 tests passing
+
+## Current test count: 293 (192 API + 76 web + 16 shared-types + 9 UI)
