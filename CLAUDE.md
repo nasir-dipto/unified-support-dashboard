@@ -348,3 +348,23 @@ Sync full conversation history from Jira and HD so AI has rich context.
 - `pnpm --filter @usd/api kb:migrate` after `docker compose up -d postgres`
 
 ## Current test count: 258 (177 API + 57 web + 8 UI + 16 shared-types)
+
+## Phase 7 — COMPLETE (PR #11)
+- PostgreSQL + pgvector (vector(1024), Titan embed v2)
+- KB article CRUD + semantic search (top 3 results)
+- KB draft generation from HD + linked Jira context
+- Manual trigger only (Generate KB Draft button)
+- Admin + Manager KB tab (draft/publish workflow)
+- Save as KB Draft persists state via API check
+- Source ticket IDs shown in admin and search results
+- pnpm kb:migrate script
+- 269 tests passing
+
+## Current test count: 269 (179 API + 66 web + 16 shared-types + 8 UI)
+
+## Local dev services (docker compose up -d)
+- DynamoDB Local: port 8000
+- Redis: port 6379
+- Mailhog: port 8025
+- PostgreSQL (pgvector): port 5432
+- Run after first docker compose up: pnpm --filter @usd/api kb:migrate
