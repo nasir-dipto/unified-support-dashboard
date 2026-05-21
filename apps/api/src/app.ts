@@ -4,6 +4,9 @@ import { healthStatusSchema } from '@usd/shared-types';
 import { aiRouter } from './routes/ai.routes.js';
 import { kbRouter } from './routes/kb.routes.js';
 import { sentimentRouter } from './routes/sentiment.routes.js';
+import { reportsRouter } from './routes/reports.routes.js';
+import { notificationsRouter } from './routes/notifications.routes.js';
+import { settingsRouter } from './routes/settings.routes.js';
 import { authRouter } from './routes/auth.routes.js';
 import { healthRouter } from './routes/health.routes.js';
 import { ticketsRouter } from './routes/tickets.routes.js';
@@ -41,6 +44,9 @@ export function createApp(): express.Application {
   app.use('/api/sentiment', sentimentRouter);
   app.use('/api/kb', kbRouter);
   app.use('/api/tickets', ticketsRouter);
+  app.use('/api/reports', reportsRouter);
+  app.use('/api/notifications', notificationsRouter);
+  app.use('/api/settings', settingsRouter);
 
   app.use(
     (err: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {

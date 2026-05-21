@@ -1,9 +1,13 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { ensureDynamoTableIfMissing } from '../../db/ensureUsdLocalDynamoTables.js';
+import { ensureAllUsdLocalDynamoTables } from '../../db/ensureUsdLocalDynamoTables.js';
 
 /**
- * Creates Phase 1 DynamoDB tables on Local when missing (idempotent).
- * Optionally creates `support_tickets` (Phase 2) when `ticketsTable` is provided.
+ * Creates all USD DynamoDB tables on Local when missing (idempotent).
+ * Delegates to `ensureAllUsdLocalDynamoTables` so Phase 8 notification tables
+ * and every other app table exist before integration tests run.
+ *
+ * Table name parameters are retained for caller compatibility; table creation
+ * uses `getServerEnv()` names (Vitest `setup-env.ts` uses `*_test` suffixes).
  */
 export async function ensureSupportTablesExist(
   client: DynamoDBClient,
@@ -12,98 +16,9 @@ export async function ensureSupportTablesExist(
   ticketsTable?: string,
   commentsTable?: string,
 ): Promise<void> {
-  await ensureDynamoTableIfMissing(
-    client,
-    usersTable,
-    [
-      { AttributeName: 'orgId', AttributeType: 'S' },
-      { AttributeName: 'userId', AttributeType: 'S' },
-      { AttributeName: 'email', AttributeType: 'S' },
-    ],
-    [
-      { AttributeName: 'orgId', KeyType: 'HASH' },
-      { AttributeName: 'userId', KeyType: 'RANGE' },
-    ],
-    [
-      {
-        IndexName: 'orgId-email',
-        KeySchema: [
-          { AttributeName: 'orgId', KeyType: 'HASH' },
-          { AttributeName: 'email', KeyType: 'RANGE' },
-        ],
-        Projection: { ProjectionType: 'ALL' },
-      },
-    ],
-  );
-
-  await ensureDynamoTableIfMissing(
-    client,
-    rolesTable,
-    [
-      { AttributeName: 'orgId', AttributeType: 'S' },
-      { AttributeName: 'userId', AttributeType: 'S' },
-    ],
-    [
-      { AttributeName: 'orgId', KeyType: 'HASH' },
-      { AttributeName: 'userId', KeyType: 'RANGE' },
-    ],
-    [],
-  );
-
-  if (ticketsTable !== undefined) {
-    await ensureDynamoTableIfMissing(
-      client,
-      ticketsTable,
-      [
-        { AttributeName: 'ticketId', AttributeType: 'S' },
-        { AttributeName: 'orgId', AttributeType: 'S' },
-        { AttributeName: 'createdAt', AttributeType: 'S' },
-        { AttributeName: 'status', AttributeType: 'S' },
-        { AttributeName: 'assigneeId', AttributeType: 'S' },
-      ],
-      [{ AttributeName: 'ticketId', KeyType: 'HASH' }],
-      [
-        {
-          IndexName: 'orgId-createdAt',
-          KeySchema: [
-            { AttributeName: 'orgId', KeyType: 'HASH' },
-            { AttributeName: 'createdAt', KeyType: 'RANGE' },
-          ],
-          Projection: { ProjectionType: 'ALL' },
-        },
-        {
-          IndexName: 'orgId-status',
-          KeySchema: [
-            { AttributeName: 'orgId', KeyType: 'HASH' },
-            { AttributeName: 'status', KeyType: 'RANGE' },
-          ],
-          Projection: { ProjectionType: 'ALL' },
-        },
-        {
-          IndexName: 'assigneeId-status',
-          KeySchema: [
-            { AttributeName: 'assigneeId', KeyType: 'HASH' },
-            { AttributeName: 'status', KeyType: 'RANGE' },
-          ],
-          Projection: { ProjectionType: 'ALL' },
-        },
-      ],
-    );
-  }
-
-  if (commentsTable !== undefined) {
-    await ensureDynamoTableIfMissing(
-      client,
-      commentsTable,
-      [
-        { AttributeName: 'orgId', AttributeType: 'S' },
-        { AttributeName: 'ticketCommentKey', AttributeType: 'S' },
-      ],
-      [
-        { AttributeName: 'orgId', KeyType: 'HASH' },
-        { AttributeName: 'ticketCommentKey', KeyType: 'RANGE' },
-      ],
-      [],
-    );
-  }
+  void usersTable;
+  void rolesTable;
+  void ticketsTable;
+  void commentsTable;
+  await ensureAllUsdLocalDynamoTables(client);
 }

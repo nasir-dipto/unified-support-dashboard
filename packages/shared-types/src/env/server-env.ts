@@ -54,6 +54,11 @@ export const serverEnvSchema = z.object({
   LAMBDA_WEBHOOK_WORKER: z.enum(['true', 'false']).optional(),
   /** DynamoDB table for USD-authored ticket comments (`support_ticket_comments`). */
   SUPPORT_TICKET_COMMENTS_TABLE: z.string().min(1).default('support_ticket_comments'),
+  SUPPORT_NOTIFICATIONS_TABLE: z.string().min(1).default('support_notifications'),
+  SUPPORT_NOTIFICATION_RULES_TABLE: z
+    .string()
+    .min(1)
+    .default('support_notification_rules'),
   /** PEM-encoded RS256 private key (local dev via .env.local). */
   JWT_PRIVATE_KEY: z.string().min(1).optional(),
   /** PEM-encoded RS256 public key (local dev via .env.local). */

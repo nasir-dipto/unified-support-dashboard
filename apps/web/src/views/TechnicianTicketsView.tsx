@@ -12,7 +12,6 @@ import {
   type TicketViewTab,
 } from '../components/tickets/TicketFilters';
 import { TicketStatsRow } from '../components/tickets/TicketStatsRow';
-import { useUsdWebSocket } from '../hooks/useWebSocket';
 import { DEFAULT_TICKETS_LIST_LIMIT, useTicketsList } from '../hooks/useTickets';
 import { useAuthStore } from '../store/auth.store';
 import { isTicketAssignedToCurrentUser } from '../utils/ticket-display';
@@ -69,7 +68,6 @@ function BellIcon(): ReactElement {
  * Technician ticket queue (TechView) with real API data.
  */
 export function TechnicianTicketsView(): ReactElement {
-  useUsdWebSocket();
   const user = useAuthStore((s) => s.user);
   const { data, isLoading, error } = useTicketsList({ limit: DEFAULT_TICKETS_LIST_LIMIT });
   const [tab, setTab] = useState<TicketViewTab>('all');

@@ -2,6 +2,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { config as loadEnvFile } from 'dotenv';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadServerEnv } from '../config/loadEnv.js';
 import { applyKbMigrations } from '../db/applyKbMigrations.js';
 import { ensureAllUsdLocalDynamoTables } from '../db/ensureUsdLocalDynamoTables.js';
 
@@ -26,6 +27,7 @@ async function main(): Promise<void> {
   const endpoint =
     process.env.DYNAMODB_ENDPOINT ?? 'http://localhost:8000';
   const client = new DynamoDBClient({ region, endpoint });
+  loadServerEnv();
   await ensureAllUsdLocalDynamoTables(client);
   console.log(
     `DynamoDB Local tables ensured at ${endpoint} (region ${region}).`,

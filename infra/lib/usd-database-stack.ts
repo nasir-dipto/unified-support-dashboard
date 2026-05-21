@@ -116,6 +116,15 @@ export class UsdDatabaseStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
     this.tables.push(notificationRules);
+
+    const notifications = new dynamodb.Table(this, 'SupportNotifications', {
+      tableName: 'support_notifications',
+      partitionKey: { name: 'orgId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'notificationId', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+    this.tables.push(notifications);
   }
 
   /**

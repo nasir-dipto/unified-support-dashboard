@@ -32,6 +32,8 @@ describe('normalizeHdDescription', () => {
 
 describe('mapHdRequestToTicket', () => {
   it('builds helpdesk ticket id and customerEmail', () => {
+    const createdMs = 1_736_000_000_000;
+    const updatedMs = 1_736_086_400_000;
     const rec = mapHdRequestToTicket({
       orgId: 'org-1',
       request: {
@@ -42,6 +44,8 @@ describe('mapHdRequestToTicket', () => {
         priority: { name: 'Medium' },
         technician: { name: 'Jane Agent' },
         requester: { email_id: 'user@acme.test' },
+        created_time: { value: createdMs },
+        updated_time: { value: updatedMs },
       },
       nowIso: '2020-01-01T00:00:00.000Z',
     });
@@ -52,6 +56,8 @@ describe('mapHdRequestToTicket', () => {
     expect(rec.assigneeId).toBe('Jane Agent');
     expect(rec.customerEmail).toBe('user@acme.test');
     expect(rec.reporterId).toBe('user@acme.test');
+    expect(rec.createdAt).toBe(new Date(createdMs).toISOString());
+    expect(rec.updatedAt).toBe(new Date(updatedMs).toISOString());
   });
 
   it('omits customerEmail and assigneeId when API returns nulls', () => {

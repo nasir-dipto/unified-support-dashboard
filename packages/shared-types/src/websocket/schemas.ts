@@ -7,6 +7,7 @@ export const wsMessageTypeSchema = z.enum([
   'ticket_updated',
   'comment_added',
   'ticket_resolved',
+  'notification_created',
 ]);
 
 export type WsMessageType = z.infer<typeof wsMessageTypeSchema>;

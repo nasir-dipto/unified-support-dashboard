@@ -8,9 +8,11 @@ import type {
   SupportTicketRecord,
   TicketApiDto,
 } from '@usd/shared-types';
-import { supportTicketRecordSchema, ticketApiDtoSchema } from '@usd/shared-types';
+import { supportTicketRecordSchema } from '@usd/shared-types';
 import { getServerEnv } from '../../config/loadEnv.js';
 import { AppError } from '../../utils/errors.js';
+import { toTicketApiDto } from '../../utils/sla.js';
+import { getOrgSlaPolicy } from './org-settings.js';
 import { getDocumentClient } from '../dynamo.client.js';
 
 const ORG_CREATED_GSI = 'orgId-createdAt';
@@ -48,7 +50,7 @@ function decodeLastKey(cursor: string, orgId: string): Record<string, unknown> {
 }
 
 /**
- * Inserts or updates a ticket; preserves `createdAt` when the item already exists.
+ * Inserts or updates a ticket; preserves sentiment fields when the item already exists.
  */
 export async function upsertTicket(record: SupportTicketRecord): Promise<SupportTicketRecord> {
   const parsed = supportTicketRecordSchema.parse(record);
@@ -61,8 +63,7 @@ export async function upsertTicket(record: SupportTicketRecord): Promise<Support
     }),
   );
   const prev = existing.Item as SupportTicketRecord | undefined;
-  const createdAt =
-    prev?.createdAt !== undefined && prev.createdAt.length > 0 ? prev.createdAt : parsed.createdAt;
+  const createdAt = parsed.createdAt;
   const linkedTicketId =
     parsed.linkedTicketId !== undefined && parsed.linkedTicketId.length > 0
       ? parsed.linkedTicketId
@@ -149,7 +150,38 @@ export async function getTicketById(orgId: string, ticketId: string): Promise<Ti
   if (rec.orgId !== orgId) {
     throw new AppError('Ticket not found', 'NOT_FOUND', 404);
   }
-  return ticketApiDtoSchema.parse(rec);
+  const policy = await getOrgSlaPolicy(orgId);
+  return toTicketApiDto(rec, policy);
+}
+
+/**
+ * Lists all tickets for an org by paginating the orgId-createdAt GSI.
+ */
+export async function listAllTicketsForOrg(orgId: string): Promise<SupportTicketRecord[]> {
+  const env = getServerEnv();
+  const doc = getDocumentClient();
+  const items: SupportTicketRecord[] = [];
+  let exclusiveStartKey: Record<string, unknown> | undefined;
+  do {
+    const out = await doc.send(
+      new QueryCommand({
+        TableName: env.SUPPORT_TICKETS_TABLE,
+        IndexName: ORG_CREATED_GSI,
+        KeyConditionExpression: 'orgId = :o',
+        ExpressionAttributeValues: { ':o': orgId },
+        ScanIndexForward: false,
+        ...(exclusiveStartKey !== undefined ? { ExclusiveStartKey: exclusiveStartKey } : {}),
+      }),
+    );
+    for (const raw of out.Items ?? []) {
+      const parsed = supportTicketRecordSchema.safeParse(raw);
+      if (parsed.success) {
+        items.push(parsed.data);
+      }
+    }
+    exclusiveStartKey = out.LastEvaluatedKey as Record<string, unknown> | undefined;
+  } while (exclusiveStartKey !== undefined);
+  return items;
 }
 
 /**
@@ -185,10 +217,11 @@ export async function listTickets(params: ListTicketsParams): Promise<{
       ...(exclusiveStartKey !== undefined ? { ExclusiveStartKey: exclusiveStartKey } : {}),
     }),
   );
+  const policy = await getOrgSlaPolicy(params.orgId);
   const items = (out.Items ?? [])
     .map((it) => supportTicketRecordSchema.safeParse(it))
     .filter((r) => r.success)
-    .map((r) => ticketApiDtoSchema.parse(r.data));
+    .map((r) => toTicketApiDto(r.data, policy));
   const lek = out.LastEvaluatedKey;
   const cursor = lek !== undefined ? encodeLastKey(lek as Record<string, unknown>) : undefined;
   return { items, cursor, total };
@@ -255,9 +288,10 @@ export async function linkTicketsBidirectional(params: {
   await doc.send(new PutCommand({ TableName: env.SUPPORT_TICKETS_TABLE, Item: updatedA }));
   await doc.send(new PutCommand({ TableName: env.SUPPORT_TICKETS_TABLE, Item: updatedB }));
 
+  const policy = await getOrgSlaPolicy(params.orgId);
   return {
-    ticket: ticketApiDtoSchema.parse(updatedA),
-    linkedTicket: ticketApiDtoSchema.parse(updatedB),
+    ticket: toTicketApiDto(updatedA, policy),
+    linkedTicket: toTicketApiDto(updatedB, policy),
   };
 }
 

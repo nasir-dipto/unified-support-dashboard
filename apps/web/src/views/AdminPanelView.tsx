@@ -5,10 +5,11 @@ import { canManageKnowledgeBase } from '../utils/roles';
 import { AdminHealthTab } from './admin/AdminHealthTab';
 import { AdminKbTab } from './admin/AdminKbTab';
 import { AdminIntegrationsTab } from './admin/AdminIntegrationsTab';
+import { AdminSettingsTab } from './admin/AdminSettingsTab';
 import { AdminSmtpTab } from './admin/AdminSmtpTab';
 import { AdminUsersTab } from './admin/AdminUsersTab';
 
-type AdminTab = 'users' | 'jira' | 'me' | 'smtp' | 'health' | 'kb';
+type AdminTab = 'users' | 'jira' | 'me' | 'smtp' | 'settings' | 'health' | 'kb';
 
 /**
  * Admin panel (AdminView) with configuration tabs.
@@ -22,6 +23,7 @@ export function AdminPanelView(): ReactElement {
     { id: 'jira', label: 'Jira' },
     { id: 'me', label: 'ManageEngine' },
     { id: 'smtp', label: 'SMTP' },
+    { id: 'settings', label: 'Settings' },
     { id: 'health', label: 'Health' },
     ...(showKb ? [{ id: 'kb' as const, label: 'Knowledge Base' }] : []),
   ];
@@ -54,6 +56,7 @@ export function AdminPanelView(): ReactElement {
         {tab === 'users' ? <AdminUsersTab /> : null}
         {tab === 'jira' || tab === 'me' ? <AdminIntegrationsTab /> : null}
         {tab === 'smtp' ? <AdminSmtpTab /> : null}
+        {tab === 'settings' ? <AdminSettingsTab /> : null}
         {tab === 'health' ? <AdminHealthTab /> : null}
         {tab === 'kb' ? <AdminKbTab /> : null}
       </div>

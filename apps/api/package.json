@@ -29,7 +29,9 @@
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^5.0.1",
+    "ioredis": "^5.10.1",
     "jose": "^5.9.6",
+    "nodemailer": "^8.0.7",
     "pg": "^8.13.1",
     "ulid": "^2.3.0",
     "ws": "^8.20.1"
@@ -40,6 +42,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.5",
+    "@types/nodemailer": "^8.0.0",
     "@types/pg": "^8.11.10",
     "@types/supertest": "^6.0.2",
     "@types/ws": "^8.18.1",

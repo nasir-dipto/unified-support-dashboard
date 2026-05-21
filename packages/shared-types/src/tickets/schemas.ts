@@ -52,6 +52,8 @@ export const supportTicketRecordSchema = z.object({
   sentimentStale: z.boolean().optional(),
   /** ISO timestamp of last sentiment analysis. */
   sentimentAt: z.string().min(1).nullable().optional(),
+  /** Explicit due date from source, or computed from org SLA policy. */
+  slaDueAt: z.string().min(1).optional(),
 });
 
 export type SupportTicketRecord = z.infer<typeof supportTicketRecordSchema>;
@@ -80,6 +82,7 @@ export const ticketApiDtoSchema = supportTicketRecordSchema.pick({
   churnRisk: true,
   sentimentStale: true,
   sentimentAt: true,
+  slaDueAt: true,
 });
 
 export type TicketApiDto = z.infer<typeof ticketApiDtoSchema>;
@@ -130,6 +133,8 @@ const jiraIssueFieldsSchema = z
       .optional(),
     assignee: jiraUserRefSchema.nullable().optional(),
     reporter: jiraUserRefSchema.nullable().optional(),
+    created: z.string().optional(),
+    updated: z.string().optional(),
   })
   .passthrough();
 

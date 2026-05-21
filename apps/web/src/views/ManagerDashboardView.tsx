@@ -73,7 +73,7 @@ export function ManagerDashboardView(): ReactElement {
           value={avgSla === null ? '—' : `${String(avgSla)}%`}
           color={usdColors.teal}
         />
-        <StatCard label="SLA breach risk" value="—" color={usdColors.amber} sub="Phase 8" />
+        <StatCard label="SLA breach risk" value="—" color={usdColors.amber} sub="Reporting tab" />
       </div>
 
       <div className="-mb-px flex border-b-2 border-gray-100">
@@ -109,8 +109,8 @@ export function ManagerDashboardView(): ReactElement {
           <ManagerSentimentTab onSelectTicket={(id) => { setDetailId(id); }} />
         ) : null}
         {tab === 'insights' ? <ManagerInsightsTab /> : null}
-        {tab === 'reporting' ? <ManagerReportingTab tickets={tickets} /> : null}
-        {tab === 'team' ? <ManagerTeamTab /> : null}
+        {tab === 'reporting' ? <ManagerReportingTab /> : null}
+        {tab === 'team' ? <ManagerTeamTab tickets={tickets} /> : null}
         {tab === 'kb' ? <AdminKbTab /> : null}
       </div>
 

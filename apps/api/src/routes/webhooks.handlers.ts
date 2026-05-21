@@ -11,6 +11,10 @@ import { mapHdRequestToTicket } from '../helpdesk/mapRequestToTicket.js';
 import { getJiraIncludeProjectsFromEnv, isJiraIssueKeyIncluded } from '../jira/jiraIncludeProjects.js';
 import { mapJiraIssueToTicket } from '../jira/mapIssueToTicket.js';
 import { enqueueSqsEvent } from '../messaging/enqueueSqsEvent.js';
+import {
+  notifyCriticalTicketIfNeeded,
+  notifySlaBreachIfNeeded,
+} from '../services/notifications.service.js';
 import { broadcastTicketLifecycleEvent } from './ticket-broadcast.js';
 import { AppError } from '../utils/errors.js';
 import { assertValidHubSignature256 } from '../utils/jiraWebhookSignature.js';
@@ -69,6 +73,8 @@ export const postJiraWebhook: RequestHandler = asyncHandler(async (req, res) => 
   const prev = await getTicketRecordOrUndefined(record.ticketId);
   const merged = await upsertTicket(record);
   broadcastTicketLifecycleEvent(prev, merged);
+  await notifyCriticalTicketIfNeeded(env.JIRA_DEFAULT_ORG_ID, prev, merged);
+  await notifySlaBreachIfNeeded(env.JIRA_DEFAULT_ORG_ID, merged);
   if (env.NODE_ENV === 'development' || env.DYNAMODB_ENDPOINT !== undefined) {
     enqueueSqsEvent('jira.webhook', json);
   }
@@ -109,6 +115,8 @@ export const postHelpdeskWebhook: RequestHandler = asyncHandler(async (req, res)
   const merged = await upsertTicket(record);
   await markSentimentStale(env.HD_DEFAULT_ORG_ID, merged.ticketId);
   broadcastTicketLifecycleEvent(prev, merged);
+  await notifyCriticalTicketIfNeeded(env.HD_DEFAULT_ORG_ID, prev, merged);
+  await notifySlaBreachIfNeeded(env.HD_DEFAULT_ORG_ID, merged);
   if (env.NODE_ENV === 'development' || env.DYNAMODB_ENDPOINT !== undefined) {
     enqueueSqsEvent('helpdesk.webhook', req.body);
   }

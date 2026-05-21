@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SupportTicketRecord } from '@usd/shared-types';
 import * as tickets from '../db/tables/tickets.js';
 import * as sentimentSvc from '../services/sentiment.service.js';
+import * as notifications from '../services/notifications.service.js';
 import { runIncrementalBatch } from './batchProcessor.js';
 
 const hd: SupportTicketRecord = {
@@ -29,6 +30,7 @@ describe('runIncrementalBatch', () => {
       sentimentScore: 0,
       churnRisk: false,
     });
+    vi.spyOn(notifications, 'notifyChurnRiskIfNeeded').mockResolvedValue(undefined);
     const update = vi.spyOn(tickets, 'updateTicketSentiment').mockResolvedValue(hd);
     const res = await runIncrementalBatch('o');
     expect(res.analyzed).toBe(1);

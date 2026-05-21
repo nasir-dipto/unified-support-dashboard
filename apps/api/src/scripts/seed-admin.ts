@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { ensureDevJwtKeys } from '../config/ensureDevJwtKeys.js';
 import { getServerEnv, loadServerEnv, resetServerEnvForTests } from '../config/loadEnv.js';
 import { resetDocumentClientForTests } from '../db/dynamo.client.js';
+import { seedOrgSettingsDefaults } from '../db/tables/org-settings.js';
 import { setSupportRole } from '../db/tables/roles.js';
 import { createUser, getUserByEmail } from '../db/tables/users.js';
 
@@ -36,6 +37,7 @@ async function main(): Promise<void> {
   bootstrapEnv();
   const env = getServerEnv();
   const orgId = env.JIRA_DEFAULT_ORG_ID;
+  await seedOrgSettingsDefaults(orgId);
   const existing = await getUserByEmail(orgId, SEED_EMAIL);
   if (existing !== undefined) {
     console.log(
@@ -46,6 +48,7 @@ async function main(): Promise<void> {
   const passwordHash = await bcrypt.hash(SEED_PASSWORD, BCRYPT_ROUNDS);
   const user = await createUser({ orgId, email: SEED_EMAIL, passwordHash });
   await setSupportRole(orgId, user.userId, 'admin');
+  await seedOrgSettingsDefaults(orgId);
   console.log(
     `Created admin user (orgId=${orgId}, email=${SEED_EMAIL}, userId=${user.userId}).`,
   );
