@@ -110,7 +110,7 @@ export function ManagerDashboardView(): ReactElement {
         ) : null}
         {tab === 'insights' ? <ManagerInsightsTab /> : null}
         {tab === 'reporting' ? <ManagerReportingTab /> : null}
-        {tab === 'team' ? <ManagerTeamTab /> : null}
+        {tab === 'team' ? <ManagerTeamTab tickets={tickets} /> : null}
         {tab === 'kb' ? <AdminKbTab /> : null}
       </div>
 
