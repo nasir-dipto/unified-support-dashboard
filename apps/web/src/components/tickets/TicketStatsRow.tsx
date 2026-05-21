@@ -23,7 +23,7 @@ export function TicketStatsRow(props: TicketStatsRowProps): ReactElement {
   const me = mine.filter((t) => t.source === 'helpdesk');
 
   return (
-    <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+    <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
       <StatCard label="Assigned to me" value={mine.length} color={usdColors.blue} />
       <StatCard label="Open" value={open.length} color={usdColors.green} />
       <StatCard label="Critical" value={critical.length} color={usdColors.red} />

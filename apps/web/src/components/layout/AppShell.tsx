@@ -9,7 +9,7 @@ export function AppShell(): ReactElement {
   return (
     <div className="min-h-screen bg-[#f9fafb] text-gray-900">
       <AppHeader />
-      <main className="mx-auto max-w-[1180px] px-7 py-6">
+      <main className="mx-auto max-w-[1180px] px-5 py-4">
         <Outlet />
       </main>
     </div>

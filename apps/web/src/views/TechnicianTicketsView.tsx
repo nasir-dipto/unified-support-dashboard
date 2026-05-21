@@ -43,6 +43,28 @@ function filterTickets(
 }
 
 /**
+ * Bell icon for the activity panel toggle.
+ */
+function BellIcon(): ReactElement {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4"
+      aria-hidden
+    >
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </svg>
+  );
+}
+
+/**
  * Technician ticket queue (TechView) with real API data.
  */
 export function TechnicianTicketsView(): ReactElement {
@@ -54,6 +76,7 @@ export function TechnicianTicketsView(): ReactElement {
   const [search, setSearch] = useState('');
   const [detailId, setDetailId] = useState<string | null>(null);
   const [commentTicket, setCommentTicket] = useState<TicketApiDto | null>(null);
+  const [activityOpen, setActivityOpen] = useState(false);
 
   const tickets = data?.data ?? [];
   const counts = useMemo(
@@ -89,8 +112,8 @@ export function TechnicianTicketsView(): ReactElement {
 
   return (
     <>
-      <h1 className="text-[26px] font-extrabold text-gray-900">Ticket Queue</h1>
-      <p className="mb-5 text-sm text-gray-500">Manage and resolve Jira and ManageEngine tickets.</p>
+      <h1 className="text-[22px] font-extrabold text-gray-900">Ticket Queue</h1>
+      <p className="mb-3 text-xs text-gray-500">Manage and resolve Jira and ManageEngine tickets.</p>
 
       <TicketStatsRow tickets={tickets} />
 
@@ -104,30 +127,45 @@ export function TechnicianTicketsView(): ReactElement {
         counts={counts}
       />
 
-      <div className="mb-3 flex items-center gap-2">
-        <StatusDot color={usdColors.green} size={10} />
+      <div className="mb-2 flex items-center gap-2">
+        <StatusDot color={usdColors.green} size={8} />
         <span className="text-sm font-bold text-gray-900">{tabLabel}</span>
-        <span className="ml-auto text-sm text-gray-400">{rows.length} tickets</span>
+        <span className="text-xs text-gray-400">{rows.length} tickets</span>
+        <button
+          type="button"
+          onClick={() => { setActivityOpen((open) => !open); }}
+          className={`ml-auto flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[12px] font-bold transition-colors ${
+            activityOpen
+              ? 'border-usd-indigo bg-usd-indigo text-white'
+              : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+          }`}
+          aria-expanded={activityOpen}
+          aria-controls="activity-panel"
+        >
+          <BellIcon />
+          Activity
+        </button>
       </div>
 
-      <div className="flex flex-col gap-4 lg:flex-row">
-        <div className="grid flex-1 grid-cols-1 gap-3.5 md:grid-cols-2">
-          {rows.map((t) => (
-            <TicketCard
-              key={t.ticketId}
-              ticket={t}
-              onOpenDetail={() => { setDetailId(t.ticketId); }}
-              onOpenComment={setCommentTicket}
-            />
-          ))}
-          {rows.length === 0 ? (
-            <p className="col-span-full py-10 text-center text-sm text-gray-400">No tickets match.</p>
-          ) : null}
-        </div>
-        <div className="w-full shrink-0 lg:w-80">
-          <ActivitySidebar />
-        </div>
+      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+        {rows.map((t) => (
+          <TicketCard
+            key={t.ticketId}
+            ticket={t}
+            onOpenDetail={() => { setDetailId(t.ticketId); }}
+            onOpenComment={setCommentTicket}
+          />
+        ))}
+        {rows.length === 0 ? (
+          <p className="py-8 text-center text-sm text-gray-400">No tickets match.</p>
+        ) : null}
       </div>
+
+      <ActivitySidebar
+        panel
+        open={activityOpen}
+        onClose={() => { setActivityOpen(false); }}
+      />
 
       <DetailModal ticketId={detailId} open={detailId !== null} onClose={() => { setDetailId(null); }} />
       <CommentModal ticket={commentTicket} onClose={() => { setCommentTicket(null); }} />
