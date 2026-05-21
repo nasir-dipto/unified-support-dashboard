@@ -176,3 +176,54 @@ Follow jira.service.ts pattern:
 - 274 tests passing
 
 ## Current test count: 274 (179 API + 70 web + 16 shared-types + 9 UI)
+
+## Phase 8 — Reports & Notifications
+### Architecture decisions (confirmed)
+
+#### Reports
+- Ticket volume trend: LineChart, Jira vs HD vs Total, 7/30 days selectable
+- Resolution trend: BarChart opened vs resolved per week
+- SLA compliance: BarChart met vs breached per week
+- Team performance: table (assigned, resolved, avg resolution time, SLA met %)
+- Caching: Redis 1-hour TTL per orgId
+- Export: CSV download on each report
+- Default time period: 7 days
+
+#### SLA policy
+- Configurable in Admin settings (stored in DynamoDB)
+- Defaults: Critical=2h, High=4h, Medium=8h, Low=24h
+- Applied when ticket has no due date from Jira/HD
+
+#### Notifications
+- SLA breach: ticket <25% SLA remaining → notify assigned technician (in-app + email)
+- Critical ticket created: → notify manager (in-app + email)
+- Churn risk: sentiment negative + churnRisk=true → notify manager (in-app only)
+- Bell icon in header for all roles (filtered by relevance)
+- Stored in DynamoDB support_notificats table
+- GET /api/notifications — list unread for current user
+- POST /api/notifications/:id/read — mark as read
+- WebSocket pushes new notifications to connected clients
+
+#### Email
+- Admin configures SMTP in Admin → SMTP tab (host, port, user, password)
+- Settings stored in DynamoDB (Secrets Manager in production)
+- Test connection button in SMTP tab
+- Local dev: Mailhog (port 1025) as default SMTP
+- Simple HTML email templates
+
+#### What to build
+- GET /api/reports/volume — ticket volume trend
+- GET /api/reports/resolution — opened vs resolved trend
+- GET /api/reports/sla — SLA compliance (uses configurable SLA policy)
+- GET /api/reports/team — team performance table
+- All reports: Redis cached (1hr), CSV export endpoint
+- apps/api/src/services/email.service.ts — SMTP sender (nodemailer)
+- apps/api/src/services/notifications.service.ts — notification rules engine
+- apps/api/src/routes/notifications.routes.ts — GET/POST /api/notifications
+- apps/api/src/routes/reports.routes.ts — all report endpoints
+- Update Admin SMTP tab — real form with test connection
+- Add SLA policy config to Admin settings tab
+- Fill MgrView Reporting tab — real Recharts + CSV exn bell in AppHeader — badge count + dropdown
+- Update reconciliation: check SLA breach → trigger notification
+- Update sentiment batch: churn risk → trigger notification
+- Update webhooks: critical ticket → trigger notification
