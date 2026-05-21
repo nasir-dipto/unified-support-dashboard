@@ -48,6 +48,21 @@ export function buildMorningBriefingPrompt(summaryText: string): string {
   ].join('\n');
 }
 
+/**
+ * Builds the user prompt for kb_draft (model must return JSON only).
+ */
+export function buildKbDraftPrompt(ctx: AiTicketContext): string {
+  const context = formatContextForPrompt(ctx);
+  return [
+    'You are documenting a resolved support issue for an internal knowledge base.',
+    'Respond with ONLY a JSON object (no markdown):',
+    '{"title":"string","problem":"string","rootCause":"string","resolutionSteps":"string","tags":["string"],"sourceTicketIds":["string"]}',
+    'sourceTicketIds must include the primary ticketId and any linked ticket ids.',
+    '',
+    context,
+  ].join('\n');
+}
+
 export function buildCommentDraftPrompt(ctx: AiTicketContext, tone: CommentDraftTone): string {
   const context = formatContextForPrompt(ctx);
   return [

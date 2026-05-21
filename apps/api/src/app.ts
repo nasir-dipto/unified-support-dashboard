@@ -2,6 +2,7 @@ import cors from 'cors';
 import express from 'express';
 import { healthStatusSchema } from '@usd/shared-types';
 import { aiRouter } from './routes/ai.routes.js';
+import { kbRouter } from './routes/kb.routes.js';
 import { sentimentRouter } from './routes/sentiment.routes.js';
 import { authRouter } from './routes/auth.routes.js';
 import { healthRouter } from './routes/health.routes.js';
@@ -38,6 +39,7 @@ export function createApp(): express.Application {
   app.use('/api/auth', authRouter);
   app.use('/api/ai', aiRouter);
   app.use('/api/sentiment', sentimentRouter);
+  app.use('/api/kb', kbRouter);
   app.use('/api/tickets', ticketsRouter);
 
   app.use(

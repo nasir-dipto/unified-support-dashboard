@@ -1,23 +1,29 @@
 import type { ReactElement } from 'react';
 import { useState } from 'react';
+import { useAuthStore } from '../store/auth.store';
+import { canManageKnowledgeBase } from '../utils/roles';
 import { AdminHealthTab } from './admin/AdminHealthTab';
+import { AdminKbTab } from './admin/AdminKbTab';
 import { AdminIntegrationsTab } from './admin/AdminIntegrationsTab';
 import { AdminSmtpTab } from './admin/AdminSmtpTab';
 import { AdminUsersTab } from './admin/AdminUsersTab';
 
-type AdminTab = 'users' | 'jira' | 'me' | 'smtp' | 'health';
+type AdminTab = 'users' | 'jira' | 'me' | 'smtp' | 'health' | 'kb';
 
 /**
  * Admin panel (AdminView) with configuration tabs.
  */
 export function AdminPanelView(): ReactElement {
   const [tab, setTab] = useState<AdminTab>('users');
+  const roles = useAuthStore((s) => s.user?.roles ?? []);
+  const showKb = canManageKnowledgeBase(roles);
   const tabs: { id: AdminTab; label: string }[] = [
     { id: 'users', label: 'Users' },
     { id: 'jira', label: 'Jira' },
     { id: 'me', label: 'ManageEngine' },
     { id: 'smtp', label: 'SMTP' },
     { id: 'health', label: 'Health' },
+    ...(showKb ? [{ id: 'kb' as const, label: 'Knowledge Base' }] : []),
   ];
 
   return (
@@ -49,6 +55,7 @@ export function AdminPanelView(): ReactElement {
         {tab === 'jira' || tab === 'me' ? <AdminIntegrationsTab /> : null}
         {tab === 'smtp' ? <AdminSmtpTab /> : null}
         {tab === 'health' ? <AdminHealthTab /> : null}
+        {tab === 'kb' ? <AdminKbTab /> : null}
       </div>
     </>
   );

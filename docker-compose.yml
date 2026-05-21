@@ -18,3 +18,13 @@ services:
     ports:
       - "1025:1025"
       - "8025:8025"
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: usd-postgres
+    environment:
+      POSTGRES_USER: usd
+      POSTGRES_PASSWORD: usd
+      POSTGRES_DB: usd_kb
+    ports:
+      - "5432:5432"

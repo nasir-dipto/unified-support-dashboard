@@ -4,6 +4,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 import {
   commentDraftResponseSchema,
+  kbDraftResponseSchema,
   loginResponseSchema,
   triageSuggestResponseSchema,
 } from '@usd/shared-types';
@@ -119,6 +120,19 @@ dynamoDescribe('POST /api/ai/invoke (DynamoDB Local, USE_MOCK_AI)', () => {
     const body = commentDraftResponseSchema.parse(res.body);
     expect(body.tone).toBe('empathetic');
     expect(body.draft.length).toBeGreaterThan(20);
+  });
+
+  it('returns mock kb_draft for existing ticket', async () => {
+    const app = createApp();
+    const token = await bearerToken(app);
+    const res = await request(app)
+      .post('/api/ai/invoke')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ feature: 'kb_draft', ticketId: AI_TICKET_ID });
+    expect(res.status).toBe(200);
+    const body = kbDraftResponseSchema.parse(res.body);
+    expect(body.title.length).toBeGreaterThan(0);
+    expect(body.sourceTicketIds).toContain(AI_TICKET_ID);
   });
 
   it('rejects unauthenticated invoke', async () => {

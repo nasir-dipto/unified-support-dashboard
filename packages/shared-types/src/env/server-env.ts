@@ -75,6 +75,10 @@ export const serverEnvSchema = z.object({
     .string()
     .min(1)
     .default('anthropic.claude-3-5-sonnet-20241022-v2:0'),
+  /** PostgreSQL connection URL for KB (pgvector). */
+  POSTGRES_URL: z.string().url().optional(),
+  /** Bedrock Titan embeddings model id. */
+  BEDROCK_EMBED_MODEL_ID: z.string().min(1).default('amazon.titan-embed-text-v2:0'),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;

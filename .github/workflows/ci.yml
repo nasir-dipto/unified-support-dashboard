@@ -81,12 +81,26 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: usd
+          POSTGRES_PASSWORD: usd
+          POSTGRES_DB: usd_kb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U usd -d usd_kb"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     env:
       AWS_ACCESS_KEY_ID: local
       AWS_SECRET_ACCESS_KEY: local
       AWS_REGION: us-east-1
       DYNAMODB_ENDPOINT: http://127.0.0.1:8000
       REDIS_URL: redis://127.0.0.1:6379
+      POSTGRES_URL: postgresql://usd:usd@127.0.0.1:5432/usd_kb
       JIRA_WEBHOOK_SECRET: ci-test-secret
       HD_WEBHOOK_SECRET: ci-test-secret
       JIRA_DEFAULT_ORG_ID: demo-org
@@ -111,7 +125,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for port in 8000 6379; do
+          for port in 8000 6379 5432; do
             ready=0
             for _ in $(seq 1 60); do
               if bash -c "echo > /dev/tcp/127.0.0.1/${port}" 2>/dev/null; then
@@ -125,6 +139,9 @@ jobs:
               exit 1
             fi
           done
+
+      - name: KB migrate
+        run: pnpm --filter @usd/api kb:migrate
 
       - name: Test
         run: pnpm test

@@ -4,6 +4,7 @@ import { buildAiTicketContext } from '../ai/buildTicketContext.js';
 import { buildBriefingContext } from '../ai/buildBriefingContext.js';
 import { runMorningBriefing } from '../ai/briefing.js';
 import { runCommentDraft } from '../ai/commentDraft.js';
+import { runKbDraft } from '../ai/kbDraft.js';
 import { runTriageSuggest } from '../ai/triage.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
 import { AppError } from '../utils/errors.js';
@@ -46,6 +47,12 @@ export const postAiInvoke: RequestHandler[] = [
 
     if (body.feature === 'triage_suggest') {
       const result = await runTriageSuggest(ctx);
+      res.status(200).json(result);
+      return;
+    }
+
+    if (body.feature === 'kb_draft') {
+      const result = await runKbDraft(ctx);
       res.status(200).json(result);
       return;
     }
