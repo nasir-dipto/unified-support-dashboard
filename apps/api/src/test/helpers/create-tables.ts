@@ -1,9 +1,13 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { ensureDynamoTableIfMissing } from '../../db/ensureUsdLocalDynamoTables.js';
+import {
+  ensureAllUsdLocalDynamoTables,
+  ensureDynamoTableIfMissing,
+} from '../../db/ensureUsdLocalDynamoTables.js';
 
 /**
  * Creates Phase 1 DynamoDB tables on Local when missing (idempotent).
- * Optionally creates `support_tickets` (Phase 2) when `ticketsTable` is provided.
+ * When `ticketsTable` is provided, ensures the full USD schema (including Phase 8
+ * notification tables required for ticket list/detail SLA enrichment).
  */
 export async function ensureSupportTablesExist(
   client: DynamoDBClient,
@@ -12,6 +16,10 @@ export async function ensureSupportTablesExist(
   ticketsTable?: string,
   commentsTable?: string,
 ): Promise<void> {
+  if (ticketsTable !== undefined) {
+    await ensureAllUsdLocalDynamoTables(client);
+    return;
+  }
   await ensureDynamoTableIfMissing(
     client,
     usersTable,
