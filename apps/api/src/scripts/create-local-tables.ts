@@ -2,6 +2,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { config as loadEnvFile } from 'dotenv';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { applyKbMigrations } from '../db/applyKbMigrations.js';
 import { ensureAllUsdLocalDynamoTables } from '../db/ensureUsdLocalDynamoTables.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -29,6 +30,12 @@ async function main(): Promise<void> {
   console.log(
     `DynamoDB Local tables ensured at ${endpoint} (region ${region}).`,
   );
+
+  const postgresUrl = process.env.POSTGRES_URL?.trim();
+  if (postgresUrl !== undefined && postgresUrl.length > 0) {
+    await applyKbMigrations(postgresUrl);
+    console.log('KB tables ensured on Postgres.');
+  }
 }
 
 try {
