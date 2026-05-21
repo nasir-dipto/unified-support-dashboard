@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as comments from '../db/tables/comments.js';
+import * as tickets from '../db/tables/tickets.js';
 import * as helpdeskService from '../services/helpdesk.service.js';
 import { syncRequestConversations } from './syncRequestConversations.js';
 
@@ -28,6 +29,7 @@ describe('syncRequestConversations', () => {
       ],
     });
     vi.spyOn(comments, 'listTicketComments').mockResolvedValue({ items: [], total: 0 });
+    vi.spyOn(tickets, 'markSentimentStale').mockResolvedValue(undefined);
     const upsert = vi.spyOn(comments, 'upsertTicketComment').mockResolvedValue({
       commentId: 'hd_55',
       ticketId: 'hd_1',

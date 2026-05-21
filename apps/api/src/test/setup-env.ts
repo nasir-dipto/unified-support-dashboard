@@ -35,6 +35,12 @@ if (process.env.HD_WEBHOOK_SECRET === undefined) {
 if (process.env.SUPPORT_TICKET_COMMENTS_TABLE === undefined) {
   process.env.SUPPORT_TICKET_COMMENTS_TABLE = 'support_ticket_comments_test';
 }
+if (process.env.SUPPORT_NOTIFICATIONS_TABLE === undefined) {
+  process.env.SUPPORT_NOTIFICATIONS_TABLE = 'support_notifications_test';
+}
+if (process.env.SUPPORT_NOTIFICATION_RULES_TABLE === undefined) {
+  process.env.SUPPORT_NOTIFICATION_RULES_TABLE = 'support_notification_rules_test';
+}
 if (process.env.HD_DEFAULT_ORG_ID === undefined) {
   process.env.HD_DEFAULT_ORG_ID = 'demo-org';
 }

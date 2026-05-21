@@ -6,8 +6,8 @@ import { ensureAllUsdLocalDynamoTables } from '../../db/ensureUsdLocalDynamoTabl
  * Delegates to `ensureAllUsdLocalDynamoTables` so Phase 8 notification tables
  * and every other app table exist before integration tests run.
  *
- * Table name parameters are retained for caller compatibility; schemas use
- * fixed names from `ensureAllUsdLocalDynamoTables`.
+ * Table name parameters are retained for caller compatibility; table creation
+ * uses `getServerEnv()` names (Vitest `setup-env.ts` uses `*_test` suffixes).
  */
 export async function ensureSupportTablesExist(
   client: DynamoDBClient,

@@ -8,6 +8,41 @@ import {
   type GlobalSecondaryIndex,
   type KeySchemaElement,
 } from '@aws-sdk/client-dynamodb';
+import { getServerEnv, loadServerEnv } from '../config/loadEnv.js';
+
+/** DynamoDB table names used by `ensureAllUsdLocalDynamoTables`. */
+export type UsdDynamoTableNames = {
+  tickets: string;
+  users: string;
+  roles: string;
+  ticketComments: string;
+  notificationRules: string;
+  notifications: string;
+  kb: string;
+  reports: string;
+};
+
+/**
+ * Resolves table names from validated server env (Vitest uses `*_test` suffixes).
+ */
+export function resolveUsdDynamoTableNames(): UsdDynamoTableNames {
+  try {
+    const env = getServerEnv();
+    return {
+      tickets: env.SUPPORT_TICKETS_TABLE,
+      users: env.SUPPORT_USERS_TABLE,
+      roles: env.SUPPORT_ROLES_TABLE,
+      ticketComments: env.SUPPORT_TICKET_COMMENTS_TABLE,
+      notificationRules: env.SUPPORT_NOTIFICATION_RULES_TABLE,
+      notifications: env.SUPPORT_NOTIFICATIONS_TABLE,
+      kb: 'support_kb',
+      reports: 'support_reports',
+    };
+  } catch {
+    loadServerEnv();
+    return resolveUsdDynamoTableNames();
+  }
+}
 
 /**
  * Returns true when DynamoDB reports the table already exists (concurrent create).
@@ -50,7 +85,13 @@ export async function ensureDynamoTableIfMissing(
   gsis: GlobalSecondaryIndex[],
 ): Promise<void> {
   try {
-    await client.send(new DescribeTableCommand({ TableName: tableName }));
+    const described = await client.send(
+      new DescribeTableCommand({ TableName: tableName }),
+    );
+    if (described.Table?.TableStatus === 'ACTIVE') {
+      return;
+    }
+    await waitForTableActive(client, tableName);
     return;
   } catch (e: unknown) {
     if (
@@ -87,10 +128,11 @@ export async function ensureDynamoTableIfMissing(
  */
 export async function ensureAllUsdLocalDynamoTables(
   client: DynamoDBClient,
+  tableNames: UsdDynamoTableNames = resolveUsdDynamoTableNames(),
 ): Promise<void> {
   await ensureDynamoTableIfMissing(
     client,
-    'support_tickets',
+    tableNames.tickets,
     [
       { AttributeName: 'ticketId', AttributeType: 'S' },
       { AttributeName: 'orgId', AttributeType: 'S' },
@@ -129,7 +171,7 @@ export async function ensureAllUsdLocalDynamoTables(
 
   await ensureDynamoTableIfMissing(
     client,
-    'support_users',
+    tableNames.users,
     [
       { AttributeName: 'orgId', AttributeType: 'S' },
       { AttributeName: 'userId', AttributeType: 'S' },
@@ -153,7 +195,7 @@ export async function ensureAllUsdLocalDynamoTables(
 
   await ensureDynamoTableIfMissing(
     client,
-    'support_roles',
+    tableNames.roles,
     [
       { AttributeName: 'orgId', AttributeType: 'S' },
       { AttributeName: 'userId', AttributeType: 'S' },
@@ -167,7 +209,7 @@ export async function ensureAllUsdLocalDynamoTables(
 
   await ensureDynamoTableIfMissing(
     client,
-    'support_kb',
+    tableNames.kb,
     [
       { AttributeName: 'kbId', AttributeType: 'S' },
       { AttributeName: 'orgId', AttributeType: 'S' },
@@ -197,7 +239,7 @@ export async function ensureAllUsdLocalDynamoTables(
 
   await ensureDynamoTableIfMissing(
     client,
-    'support_reports',
+    tableNames.reports,
     [
       { AttributeName: 'reportId', AttributeType: 'S' },
       { AttributeName: 'orgId', AttributeType: 'S' },
@@ -218,7 +260,7 @@ export async function ensureAllUsdLocalDynamoTables(
 
   await ensureDynamoTableIfMissing(
     client,
-    'support_notification_rules',
+    tableNames.notificationRules,
     [
       { AttributeName: 'orgId', AttributeType: 'S' },
       { AttributeName: 'ruleType', AttributeType: 'S' },
@@ -232,7 +274,7 @@ export async function ensureAllUsdLocalDynamoTables(
 
   await ensureDynamoTableIfMissing(
     client,
-    'support_notifications',
+    tableNames.notifications,
     [
       { AttributeName: 'orgId', AttributeType: 'S' },
       { AttributeName: 'notificationId', AttributeType: 'S' },
@@ -246,7 +288,7 @@ export async function ensureAllUsdLocalDynamoTables(
 
   await ensureDynamoTableIfMissing(
     client,
-    'support_ticket_comments',
+    tableNames.ticketComments,
     [
       { AttributeName: 'orgId', AttributeType: 'S' },
       { AttributeName: 'ticketCommentKey', AttributeType: 'S' },
