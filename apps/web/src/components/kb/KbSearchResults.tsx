@@ -42,7 +42,10 @@ export function KbSearchResults(props: KbSearchResultsProps): ReactElement {
               </div>
               <p className="mt-2 line-clamp-3 text-gray-600">{r.problem}</p>
               {r.sourceTicketIds.length > 0 ? (
-                <p className="mt-2 text-xs text-gray-400">
+                <p
+                  className="mt-2 text-sm font-medium text-indigo-800"
+                  data-testid="kb-search-sources"
+                >
                   Sources: {r.sourceTicketIds.join(', ')}
                 </p>
               ) : null}

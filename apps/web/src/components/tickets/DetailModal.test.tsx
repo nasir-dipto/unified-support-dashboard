@@ -51,6 +51,7 @@ vi.mock('../../hooks/useHealthDetail', () => ({
 
 const kbSearchMock = vi.fn();
 const kbDraftMock = vi.fn();
+const createKbMock = vi.fn();
 
 vi.mock('../../hooks/useKb', () => ({
   useKbSearch: () => ({
@@ -62,7 +63,7 @@ vi.mock('../../hooks/useKb', () => ({
     isPending: false,
   }),
   useCreateKbArticle: () => ({
-    mutateAsync: vi.fn(),
+    mutateAsync: createKbMock,
     isPending: false,
   }),
 }));
@@ -128,6 +129,7 @@ describe('DetailModal', () => {
     mutateAsyncMock.mockReset();
     kbSearchMock.mockReset();
     kbDraftMock.mockReset();
+    createKbMock.mockReset();
   });
 
   it('renders original description as first conversation item for Jira', () => {
@@ -226,5 +228,35 @@ describe('DetailModal', () => {
       expect(kbDraftMock).toHaveBeenCalledWith('jira_X');
     });
     expect(screen.getByDisplayValue('Fix VPN')).toBeTruthy();
+  });
+
+  it('disables save and generate after KB draft is saved', async () => {
+    const user = userEvent.setup();
+    kbDraftMock.mockResolvedValue({
+      title: 'Fix VPN',
+      problem: 'VPN down',
+      rootCause: 'Config',
+      resolutionSteps: 'Reset',
+      tags: ['vpn'],
+      sourceTicketIds: ['jira_X'],
+    });
+    createKbMock.mockResolvedValue({ kbId: '01HZKB', title: 'Fix VPN' });
+    renderModal();
+    await user.click(screen.getByRole('button', { name: /generate kb draft/i }));
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Fix VPN')).toBeTruthy();
+    });
+    await user.click(screen.getByRole('button', { name: /save as kb draft/i }));
+    await waitFor(() => {
+      expect(createKbMock).toHaveBeenCalled();
+    });
+    expect(screen.getByText(/draft saved — review in admin → knowledge base/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /save as kb draft/i })).toBeDisabled();
+    const generateBtn = screen.getByRole('button', { name: /generate kb draft/i });
+    expect(generateBtn).toBeDisabled();
+    expect(generateBtn).toHaveAttribute(
+      'title',
+      'KB draft already saved for this ticket. Edit in Admin → Knowledge Base',
+    );
   });
 });

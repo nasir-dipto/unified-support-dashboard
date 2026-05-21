@@ -93,6 +93,7 @@ export function DetailModal(props: DetailModalProps): ReactElement {
   const [suggestion, setSuggestion] = useState<TriageSuggestResponse | null>(null);
   const [kbResults, setKbResults] = useState<KbSearchResult[]>([]);
   const [kbDraft, setKbDraft] = useState<KbDraftResponse | null>(null);
+  const [draftSaved, setDraftSaved] = useState(false);
   const kbSearch = useKbSearch(ticketId ?? undefined);
   const kbDraftMut = useKbDraft();
 
@@ -150,7 +151,7 @@ export function DetailModal(props: DetailModalProps): ReactElement {
   };
 
   const generateKbDraft = (): void => {
-    if (ticket === undefined) {
+    if (ticket === undefined || draftSaved) {
       return;
     }
     setKbDraft(null);
@@ -158,6 +159,10 @@ export function DetailModal(props: DetailModalProps): ReactElement {
       setKbDraft(draft);
     });
   };
+
+  const kbGenerateTooltip = draftSaved
+    ? 'KB draft already saved for this ticket. Edit in Admin → Knowledge Base'
+    : undefined;
 
   const draftCommentAi = (): void => {
     if (ticket === undefined) {
@@ -184,6 +189,7 @@ export function DetailModal(props: DetailModalProps): ReactElement {
     setSuggestion(null);
     setKbResults([]);
     setKbDraft(null);
+    setDraftSaved(false);
   };
 
   const submitReply = (replyKind: CommentReplyKind): void => {
@@ -418,9 +424,10 @@ export function DetailModal(props: DetailModalProps): ReactElement {
           </button>
           <button
             type="button"
-            disabled={kbDraftMut.isPending || ticket === undefined}
+            disabled={draftSaved || kbDraftMut.isPending || ticket === undefined}
+            title={kbGenerateTooltip}
             onClick={generateKbDraft}
-            className="flex-1 rounded-lg border border-indigo-200 bg-indigo-50 py-2 text-sm font-bold text-indigo-900 disabled:opacity-60"
+            className="flex-1 rounded-lg border border-indigo-200 bg-indigo-50 py-2 text-sm font-bold text-indigo-900 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {kbDraftMut.isPending ? 'Generating…' : 'Generate KB Draft'}
           </button>
@@ -434,7 +441,11 @@ export function DetailModal(props: DetailModalProps): ReactElement {
         </div>
         {kbDraft !== null ? (
           <div className="mt-3">
-            <KbDraftForm draft={kbDraft} onSaved={() => { setKbDraft(null); }} />
+            <KbDraftForm
+              draft={kbDraft}
+              saved={draftSaved}
+              onSaved={() => { setDraftSaved(true); }}
+            />
           </div>
         ) : null}
       </section>
