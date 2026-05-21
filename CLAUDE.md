@@ -165,3 +165,14 @@ Follow jira.service.ts pattern:
 - Better empty states and loading skeletons
 - Match design-reference.tsx more closely
 - Mobile responsive improvements
+
+## UI Improvements — COMPLETE (PR #12)
+- Dense single-column ticket list (replaces 2-column grid)
+- Collapsible Activity panel (bell icon toggle)
+- Stats row showing real counts
+- SLA shows — when no due date
+- PostgreSQL + DynamoDB persistent Docker volumes
+- db:setup now runs KB migration automatically
+- 274 tests passing
+
+## Current test count: 274 (179 API + 70 web + 16 shared-types + 9 UI)
