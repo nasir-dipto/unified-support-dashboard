@@ -32,7 +32,7 @@ export function TicketCard(props: TicketCardProps): ReactElement {
     status: ticket.status,
     createdAt: ticket.createdAt,
     updatedAt: ticket.updatedAt,
-    slaPercentRemaining: sla,
+    slaPercentRemaining: sla ?? undefined,
     sentiment: ticket.sentiment ?? undefined,
     churnRisk: ticket.churnRisk,
   });

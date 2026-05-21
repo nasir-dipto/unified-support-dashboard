@@ -1,4 +1,4 @@
-import type { TicketApiDto } from '@usd/shared-types';
+import type { AuthUserPublic, TicketApiDto } from '@usd/shared-types';
 import { StatusDot, usdColors } from '@usd/ui';
 import type { ReactElement } from 'react';
 import { useMemo, useState } from 'react';
@@ -15,17 +15,18 @@ import { TicketStatsRow } from '../components/tickets/TicketStatsRow';
 import { useUsdWebSocket } from '../hooks/useWebSocket';
 import { DEFAULT_TICKETS_LIST_LIMIT, useTicketsList } from '../hooks/useTickets';
 import { useAuthStore } from '../store/auth.store';
+import { isTicketAssignedToCurrentUser } from '../utils/ticket-display';
 
 function filterTickets(
   tickets: TicketApiDto[],
   tab: TicketViewTab,
   priority: PriorityFilter,
   search: string,
-  userId: string | undefined,
+  user: AuthUserPublic | null | undefined,
 ): TicketApiDto[] {
   let base = tickets;
-  if (tab === 'mine' && userId !== undefined) {
-    base = tickets.filter((t) => t.assigneeId === userId);
+  if (tab === 'mine') {
+    base = tickets.filter((t) => isTicketAssignedToCurrentUser(t, user));
   } else if (tab === 'jira') {
     base = tickets.filter((t) => t.source === 'jira');
   } else if (tab === 'me') {
@@ -69,7 +70,7 @@ function BellIcon(): ReactElement {
  */
 export function TechnicianTicketsView(): ReactElement {
   useUsdWebSocket();
-  const userId = useAuthStore((s) => s.user?.userId);
+  const user = useAuthStore((s) => s.user);
   const { data, isLoading, error } = useTicketsList({ limit: DEFAULT_TICKETS_LIST_LIMIT });
   const [tab, setTab] = useState<TicketViewTab>('all');
   const [priority, setPriority] = useState<PriorityFilter>('all');
@@ -82,13 +83,13 @@ export function TechnicianTicketsView(): ReactElement {
   const counts = useMemo(
     () => ({
       all: tickets.length,
-      mine: userId !== undefined ? tickets.filter((t) => t.assigneeId === userId).length : 0,
+      mine: tickets.filter((t) => isTicketAssignedToCurrentUser(t, user)).length,
       jira: tickets.filter((t) => t.source === 'jira').length,
       me: tickets.filter((t) => t.source === 'helpdesk').length,
     }),
-    [tickets, userId],
+    [tickets, user],
   );
-  const rows = filterTickets(tickets, tab, priority, search, userId);
+  const rows = filterTickets(tickets, tab, priority, search, user);
 
   if (isLoading) {
     return (
