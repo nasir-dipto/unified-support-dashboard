@@ -156,3 +156,12 @@ Follow jira.service.ts pattern:
 - Fill MgrView Reporting tab with real Recharts
 - In-app notification bell in header (WebSocket push)
 - Notification preferences in Admin settings
+
+## Phase 9 — UI/UX full redesign items (DO NOT FORGET)
+- Split view: ticket list left, detail panel right (no modal, inline)
+- Sortable column headers (priority, status, SLA, updated)
+- Keyboard shortcuts (j/k navigate, enter open, c comment)
+- Bulk actions (select multiple tickets, bulk status change)
+- Better empty states and loading skeletons
+- Match design-reference.tsx more closely
+- Mobile responsive improvements
