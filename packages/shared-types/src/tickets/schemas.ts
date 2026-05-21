@@ -133,6 +133,8 @@ const jiraIssueFieldsSchema = z
       .optional(),
     assignee: jiraUserRefSchema.nullable().optional(),
     reporter: jiraUserRefSchema.nullable().optional(),
+    created: z.string().optional(),
+    updated: z.string().optional(),
   })
   .passthrough();
 

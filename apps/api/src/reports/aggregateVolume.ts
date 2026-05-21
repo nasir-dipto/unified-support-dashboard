@@ -8,21 +8,22 @@ export function aggregateVolumeTrend(
   periodDays: 7 | 30,
   nowMs: number = Date.now(),
 ): VolumeTrendPoint[] {
-  const startMs = nowMs - periodDays * 24 * 60 * 60 * 1000;
+  const dayMs = 24 * 60 * 60 * 1000;
+  const startMs = nowMs - (periodDays - 1) * dayMs;
   const byDate = new Map<string, { jira: number; helpdesk: number }>();
 
   for (let d = 0; d < periodDays; d += 1) {
-    const day = new Date(startMs + d * 24 * 60 * 60 * 1000);
+    const day = new Date(startMs + d * dayMs);
     const key = day.toISOString().slice(0, 10);
     byDate.set(key, { jira: 0, helpdesk: 0 });
   }
 
   for (const t of tickets) {
     const created = new Date(t.createdAt).getTime();
-    if (created < startMs || created > nowMs) {
+    if (Number.isNaN(created) || created < startMs || created > nowMs) {
       continue;
     }
-    const key = t.createdAt.slice(0, 10);
+    const key = new Date(created).toISOString().slice(0, 10);
     const bucket = byDate.get(key);
     if (bucket === undefined) {
       continue;

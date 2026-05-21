@@ -1,5 +1,6 @@
 import type { SdpRequest, SupportTicketRecord, TicketPriority, TicketStatus } from '@usd/shared-types';
 import { sdpRequestSchema, ticketPrioritySchema, ticketStatusSchema } from '@usd/shared-types';
+import { hdTimestampToIso } from '../utils/sourceTimestamps.js';
 
 /**
  * Maps Helpdesk priority label to USD enum.
@@ -93,6 +94,9 @@ export function mapHdRequestToTicket(input: MapHdRequestInput): SupportTicketRec
           const name = r?.name;
           return name != null && typeof name === 'string' && name.length > 0 ? name : undefined;
         })();
+  const reqRaw = req as Record<string, unknown>;
+  const createdAt = hdTimestampToIso(reqRaw.created_time, now);
+  const updatedAt = hdTimestampToIso(reqRaw.updated_time, now);
   return {
     ticketId: `hd_${externalDisplayId}`,
     orgId,
@@ -106,7 +110,7 @@ export function mapHdRequestToTicket(input: MapHdRequestInput): SupportTicketRec
     assigneeId,
     reporterId,
     customerEmail,
-    createdAt: now,
-    updatedAt: now,
+    createdAt,
+    updatedAt,
   };
 }

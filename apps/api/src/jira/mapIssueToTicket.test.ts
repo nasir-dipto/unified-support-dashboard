@@ -106,6 +106,8 @@ describe('mapJiraIssueToTicket', () => {
           description: sampleAdf,
           priority: { name: 'High' },
           status: { name: 'Open' },
+          created: '2026-02-10T08:00:00.000+0000',
+          updated: '2026-02-11T09:00:00.000+0000',
           assignee: {
             accountId: '712020:4e50a99e-7546-48de-a440-938f53b23a38',
             displayName: 'Jane Agent',
@@ -124,5 +126,7 @@ describe('mapJiraIssueToTicket', () => {
     expect(rec.status).toBe('open');
     expect(rec.assigneeId).toBe('Jane Agent');
     expect(rec.reporterId).toBe('Bob');
+    expect(rec.createdAt).toBe('2026-02-10T08:00:00.000Z');
+    expect(rec.updatedAt).toBe('2026-02-11T09:00:00.000Z');
   });
 });

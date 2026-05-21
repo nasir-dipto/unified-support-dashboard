@@ -50,7 +50,7 @@ function decodeLastKey(cursor: string, orgId: string): Record<string, unknown> {
 }
 
 /**
- * Inserts or updates a ticket; preserves `createdAt` when the item already exists.
+ * Inserts or updates a ticket; preserves sentiment fields when the item already exists.
  */
 export async function upsertTicket(record: SupportTicketRecord): Promise<SupportTicketRecord> {
   const parsed = supportTicketRecordSchema.parse(record);
@@ -63,8 +63,7 @@ export async function upsertTicket(record: SupportTicketRecord): Promise<Support
     }),
   );
   const prev = existing.Item as SupportTicketRecord | undefined;
-  const createdAt =
-    prev?.createdAt !== undefined && prev.createdAt.length > 0 ? prev.createdAt : parsed.createdAt;
+  const createdAt = parsed.createdAt;
   const linkedTicketId =
     parsed.linkedTicketId !== undefined && parsed.linkedTicketId.length > 0
       ? parsed.linkedTicketId

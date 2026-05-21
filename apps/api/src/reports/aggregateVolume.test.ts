@@ -35,4 +35,25 @@ describe('aggregateVolumeTrend', () => {
     expect(may6?.helpdesk).toBe(1);
     expect(may6?.total).toBe(2);
   });
+
+  it('includes today in the last bucket for a 7-day window', () => {
+    const now = new Date('2026-05-21T15:00:00.000Z').getTime();
+    const tickets: SupportTicketRecord[] = [
+      {
+        ticketId: 'jira_TODAY',
+        orgId: 'o',
+        source: 'jira',
+        externalId: 'TODAY',
+        summary: 'today',
+        priority: 'low',
+        status: 'open',
+        createdAt: '2026-05-21T10:00:00.000Z',
+        updatedAt: '2026-05-21T10:00:00.000Z',
+      },
+    ];
+    const points = aggregateVolumeTrend(tickets, 7, now);
+    const today = points.find((p) => p.date === '2026-05-21');
+    expect(today?.jira).toBe(1);
+    expect(points).toHaveLength(7);
+  });
 });

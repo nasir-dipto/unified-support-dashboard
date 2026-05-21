@@ -5,6 +5,7 @@ import type {
   TicketStatus,
 } from '@usd/shared-types';
 import { jiraIssueSchema, ticketPrioritySchema, ticketStatusSchema } from '@usd/shared-types';
+import { parseJiraTimestamp } from '../utils/sourceTimestamps.js';
 
 /**
  * Maps Jira priority label to USD enum.
@@ -155,6 +156,8 @@ export function mapJiraIssueToTicket(input: MapIssueInput): SupportTicketRecord 
   const status = ticketStatusSchema.parse(mapJiraStatusName(fields.status?.name));
   const assigneeId = mapJiraUserDisplayName(fields.assignee);
   const reporterId = mapJiraUserDisplayName(fields.reporter);
+  const createdAt = parseJiraTimestamp(fields.created, now);
+  const updatedAt = parseJiraTimestamp(fields.updated, now);
   return {
     ticketId: `jira_${issue.key}`,
     orgId,
@@ -166,7 +169,7 @@ export function mapJiraIssueToTicket(input: MapIssueInput): SupportTicketRecord 
     status,
     assigneeId,
     reporterId,
-    createdAt: now,
-    updatedAt: now,
+    createdAt,
+    updatedAt,
   };
 }
