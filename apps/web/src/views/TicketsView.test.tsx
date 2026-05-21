@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TicketsView } from '../views/TicketsView';
 
@@ -51,8 +52,11 @@ describe('TicketsView', () => {
     expect(screen.getByText('Ticket Queue')).toBeInTheDocument();
   });
 
-  it('renders activity sidebar', () => {
+  it('opens activity panel when Activity toggle is clicked', async () => {
+    const user = userEvent.setup();
     renderWithQuery(<TicketsView />);
+    expect(screen.queryByRole('complementary', { name: /live activity/i })).toBeNull();
+    await user.click(screen.getByRole('button', { name: /activity/i }));
     expect(screen.getByRole('complementary', { name: /live activity/i })).toBeTruthy();
   });
 });

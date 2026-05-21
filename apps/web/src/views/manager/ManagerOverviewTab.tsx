@@ -3,7 +3,10 @@ import { StatCard, SlaBar, usdColors } from '@usd/ui';
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { useAiInvoke } from '../../hooks/useAI';
-import { estimateSlaPercentRemaining } from '../../utils/ticket-display';
+import {
+  averageSlaPercentRemaining,
+  estimateSlaPercentRemaining,
+} from '../../utils/ticket-display';
 
 export type ManagerOverviewTabProps = {
   tickets: TicketApiDto[];
@@ -21,20 +24,14 @@ export function ManagerOverviewTab(props: ManagerOverviewTabProps): ReactElement
   const ai = useAiInvoke();
   const open = tickets.filter((t) => openStatuses.includes(t.status));
   const critical = tickets.filter((t) => t.priority === 'critical');
-  const avgSla =
-    tickets.length > 0
-      ? Math.round(
-          tickets.reduce(
-            (a, t) => a + estimateSlaPercentRemaining(t.createdAt, t.updatedAt),
-            0,
-          ) / tickets.length,
-        )
-      : 0;
-  const atRisk = tickets.filter(
-    (t) =>
-      t.priority === 'critical' ||
-      estimateSlaPercentRemaining(t.createdAt, t.updatedAt) < 70,
-  );
+  const avgSla = averageSlaPercentRemaining(tickets);
+  const atRisk = tickets.filter((t) => {
+    if (t.priority === 'critical') {
+      return true;
+    }
+    const sla = estimateSlaPercentRemaining(t.createdAt, t.updatedAt);
+    return sla !== null && sla < 70;
+  });
 
   const statusGroups: { label: string; count: number; color: string }[] = [
     { label: 'Open', count: tickets.filter((t) => t.status === 'open').length, color: usdColors.blue },
@@ -136,7 +133,11 @@ export function ManagerOverviewTab(props: ManagerOverviewTabProps): ReactElement
         <StatCard label="Open" value={open.length} color={usdColors.green} />
         <StatCard label="Critical" value={critical.length} color={usdColors.red} />
         <StatCard label="Total" value={tickets.length} color={usdColors.indigo} />
-        <StatCard label="Avg SLA" value={`${String(avgSla)}%`} color={usdColors.teal} />
+        <StatCard
+          label="Avg SLA"
+          value={avgSla === null ? '—' : `${String(avgSla)}%`}
+          color={usdColors.teal}
+        />
       </div>
     </div>
   );

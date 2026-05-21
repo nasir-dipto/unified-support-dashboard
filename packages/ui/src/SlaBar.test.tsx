@@ -7,4 +7,9 @@ describe('SlaBar', () => {
     render(<SlaBar value={72} />);
     expect(screen.getByText('72%')).toBeInTheDocument();
   });
+
+  it('shows neutral placeholder when value is null', () => {
+    render(<SlaBar value={null} />);
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
 });

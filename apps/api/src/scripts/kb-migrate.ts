@@ -1,8 +1,7 @@
 import { config as loadEnvFile } from 'dotenv';
-import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import pg from 'pg';
+import { applyKbMigrations } from '../db/applyKbMigrations.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -17,7 +16,7 @@ function loadLocalEnvFiles(): void {
 }
 
 /**
- * Applies KB SQL migrations to Postgres (requires POSTGRES_URL).
+ * CLI entry: applies KB SQL migrations to Postgres (requires POSTGRES_URL).
  */
 async function main(): Promise<void> {
   loadLocalEnvFiles();
@@ -26,16 +25,8 @@ async function main(): Promise<void> {
     console.error('POSTGRES_URL is required for kb:migrate');
     process.exit(1);
   }
-  const sqlPath = join(__dirname, '../db/migrations/001_kb_articles.sql');
-  const sql = readFileSync(sqlPath, 'utf8');
-  const client = new pg.Client({ connectionString: url });
-  await client.connect();
-  try {
-    await client.query(sql);
-    console.log('KB migration applied successfully.');
-  } finally {
-    await client.end();
-  }
+  await applyKbMigrations(url);
+  console.log('KB migration applied successfully.');
 }
 
 void main().catch((err: unknown) => {

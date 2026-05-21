@@ -1,27 +1,78 @@
-import type { TicketApiDto } from '@usd/shared-types';
+import type { AuthUserPublic, TicketApiDto } from '@usd/shared-types';
 import { statusColors, usdColors } from '@usd/ui';
 
-const MS_PER_DAY = 86_400_000;
-const DEFAULT_SLA_DAYS = 7;
+export type SlaEstimateOptions = {
+  /** ISO due date from source system; when absent, SLA is unknown */
+  dueAt?: string | null;
+  nowMs?: number;
+};
 
 /**
- * Estimates SLA remaining % from created/updated timestamps (heuristic when API has no SLA).
+ * Returns SLA remaining % when `dueAt` is known; otherwise `null` (no heuristic default).
  */
 export function estimateSlaPercentRemaining(
   createdAt: string,
-  updatedAt: string,
-  nowMs: number = Date.now(),
-): number {
-  const created = new Date(createdAt).getTime();
-  const updated = new Date(updatedAt).getTime();
-  if (Number.isNaN(created) || Number.isNaN(updated)) {
-    return 75;
+  _updatedAt: string,
+  options?: SlaEstimateOptions,
+): number | null {
+  const dueAt = options?.dueAt?.trim();
+  if (dueAt === undefined || dueAt.length === 0) {
+    return null;
   }
-  const deadline = created + DEFAULT_SLA_DAYS * MS_PER_DAY;
-  const elapsed = Math.max(0, nowMs - updated);
-  const totalWindow = Math.max(MS_PER_DAY, deadline - updated);
-  const remaining = Math.max(0, 1 - elapsed / totalWindow);
-  return Math.round(remaining * 100);
+  const due = new Date(dueAt).getTime();
+  const created = new Date(createdAt).getTime();
+  const nowMs = options?.nowMs ?? Date.now();
+  if (Number.isNaN(due) || Number.isNaN(created)) {
+    return null;
+  }
+  const windowMs = due - created;
+  if (windowMs <= 0) {
+    return null;
+  }
+  const remaining = due - nowMs;
+  return Math.round(Math.max(0, Math.min(100, (remaining / windowMs) * 100)));
+}
+
+/**
+ * Average SLA % across tickets that have a known due date.
+ */
+export function averageSlaPercentRemaining(tickets: TicketApiDto[]): number | null {
+  const values = tickets
+    .map((t) =>
+      estimateSlaPercentRemaining(t.createdAt, t.updatedAt, {
+        dueAt: (t as TicketApiDto & { slaDueAt?: string }).slaDueAt,
+      }),
+    )
+    .filter((v): v is number => v !== null);
+  if (values.length === 0) {
+    return null;
+  }
+  return Math.round(values.reduce((sum, v) => sum + v, 0) / values.length);
+}
+
+/**
+ * Whether a ticket is assigned to the signed-in USD user (matches id or email).
+ */
+export function isTicketAssignedToCurrentUser(
+  ticket: TicketApiDto,
+  user: AuthUserPublic | null | undefined,
+): boolean {
+  if (user === null || user === undefined) {
+    return false;
+  }
+  const assignee = ticket.assigneeId?.trim();
+  if (assignee === undefined || assignee.length === 0) {
+    return false;
+  }
+  if (assignee === user.userId || assignee === user.email) {
+    return true;
+  }
+  const localPart = user.email.split('@')[0]?.toLowerCase();
+  return (
+    localPart !== undefined &&
+    localPart.length > 0 &&
+    assignee.toLowerCase().includes(localPart)
+  );
 }
 
 /**

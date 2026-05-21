@@ -24,7 +24,7 @@ export function AppHeader(): ReactElement {
   const showAdmin = user !== null && canAccessAdminPanel(user.roles);
 
   return (
-    <header className="sticky top-0 z-[200] flex h-[58px] items-center border-b border-gray-200 bg-white px-7">
+    <header className="sticky top-0 z-[200] flex h-[52px] items-center border-b border-gray-200 bg-white px-5">
       <div className="flex items-center gap-2.5">
         <div
           className="flex h-8 w-8 items-center justify-center rounded-lg text-xs font-extrabold text-white"

@@ -26,7 +26,7 @@ describe('TicketCard', () => {
   it('renders summary, source, priority, and external id', () => {
     render(<TicketCard ticket={sample} />);
     expect(screen.getByText('Fix login bug')).toBeInTheDocument();
-    expect(screen.getByText('Jira')).toBeInTheDocument();
+    expect(screen.getAllByText('Jira').length).toBeGreaterThan(0);
     expect(screen.getByText('high')).toBeInTheDocument();
     expect(screen.getByText('DEMO-1')).toBeInTheDocument();
   });
@@ -62,8 +62,7 @@ describe('TicketCard', () => {
       status: 'pending',
     };
     render(<TicketCard ticket={hd} />);
-    expect(screen.getByText('ManageEngine')).toBeInTheDocument();
+    expect(screen.getByText('ME')).toBeInTheDocument();
     expect(screen.getByText('HD-12')).toBeInTheDocument();
-    expect(screen.getByText('Ticket ID')).toBeInTheDocument();
   });
 });

@@ -28,9 +28,9 @@ Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentim
 - pnpm dev — frontend (:5173) + backend (:3001)
 - pnpm lint && pnpm typecheck && pnpm test — before every push
 - export DYNAMODB_ENDPOINT=http://localhost:8000 && pnpm test — run with integration tests
-- pnpm --filter @usd/api db:setup — create DynamoDB Local tables (first time, or fresh volume)
+- pnpm --filter @usd/api db:setup — create DynamoDB Local tables + KB Postgres schema when POSTGRES_URL is set (first time, or fresh volume)
 - pnpm --filter @usd/api db:seed — seed admin (admin@usd.dev / Admin123!) (first time, or fresh volume)
-- pnpm --filter @usd/api kb:migrate — run PostgreSQL migrations (first time only)
+- pnpm --filter @usd/api kb:migrate — KB Postgres schema only (also run by db:setup)
 - pnpm --filter @usd/api sync:jira — sync Jira tickets + comments
 - pnpm --filter @usd/api sync:hd — sync HD tickets + conversations + sentiment batch
 - pnpm --filter @usd/api sentiment:batch — full sentiment refresh
@@ -39,7 +39,7 @@ Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentim
 - DynamoDB Local: port 8000 — data persisted in Docker volume `dynamodb_data` (survives `docker compose down` / `up`; run db:setup + db:seed + sync once on a new volume)
 - Redis: port 6379
 - Mailhog: port 8025 (email UI)
-- PostgreSQL (pgvector): port 5432
+- PostgreSQL (pgvector): port 5432 — data persisted in Docker volume `postgres_data` (KB articles survive `docker compose down` / `up`)
 
 ## Local dev replacements
 - Bedrock → Mock (USE_MOCK_AI=true)

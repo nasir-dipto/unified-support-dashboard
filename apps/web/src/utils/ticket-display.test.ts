@@ -4,6 +4,7 @@ import {
   estimateSlaPercentRemaining,
   formatAssignee,
   formatStatusLabel,
+  isTicketAssignedToCurrentUser,
   sourceAccentColor,
 } from './ticket-display.js';
 
@@ -19,6 +20,13 @@ const base: TicketApiDto = {
   updatedAt: '2026-03-01T12:00:00.000Z',
 };
 
+const user = {
+  userId: '01USER',
+  orgId: 'demo-org',
+  email: 'admin@usd.dev',
+  roles: ['admin' as const],
+};
+
 describe('ticket-display', () => {
   it('formats status with spaces', () => {
     expect(formatStatusLabel('in_progress')).toBe('in progress');
@@ -32,9 +40,28 @@ describe('ticket-display', () => {
     expect(sourceAccentColor('jira')).toBe('#2563EB');
   });
 
-  it('sla percent is between 0 and 100', () => {
-    const p = estimateSlaPercentRemaining(base.createdAt, base.updatedAt, Date.parse('2026-03-02T00:00:00.000Z'));
-    expect(p).toBeGreaterThanOrEqual(0);
+  it('returns null SLA when due date is absent', () => {
+    expect(estimateSlaPercentRemaining(base.createdAt, base.updatedAt)).toBeNull();
+  });
+
+  it('computes SLA percent when due date is provided', () => {
+    const p = estimateSlaPercentRemaining(base.createdAt, base.updatedAt, {
+      dueAt: '2026-03-08T00:00:00.000Z',
+      nowMs: Date.parse('2026-03-02T00:00:00.000Z'),
+    });
+    expect(p).toBeGreaterThan(0);
     expect(p).toBeLessThanOrEqual(100);
+  });
+
+  it('matches assignee by email', () => {
+    expect(
+      isTicketAssignedToCurrentUser({ ...base, assigneeId: 'admin@usd.dev' }, user),
+    ).toBe(true);
+  });
+
+  it('does not match unrelated assignee', () => {
+    expect(isTicketAssignedToCurrentUser({ ...base, assigneeId: 'Jane Agent' }, user)).toBe(
+      false,
+    );
   });
 });

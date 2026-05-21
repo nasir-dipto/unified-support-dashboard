@@ -112,7 +112,7 @@ export function DetailModal(props: DetailModalProps): ReactElement {
   const sla =
     ticket !== undefined
       ? estimateSlaPercentRemaining(ticket.createdAt, ticket.updatedAt)
-      : 0;
+      : null;
   const accent = ticket !== undefined ? sourceAccentColor(ticket.source) : usdColors.blue;
   const externalUrl = ticket !== undefined ? ticketExternalUrl(ticket) : undefined;
 

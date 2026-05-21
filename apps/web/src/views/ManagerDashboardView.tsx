@@ -4,7 +4,7 @@ import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { DetailModal } from '../components/tickets/DetailModal';
 import { useTicketsList } from '../hooks/useTickets';
-import { estimateSlaPercentRemaining } from '../utils/ticket-display';
+import { averageSlaPercentRemaining } from '../utils/ticket-display';
 import { ManagerInsightsTab } from './manager/ManagerInsightsTab';
 import { ManagerOverviewTab } from './manager/ManagerOverviewTab';
 import { ManagerReportingTab } from './manager/ManagerReportingTab';
@@ -34,15 +34,7 @@ export function ManagerDashboardView(): ReactElement {
 
   const open = tickets.filter((t) => openStatuses.includes(t.status));
   const critical = tickets.filter((t) => t.priority === 'critical');
-  const avgSla =
-    tickets.length > 0
-      ? Math.round(
-          tickets.reduce(
-            (a, t) => a + estimateSlaPercentRemaining(t.createdAt, t.updatedAt),
-            0,
-          ) / tickets.length,
-        )
-      : 0;
+  const avgSla = averageSlaPercentRemaining(tickets);
 
   const tabs: { id: MgrTab; label: string; badge?: number }[] = [
     { id: 'overview', label: 'Overview' },
@@ -76,7 +68,11 @@ export function ManagerDashboardView(): ReactElement {
           color={usdColors.coral}
           sub="Helpdesk"
         />
-        <StatCard label="Avg SLA" value={`${String(avgSla)}%`} color={usdColors.teal} />
+        <StatCard
+          label="Avg SLA"
+          value={avgSla === null ? '—' : `${String(avgSla)}%`}
+          color={usdColors.teal}
+        />
         <StatCard label="SLA breach risk" value="—" color={usdColors.amber} sub="Phase 8" />
       </div>
 
