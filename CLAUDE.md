@@ -338,3 +338,62 @@ Sync full conversation history from Jira and HD so AI has rich context.
 - 252 tests passing
 
 ## Current test count: 252
+
+## Phase 7 — Knowledge Base (pgvector)
+### Architecture decisions (confirmed)
+
+#### KB generation
+- Manual only: technician/manager clicks "Generate KB Draft" button
+- Context: full ticket (description + conversation thread) + linked ticket if set
+- Linked HD+Jira: merges both contexts — customer problem from HD + technical root cause from Jira
+- AI generates: Title, Problem, Root Cause, Resolution Steps, Tags, Source ticket IDs
+- Stored as draft — must be reviewed and published by technician/manager
+
+#### KB search
+- Manual only: technician clicks "Search KB" in DetailModal
+- Uses vector similarity (cosine) via pgvector
+- Returns top 3 similar articles
+- Query embedding generated from ticket summary + description
+
+#### Embedding model
+- Amazon Titan Embeddings via Bedrock (vector size: 1536)
+- USE_MOCK_AI=true: returns random vectors locally (search still works, results random)
+
+#### Infrastructure (new in Phase 7)
+- Local: pgvector/pgvector:pg16 Docker container (por)
+- AWS (Phase 9): RDS PostgreSQL t3.micro with pgvector extension (~$15-25/month)
+- Add to docker-compose.yml
+
+#### KB article schema (PostgreSQL)
+- id: uuid
+- orgId: varchar (tenant isolation)
+- title: varchar
+- problem: text
+- rootCause: text
+- resolutionSteps: text
+- tags: text[]
+- sourceTicketIds: text[] (e.g. ["hd_3", "jira_SCRUM-5"])
+- embedding: vector(1536)
+- status: draft | published
+- createdAt, updatedAt, publishedAt
+- createdBy: userId
+
+#### What to build
+- docker-compose.yml: add pgvector/pgvector:pg16 service
+- apps/api/src/db/postgres.client.ts — PostgreSQL client (local + RDS)
+- apps/api/src/db/migrations/001_kb_articles.sql — table + pgvector extension
+- apps/api/src/scripts/kb-migrate.ts — runs migrations
+- apps/api/src/services/kb.service.ts — CRUD operations on KB articles
+- apps/api/src/services/embedding.service.ts — Titan embeddings or mock
+- apps/api/src/ai/kbDraft.ts — AI generates KB article from ticket context
+- apps/api/src/ai/buildKbContext.ts — merges HD + Jira cgeneration
+- apps/api/src/routes/kb.routes.ts — GET/POST/PUT/DELETE /api/kb
+- apps/web: KB suggestions in DetailModal (Search KB button + results)
+- apps/web: Admin KB tab — list, review, publish drafts
+- POST /api/ai/invoke: add kb_draft feature handler
+
+#### Not in Phase 7
+- Auto-generation on ticket resolve (Phase 9)
+- KB article versioning (Phase 9)
+- Public KB portal (future)
+- Full-text search (pgvector semantic search only for now)
