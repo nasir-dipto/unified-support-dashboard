@@ -20,6 +20,13 @@ export function canAccessAdminPanel(roles: SupportRole[]): boolean {
 }
 
 /**
+ * Returns true when the user may manage the knowledge base (admin = manager in USD roles).
+ */
+export function canManageKnowledgeBase(roles: SupportRole[]): boolean {
+  return roles.includes('admin');
+}
+
+/**
  * Default home path after login and for `/` (always ticket queue).
  */
 export function getHomePathForRoles(): string {

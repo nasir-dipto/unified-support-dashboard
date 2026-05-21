@@ -8,6 +8,7 @@ describe('healthDetailResponseSchema', () => {
       version: '1.0.0',
       dynamodb: 'connected',
       redis: 'connected',
+      postgres: 'connected',
       websocket: { connections: 2 },
       helpdesk: { emailReplyEnabled: false },
       uptime: 120,

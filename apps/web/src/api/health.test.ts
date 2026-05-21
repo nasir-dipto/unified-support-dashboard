@@ -9,6 +9,7 @@ vi.mock('./client.js', () => ({
         version: '1.0.0',
         dynamodb: 'connected',
         redis: 'connected',
+        postgres: 'connected',
         websocket: { connections: 0 },
         helpdesk: { emailReplyEnabled: false },
         uptime: 10,

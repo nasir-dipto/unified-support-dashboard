@@ -2,6 +2,7 @@ import { DynamoDBClient, ListTablesCommand } from '@aws-sdk/client-dynamodb';
 import type { HealthDetailResponse, HealthDependencyStatus } from '@usd/shared-types';
 import { isHelpdeskEmailReplyEnabled } from '../config/helpdeskEmail.js';
 import { getServerEnv } from '../config/loadEnv.js';
+import { hasPostgresUrl, queryPostgres } from '../db/postgres.client.js';
 import { pingRedis } from './redisPing.js';
 import { getLocalWsConnectionCount } from './websocket.service.js';
 
@@ -43,12 +44,28 @@ export async function checkRedisConnectivity(): Promise<HealthDependencyStatus> 
 }
 
 /**
+ * Probes Postgres when POSTGRES_URL is set (never throws).
+ */
+export async function checkPostgresConnectivity(): Promise<HealthDependencyStatus> {
+  try {
+    if (!hasPostgresUrl()) {
+      return 'error';
+    }
+    await queryPostgres('SELECT 1 AS ok');
+    return 'connected';
+  } catch {
+    return 'error';
+  }
+}
+
+/**
  * Builds the detailed health payload for GET /api/health/detail (never throws).
  */
 export async function buildHealthDetail(): Promise<HealthDetailResponse> {
-  const [dynamodb, redis] = await Promise.all([
+  const [dynamodb, redis, postgres] = await Promise.all([
     checkDynamoDbConnectivity(),
     checkRedisConnectivity(),
+    checkPostgresConnectivity(),
   ]);
   const env = getServerEnv();
   const degraded = dynamodb === 'error' || redis === 'error';
@@ -57,6 +74,7 @@ export async function buildHealthDetail(): Promise<HealthDetailResponse> {
     version: API_VERSION,
     dynamodb,
     redis,
+    postgres,
     websocket: { connections: getLocalWsConnectionCount() },
     helpdesk: { emailReplyEnabled: isHelpdeskEmailReplyEnabled(env) },
     uptime: Math.floor(process.uptime()),

@@ -1,6 +1,8 @@
 import type {
   CommentDraftTone,
   CommentReplyKind,
+  KbDraftResponse,
+  KbSearchResult,
   TicketApiDto,
   TriageSuggestResponse,
 } from '@usd/shared-types';
@@ -9,7 +11,10 @@ import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { postTicketCrossLink } from '../../api/tickets';
+import { KbDraftForm } from '../kb/KbDraftForm';
+import { KbSearchResults } from '../kb/KbSearchResults';
 import { useAiInvoke } from '../../hooks/useAI';
+import { useKbDraft, useKbSearch } from '../../hooks/useKb';
 import { useHealthDetail } from '../../hooks/useHealthDetail';
 import { usePostTicketComment, useTicketComments, useTicketDetail } from '../../hooks/useTickets';
 import { useAuthStore } from '../../store/auth.store';
@@ -86,6 +91,10 @@ export function DetailModal(props: DetailModalProps): ReactElement {
   const [linkDraft, setLinkDraft] = useState('');
   const [linkErr, setLinkErr] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<TriageSuggestResponse | null>(null);
+  const [kbResults, setKbResults] = useState<KbSearchResult[]>([]);
+  const [kbDraft, setKbDraft] = useState<KbDraftResponse | null>(null);
+  const kbSearch = useKbSearch(ticketId ?? undefined);
+  const kbDraftMut = useKbDraft();
 
   if (!open || ticketId === null) {
     return <></>;
@@ -124,6 +133,32 @@ export function DetailModal(props: DetailModalProps): ReactElement {
       });
   };
 
+  const openStatuses: TicketApiDto['status'][] = ['open', 'in_progress', 'pending'];
+  const kbSearchNote =
+    ticket !== undefined && openStatuses.includes(ticket.status)
+      ? 'Best results on resolved tickets'
+      : undefined;
+
+  const searchKb = (): void => {
+    if (ticket === undefined) {
+      return;
+    }
+    setKbResults([]);
+    void kbSearch.mutateAsync().then((data) => {
+      setKbResults(data);
+    });
+  };
+
+  const generateKbDraft = (): void => {
+    if (ticket === undefined) {
+      return;
+    }
+    setKbDraft(null);
+    void kbDraftMut.mutateAsync(ticket.ticketId).then((draft) => {
+      setKbDraft(draft);
+    });
+  };
+
   const draftCommentAi = (): void => {
     if (ticket === undefined) {
       return;
@@ -147,6 +182,8 @@ export function DetailModal(props: DetailModalProps): ReactElement {
     setLinkDraft('');
     setLinkErr(null);
     setSuggestion(null);
+    setKbResults([]);
+    setKbDraft(null);
   };
 
   const submitReply = (replyKind: CommentReplyKind): void => {
@@ -366,6 +403,40 @@ export function DetailModal(props: DetailModalProps): ReactElement {
             )}
           </div>
         </div>
+      </section>
+
+      <section className="mt-4 border-t border-gray-100 pt-4">
+        <h3 className="text-sm font-bold text-gray-900">Knowledge base</h3>
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            disabled={kbSearch.isPending || ticket === undefined}
+            onClick={searchKb}
+            className="flex-1 rounded-lg border border-teal-200 bg-teal-50 py-2 text-sm font-bold text-teal-900 disabled:opacity-60"
+          >
+            {kbSearch.isPending ? 'Searching…' : 'Search KB'}
+          </button>
+          <button
+            type="button"
+            disabled={kbDraftMut.isPending || ticket === undefined}
+            onClick={generateKbDraft}
+            className="flex-1 rounded-lg border border-indigo-200 bg-indigo-50 py-2 text-sm font-bold text-indigo-900 disabled:opacity-60"
+          >
+            {kbDraftMut.isPending ? 'Generating…' : 'Generate KB Draft'}
+          </button>
+        </div>
+        <div className="mt-3">
+          <KbSearchResults
+            results={kbResults}
+            loading={kbSearch.isPending}
+            note={kbSearchNote}
+          />
+        </div>
+        {kbDraft !== null ? (
+          <div className="mt-3">
+            <KbDraftForm draft={kbDraft} onSaved={() => { setKbDraft(null); }} />
+          </div>
+        ) : null}
       </section>
 
       <section className="mt-4 border-t border-gray-100 pt-4">

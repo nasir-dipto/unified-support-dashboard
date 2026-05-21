@@ -1,11 +1,18 @@
 import type {
   CommentDraftResponse,
   CommentDraftTone,
+  KbDraftResponse,
   MorningBriefingResponse,
   SentimentAnalysisResult,
   TriageSuggestResponse,
 } from '@usd/shared-types';
-import type { MockBriefingInput, MockDraftInput, MockSentimentInput, MockTriageInput } from './types.js';
+import type {
+  MockBriefingInput,
+  MockDraftInput,
+  MockKbDraftInput,
+  MockSentimentInput,
+  MockTriageInput,
+} from './types.js';
 
 const DEGRADED_TRIAGE_MESSAGE =
   'AI temporarily unavailable. Please review manually.';
@@ -164,4 +171,41 @@ export function mockMorningBriefing(input: MockBriefingInput): MorningBriefingRe
  */
 export function degradedMorningBriefing(): MorningBriefingResponse {
   return { briefing: DEGRADED_BRIEFING_MESSAGE, degraded: true };
+}
+
+const DEGRADED_KB_DRAFT_MESSAGE = 'AI temporarily unavailable. Fill in the KB article manually.';
+
+/**
+ * Returns a realistic mock KB draft (USE_MOCK_AI=true).
+ */
+export function mockKbDraft(input: MockKbDraftInput): KbDraftResponse {
+  const { ticket, linkedTicketId } = input;
+  const sourceTicketIds = [ticket.ticketId];
+  if (linkedTicketId !== undefined && linkedTicketId.length > 0) {
+    sourceTicketIds.push(linkedTicketId);
+  }
+  return {
+    title: `Resolution: ${ticket.summary}`,
+    problem: ticket.description?.trim() || ticket.summary,
+    rootCause: `Identified during triage of ${ticket.externalId} (${ticket.priority} priority).`,
+    resolutionSteps: [
+      '1. Reproduce and confirm scope with the requester.',
+      '2. Apply fix or workaround documented in the ticket thread.',
+      '3. Verify in production and close linked tickets.',
+    ].join('\n'),
+    tags: [ticket.source, ticket.priority, ticket.status],
+    sourceTicketIds,
+  };
+}
+
+/**
+ * Returns degraded KB draft when Bedrock fails.
+ */
+export function degradedKbDraft(input: MockKbDraftInput): KbDraftResponse {
+  const base = mockKbDraft(input);
+  return {
+    ...base,
+    problem: DEGRADED_KB_DRAFT_MESSAGE,
+    degraded: true,
+  };
 }

@@ -41,10 +41,29 @@ vi.mock('../../hooks/useHealthDetail', () => ({
       version: '1.0.0',
       dynamodb: 'connected',
       redis: 'connected',
+      postgres: 'connected',
       websocket: { connections: 0 },
       helpdesk: { emailReplyEnabled: false },
       uptime: 1,
     },
+  }),
+}));
+
+const kbSearchMock = vi.fn();
+const kbDraftMock = vi.fn();
+
+vi.mock('../../hooks/useKb', () => ({
+  useKbSearch: () => ({
+    mutateAsync: kbSearchMock,
+    isPending: false,
+  }),
+  useKbDraft: () => ({
+    mutateAsync: kbDraftMock,
+    isPending: false,
+  }),
+  useCreateKbArticle: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
   }),
 }));
 
@@ -107,6 +126,8 @@ describe('DetailModal', () => {
     cleanup();
     ticketDetail = { ...baseTicket };
     mutateAsyncMock.mockReset();
+    kbSearchMock.mockReset();
+    kbDraftMock.mockReset();
   });
 
   it('renders original description as first conversation item for Jira', () => {
@@ -176,5 +197,34 @@ describe('DetailModal', () => {
       });
     });
     expect(screen.getByPlaceholderText(/internal comment/i)).toHaveValue('Draft body');
+  });
+
+  it('shows KB search note for open tickets', async () => {
+    const user = userEvent.setup();
+    kbSearchMock.mockResolvedValue([]);
+    renderModal();
+    expect(screen.getByText(/best results on resolved tickets/i)).toBeTruthy();
+    await user.click(screen.getByRole('button', { name: /search kb/i }));
+    await waitFor(() => {
+      expect(kbSearchMock).toHaveBeenCalled();
+    });
+  });
+
+  it('generates KB draft when button clicked', async () => {
+    const user = userEvent.setup();
+    kbDraftMock.mockResolvedValue({
+      title: 'Fix VPN',
+      problem: 'VPN down',
+      rootCause: 'Config',
+      resolutionSteps: 'Reset',
+      tags: ['vpn'],
+      sourceTicketIds: ['jira_X'],
+    });
+    renderModal();
+    await user.click(screen.getByRole('button', { name: /generate kb draft/i }));
+    await waitFor(() => {
+      expect(kbDraftMock).toHaveBeenCalledWith('jira_X');
+    });
+    expect(screen.getByDisplayValue('Fix VPN')).toBeTruthy();
   });
 });

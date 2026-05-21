@@ -33,6 +33,11 @@ export function AdminHealthTab(): ReactElement {
       detail: data.redis,
     },
     {
+      label: 'Postgres (KB)',
+      ok: data.postgres === 'connected',
+      detail: data.postgres,
+    },
+    {
       label: 'WebSocket',
       ok: data.status === 'ok',
       detail: `${String(data.websocket.connections)} connections`,

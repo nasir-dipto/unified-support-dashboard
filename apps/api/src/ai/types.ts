@@ -36,3 +36,8 @@ export type MockBriefingInput = {
   criticalOpen: number;
   churnRiskCount: number;
 };
+
+export type MockKbDraftInput = {
+  ticket: TicketApiDto;
+  linkedTicketId?: string;
+};

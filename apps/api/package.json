@@ -15,6 +15,7 @@
     "sync:jira": "tsx src/scripts/jira-reconcile.ts",
     "sync:hd": "tsx src/scripts/hd-reconcile.ts",
     "sentiment:batch": "tsx src/scripts/sentiment-batch.ts --full",
+    "kb:migrate": "tsx src/scripts/kb-migrate.ts",
     "cleanup:hd-duplicates": "tsx src/scripts/cleanup-hd-duplicates.ts",
     "cleanup:legacy-comments": "tsx src/scripts/cleanup-legacy-comments.ts"
   },
@@ -29,6 +30,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.0.1",
     "jose": "^5.9.6",
+    "pg": "^8.13.1",
     "ulid": "^2.3.0",
     "ws": "^8.20.1"
   },
@@ -38,6 +40,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.0",
     "@types/node": "^22.10.5",
+    "@types/pg": "^8.11.10",
     "@types/supertest": "^6.0.2",
     "@types/ws": "^8.18.1",
     "nock": "^14.0.15",

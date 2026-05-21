@@ -45,6 +45,8 @@ export function loadServerEnv(): ParsedEnv {
     LAMBDA_WEBHOOK_WORKER: process.env.LAMBDA_WEBHOOK_WORKER,
     USE_MOCK_AI: process.env.USE_MOCK_AI,
     BEDROCK_MODEL_ID: process.env.BEDROCK_MODEL_ID,
+    POSTGRES_URL: process.env.POSTGRES_URL,
+    BEDROCK_EMBED_MODEL_ID: process.env.BEDROCK_EMBED_MODEL_ID,
   };
   const parsed = serverEnvRefinedSchema.safeParse(raw);
   if (!parsed.success) {

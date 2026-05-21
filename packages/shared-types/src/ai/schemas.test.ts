@@ -53,6 +53,11 @@ describe('ai schemas', () => {
     expect(p.feature).toBe('morning_briefing');
   });
 
+  it('parses kb_draft request', () => {
+    const p = aiInvokeRequestSchema.parse({ feature: 'kb_draft', ticketId: 'hd_42' });
+    expect(p.feature).toBe('kb_draft');
+  });
+
   it('parses morning briefing response', () => {
     const p = morningBriefingResponseSchema.parse({
       briefing: '• Risk summary',

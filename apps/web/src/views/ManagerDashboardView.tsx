@@ -11,8 +11,11 @@ import { ManagerReportingTab } from './manager/ManagerReportingTab';
 import { useSentimentSummary } from '../hooks/useSentiment';
 import { ManagerSentimentTab } from './manager/ManagerSentimentTab';
 import { ManagerTeamTab } from './manager/ManagerTeamTab';
+import { AdminKbTab } from './admin/AdminKbTab';
+import { useAuthStore } from '../store/auth.store';
+import { canManageKnowledgeBase } from '../utils/roles';
 
-type MgrTab = 'overview' | 'sentiment' | 'insights' | 'reporting' | 'team';
+type MgrTab = 'overview' | 'sentiment' | 'insights' | 'reporting' | 'team' | 'kb';
 
 const openStatuses: TicketApiDto['status'][] = ['open', 'in_progress', 'pending'];
 
@@ -26,6 +29,8 @@ export function ManagerDashboardView(): ReactElement {
   const negativeSentiment = sentimentQuery.data?.counts.negative ?? 0;
   const [tab, setTab] = useState<MgrTab>('overview');
   const [detailId, setDetailId] = useState<string | null>(null);
+  const roles = useAuthStore((s) => s.user?.roles ?? []);
+  const showKb = canManageKnowledgeBase(roles);
 
   const open = tickets.filter((t) => openStatuses.includes(t.status));
   const critical = tickets.filter((t) => t.priority === 'critical');
@@ -49,6 +54,7 @@ export function ManagerDashboardView(): ReactElement {
     { id: 'insights', label: 'AI insights' },
     { id: 'reporting', label: 'Reporting' },
     { id: 'team', label: 'Team' },
+    ...(showKb ? [{ id: 'kb' as const, label: 'Knowledge Base' }] : []),
   ];
 
   if (isLoading) {
@@ -109,6 +115,7 @@ export function ManagerDashboardView(): ReactElement {
         {tab === 'insights' ? <ManagerInsightsTab /> : null}
         {tab === 'reporting' ? <ManagerReportingTab tickets={tickets} /> : null}
         {tab === 'team' ? <ManagerTeamTab /> : null}
+        {tab === 'kb' ? <AdminKbTab /> : null}
       </div>
 
       <DetailModal ticketId={detailId} open={detailId !== null} onClose={() => { setDetailId(null); }} />

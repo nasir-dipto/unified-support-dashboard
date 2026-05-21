@@ -1,10 +1,12 @@
 import { z } from 'zod';
+import { kbDraftResponseSchema } from '../kb/schemas.js';
 
 /** Supported AI feature identifiers for POST /api/ai/invoke */
 export const aiFeatureSchema = z.enum([
   'triage_suggest',
   'comment_draft',
   'morning_briefing',
+  'kb_draft',
 ]);
 
 export type AiFeature = z.infer<typeof aiFeatureSchema>;
@@ -40,11 +42,19 @@ export const morningBriefingRequestSchema = z.object({
 
 export type MorningBriefingRequest = z.infer<typeof morningBriefingRequestSchema>;
 
+export const kbDraftRequestSchema = z.object({
+  feature: z.literal('kb_draft'),
+  ticketId: z.string().min(1),
+});
+
+export type KbDraftRequest = z.infer<typeof kbDraftRequestSchema>;
+
 /** POST /api/ai/invoke body — server builds context from DB; no client `context`. */
 export const aiInvokeRequestSchema = z.discriminatedUnion('feature', [
   triageSuggestRequestSchema,
   commentDraftRequestSchema,
   morningBriefingRequestSchema,
+  kbDraftRequestSchema,
 ]);
 
 export type AiInvokeRequest = z.infer<typeof aiInvokeRequestSchema>;
@@ -78,6 +88,7 @@ export const aiInvokeResponseSchema = z.union([
   triageSuggestResponseSchema,
   commentDraftResponseSchema,
   morningBriefingResponseSchema,
+  kbDraftResponseSchema,
 ]);
 
 export type AiInvokeResponse = z.infer<typeof aiInvokeResponseSchema>;

@@ -11,6 +11,7 @@ export const healthDetailResponseSchema = z.object({
   version: z.string().min(1),
   dynamodb: healthDependencyStatusSchema,
   redis: healthDependencyStatusSchema,
+  postgres: healthDependencyStatusSchema,
   websocket: z.object({
     connections: z.number().int().nonnegative(),
   }),
