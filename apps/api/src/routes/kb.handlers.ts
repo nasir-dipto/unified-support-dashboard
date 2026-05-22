@@ -1,6 +1,7 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import {
   createKbArticleBodySchema,
+  kbPublishedListQuerySchema,
   kbSearchRequestSchema,
   updateKbArticleBodySchema,
 } from '@usd/shared-types';
@@ -12,11 +13,14 @@ import {
   createKbArticle,
   deleteKbArticle,
   getKbArticle,
+  getPublishedKbArticle,
   listKbArticles,
+  listPublishedKbArticles,
   publishKbArticle,
   searchKbByTicket,
   updateKbArticle,
 } from '../services/kb.service.js';
+import { canAccessManagerFeatures } from '../utils/role-helpers.js';
 import { AppError } from '../utils/errors.js';
 
 type AsyncRequestHandler = (
@@ -43,7 +47,48 @@ function requirePostgres(_req: Request, _res: Response, next: NextFunction): voi
 }
 
 /**
- * GET /api/kb — list articles (admin/manager), or filter by sourceTicketId (any authenticated role).
+ * GET /api/kb/published — browse published articles (all authenticated roles).
+ */
+export const getKbPublishedList: RequestHandler[] = [
+  requireAuth,
+  requirePostgres,
+  asyncHandler(async (req, res) => {
+    if (req.auth === undefined) {
+      throw new AppError('Unauthorized', 'UNAUTHORIZED', 401);
+    }
+    const parsed = kbPublishedListQuerySchema.safeParse(req.query);
+    if (!parsed.success) {
+      throw new AppError('Invalid query parameters', 'VALIDATION', 400);
+    }
+    const data = await listPublishedKbArticles(req.auth.orgId, {
+      q: parsed.data.q,
+      limit: parsed.data.limit,
+    });
+    res.status(200).json({ data, total: data.length });
+  }),
+];
+
+/**
+ * GET /api/kb/published/:kbId — read one published article (all roles).
+ */
+export const getKbPublishedById: RequestHandler[] = [
+  requireAuth,
+  requirePostgres,
+  asyncHandler(async (req, res) => {
+    if (req.auth === undefined) {
+      throw new AppError('Unauthorized', 'UNAUTHORIZED', 401);
+    }
+    const kbId = req.params.kbId;
+    if (typeof kbId !== 'string' || kbId.length === 0) {
+      throw new AppError('Invalid kbId', 'VALIDATION', 400);
+    }
+    const data = await getPublishedKbArticle(req.auth.orgId, kbId);
+    res.status(200).json({ data });
+  }),
+];
+
+/**
+ * GET /api/kb — list articles (manager/admin), or filter by sourceTicketId (any role).
  */
 export const getKbList: RequestHandler[] = [
   requireAuth,
@@ -57,23 +102,25 @@ export const getKbList: RequestHandler[] = [
       typeof sourceTicketRaw === 'string' && sourceTicketRaw.trim().length > 0
         ? sourceTicketRaw.trim()
         : undefined;
-    if (sourceTicketId === undefined && !req.auth.roles.includes('admin')) {
-      throw new AppError('Forbidden', 'FORBIDDEN', 403);
-    }
     const statusRaw = req.query.status;
     const status =
       statusRaw === 'draft' || statusRaw === 'published' ? statusRaw : undefined;
+    if (sourceTicketId === undefined && !canAccessManagerFeatures(req.auth.roles)) {
+      if (status !== 'published') {
+        throw new AppError('Forbidden', 'FORBIDDEN', 403);
+      }
+    }
     const data = await listKbArticles(req.auth.orgId, { status, sourceTicketId });
     res.status(200).json({ data, total: data.length });
   }),
 ];
 
 /**
- * GET /api/kb/:kbId — article detail (admin/manager).
+ * GET /api/kb/:kbId — article detail (manager/super_admin).
  */
 export const getKbById: RequestHandler[] = [
   requireAuth,
-  requireRole('admin'),
+  requireRole('manager', 'super_admin'),
   requirePostgres,
   asyncHandler(async (req, res) => {
     if (req.auth === undefined) {
@@ -89,11 +136,11 @@ export const getKbById: RequestHandler[] = [
 ];
 
 /**
- * POST /api/kb — create draft (admin/manager).
+ * POST /api/kb — create draft (manager/super_admin).
  */
 export const postKb: RequestHandler[] = [
   requireAuth,
-  requireRole('admin'),
+  requireRole('manager', 'super_admin'),
   requirePostgres,
   asyncHandler(async (req, res) => {
     if (req.auth === undefined) {
@@ -109,11 +156,11 @@ export const postKb: RequestHandler[] = [
 ];
 
 /**
- * PUT /api/kb/:kbId — update draft (admin/manager).
+ * PUT /api/kb/:kbId — update draft (manager/super_admin).
  */
 export const putKb: RequestHandler[] = [
   requireAuth,
-  requireRole('admin'),
+  requireRole('manager', 'super_admin'),
   requirePostgres,
   asyncHandler(async (req, res) => {
     if (req.auth === undefined) {
@@ -133,11 +180,11 @@ export const putKb: RequestHandler[] = [
 ];
 
 /**
- * DELETE /api/kb/:kbId — remove article (admin/manager).
+ * DELETE /api/kb/:kbId — remove article (manager/super_admin).
  */
 export const deleteKb: RequestHandler[] = [
   requireAuth,
-  requireRole('admin'),
+  requireRole('manager', 'super_admin'),
   requirePostgres,
   asyncHandler(async (req, res) => {
     if (req.auth === undefined) {
@@ -153,11 +200,11 @@ export const deleteKb: RequestHandler[] = [
 ];
 
 /**
- * POST /api/kb/:kbId/publish — embed and publish (admin/manager).
+ * POST /api/kb/:kbId/publish — embed and publish (manager/super_admin).
  */
 export const postKbPublish: RequestHandler[] = [
   requireAuth,
-  requireRole('admin'),
+  requireRole('manager', 'super_admin'),
   requirePostgres,
   asyncHandler(async (req, res) => {
     if (req.auth === undefined) {

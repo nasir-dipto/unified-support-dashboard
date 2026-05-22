@@ -18,6 +18,7 @@ import { useKbDraft, useKbDraftExists, useKbSearch } from '../../hooks/useKb';
 import { useHealthDetail } from '../../hooks/useHealthDetail';
 import { usePostTicketComment, useTicketComments, useTicketDetail } from '../../hooks/useTickets';
 import { useAuthStore } from '../../store/auth.store';
+import { canWriteTicket } from '../../utils/permissions';
 import {
   commentSourceColor,
   commentSourceLabel,
@@ -84,7 +85,8 @@ export function DetailModal(props: DetailModalProps): ReactElement {
   const healthQuery = useHealthDetail(open);
   const ai = useAiInvoke();
   const qc = useQueryClient();
-  const orgId = useAuthStore((s) => s.user?.orgId);
+  const user = useAuthStore((s) => s.user);
+  const orgId = user?.orgId;
 
   const [commentDraft, setCommentDraft] = useState('');
   const [draftTone, setDraftTone] = useState<CommentDraftTone>('professional');
@@ -104,6 +106,10 @@ export function DetailModal(props: DetailModalProps): ReactElement {
   }
 
   const ticket = detailQuery.data?.data;
+  const canWrite =
+    ticket !== undefined &&
+    user !== null &&
+    canWriteTicket(user.roles, ticket, user.email);
   const comments = sortThreadComments(commentsQuery.data?.data ?? []);
   const emailReplyEnabled = healthQuery.data?.helpdesk.emailReplyEnabled ?? false;
   const originalDescriptionEntry =
@@ -251,15 +257,23 @@ export function DetailModal(props: DetailModalProps): ReactElement {
             </a>
           ) : null}
 
-          <button
-            type="button"
-            disabled={ai.isPending}
-            onClick={askAi}
-            className="mb-3 flex w-full items-center justify-center gap-2 rounded-[10px] py-2.5 text-sm font-bold text-white disabled:opacity-75"
-            style={{ backgroundColor: usdColors.indigo }}
-          >
-            {ai.isPending ? 'Generating…' : 'AI: suggest action'}
-          </button>
+          {!canWrite ? (
+            <p className="mb-3 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              Read-only — you can view this ticket but cannot modify it.
+            </p>
+          ) : null}
+
+          {canWrite ? (
+            <button
+              type="button"
+              disabled={ai.isPending}
+              onClick={askAi}
+              className="mb-3 flex w-full items-center justify-center gap-2 rounded-[10px] py-2.5 text-sm font-bold text-white disabled:opacity-75"
+              style={{ backgroundColor: usdColors.indigo }}
+            >
+              {ai.isPending ? 'Generating…' : 'AI: suggest action'}
+            </button>
+          ) : null}
 
           {suggestion !== null ? (
             <div className="mb-4 border-t border-gray-100 pt-3">
@@ -296,10 +310,6 @@ export function DetailModal(props: DetailModalProps): ReactElement {
               ) : null}
             </div>
           ) : null}
-        </>
-      ) : (
-        <p className="text-sm text-gray-500">Loading ticket…</p>
-      )}
 
       <section className="border-t border-gray-100 pt-4">
         <h3 className="text-sm font-bold text-gray-900">Conversation</h3>
@@ -337,6 +347,7 @@ export function DetailModal(props: DetailModalProps): ReactElement {
             </li>
           ))}
         </ul>
+        {canWrite ? (
         <div className="mt-3 space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">
@@ -356,7 +367,7 @@ export function DetailModal(props: DetailModalProps): ReactElement {
           <textarea
             className="min-h-[80px] w-full rounded-lg border border-gray-200 p-2 text-sm"
             placeholder={
-              ticket?.source === 'jira' ? 'Add an internal comment…' : 'Write a note or reply…'
+              ticket.source === 'jira' ? 'Add an internal comment…' : 'Write a note or reply…'
             }
             value={commentDraft}
             onChange={(e) => { setCommentDraft(e.target.value); }}
@@ -364,14 +375,14 @@ export function DetailModal(props: DetailModalProps): ReactElement {
           />
           <button
             type="button"
-            disabled={ai.isPending || ticket === undefined}
+            disabled={ai.isPending}
             onClick={draftCommentAi}
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 py-2 text-sm font-bold text-indigo-900 disabled:opacity-60"
           >
             {ai.isPending ? 'Generating draft…' : 'AI: draft comment'}
           </button>
           <div className="flex flex-wrap gap-2">
-            {ticket?.source === 'jira' ? (
+            {ticket.source === 'jira' ? (
               <button
                 type="button"
                 className="rounded-lg px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
@@ -410,6 +421,7 @@ export function DetailModal(props: DetailModalProps): ReactElement {
             )}
           </div>
         </div>
+        ) : null}
       </section>
 
       <section className="mt-4 border-t border-gray-100 pt-4">
@@ -425,23 +437,23 @@ export function DetailModal(props: DetailModalProps): ReactElement {
         <div className="mt-2 flex flex-col gap-2 sm:flex-row">
           <button
             type="button"
-            disabled={kbDraftChecking || kbSearch.isPending || ticket === undefined}
+            disabled={kbDraftChecking || kbSearch.isPending}
             onClick={searchKb}
             className="flex-1 rounded-lg border border-teal-200 bg-teal-50 py-2 text-sm font-bold text-teal-900 disabled:opacity-60"
           >
             {kbSearch.isPending ? 'Searching…' : 'Search KB'}
           </button>
-          <button
-            type="button"
-            disabled={
-              kbDraftChecking || draftSaved || kbDraftMut.isPending || ticket === undefined
-            }
-            title={kbGenerateTooltip}
-            onClick={generateKbDraft}
-            className="flex-1 rounded-lg border border-indigo-200 bg-indigo-50 py-2 text-sm font-bold text-indigo-900 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {kbDraftMut.isPending ? 'Generating…' : 'Generate KB Draft'}
-          </button>
+          {canWrite ? (
+            <button
+              type="button"
+              disabled={kbDraftChecking || draftSaved || kbDraftMut.isPending}
+              title={kbGenerateTooltip}
+              onClick={generateKbDraft}
+              className="flex-1 rounded-lg border border-indigo-200 bg-indigo-50 py-2 text-sm font-bold text-indigo-900 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {kbDraftMut.isPending ? 'Generating…' : 'Generate KB Draft'}
+            </button>
+          ) : null}
         </div>
         <div className="mt-3">
           <KbSearchResults
@@ -457,6 +469,7 @@ export function DetailModal(props: DetailModalProps): ReactElement {
         ) : null}
       </section>
 
+      {canWrite ? (
       <section className="mt-4 border-t border-gray-100 pt-4">
         <h3 className="text-sm font-bold text-gray-900">Cross-link</h3>
         <p className="mt-1 text-xs text-gray-500">
@@ -492,6 +505,11 @@ export function DetailModal(props: DetailModalProps): ReactElement {
           </p>
         ) : null}
       </section>
+      ) : null}
+        </>
+      ) : (
+        <p className="text-sm text-gray-500">Loading ticket…</p>
+      )}
     </Overlay>
   );
 }

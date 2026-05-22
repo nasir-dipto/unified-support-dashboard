@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 /** USD support roles stored in DynamoDB and JWT claims. */
-export const supportRoleSchema = z.enum(['viewer', 'agent', 'admin']);
+export const supportRoleSchema = z.enum(['technician', 'manager', 'super_admin']);
 
 export type SupportRole = z.infer<typeof supportRoleSchema>;
 
@@ -33,6 +33,20 @@ export const resetPasswordRequestSchema = z.object({
 });
 
 export type ResetPasswordRequest = z.infer<typeof resetPasswordRequestSchema>;
+
+export const acceptInviteRequestSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8),
+  orgId: z.string().min(1),
+});
+
+export type AcceptInviteRequest = z.infer<typeof acceptInviteRequestSchema>;
+
+export const authOkResponseSchema = z.object({
+  status: z.literal('ok'),
+});
+
+export type AuthOkResponse = z.infer<typeof authOkResponseSchema>;
 
 export const authUserPublicSchema = z.object({
   userId: z.string().min(1),

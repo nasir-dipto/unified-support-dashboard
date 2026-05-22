@@ -10,11 +10,11 @@ describe('requireRole', () => {
         userId: '1',
         orgId: 'o',
         email: 'e@e.com',
-        roles: ['viewer'],
+        roles: ['technician'],
       },
     } as unknown as Request;
     const next = vi.fn();
-    requireRole('admin')(req, {} as Response, next);
+    requireRole('super_admin')(req, {} as Response, next);
     expect(next.mock.calls.length).toBe(1);
     const arg: unknown = next.mock.calls[0]?.[0];
     expect(arg).toBeInstanceOf(AppError);
@@ -27,11 +27,11 @@ describe('requireRole', () => {
         userId: '1',
         orgId: 'o',
         email: 'e@e.com',
-        roles: ['admin'],
+        roles: ['super_admin'],
       },
     } as unknown as Request;
     const next = vi.fn();
-    requireRole('admin')(req, {} as Response, next);
+    requireRole('super_admin')(req, {} as Response, next);
     expect(next.mock.calls).toEqual([[]]);
   });
 });

@@ -14,6 +14,7 @@ export * from './sentiment/schemas.js';
 export * from './kb/schemas.js';
 export * from './health/schemas.js';
 export * from './auth/schemas.js';
+export * from './users/schemas.js';
 export * from './env/server-env.js';
 export * from './helpdesk/schemas.js';
 export * from './tickets/schemas.js';

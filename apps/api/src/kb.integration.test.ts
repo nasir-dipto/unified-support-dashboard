@@ -77,7 +77,7 @@ postgresDescribe('KB API (Postgres + DynamoDB Local)', () => {
     await doc.send(
       new PutCommand({
         TableName: env.SUPPORT_ROLES_TABLE,
-        Item: { orgId: ORG, userId: '01HZKBINTUSER', role: 'admin' },
+        Item: { orgId: ORG, userId: '01HZKBINTUSER', role: 'super_admin' },
       }),
     );
     await doc.send(

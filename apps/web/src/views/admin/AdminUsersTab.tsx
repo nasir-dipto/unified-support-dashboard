@@ -1,14 +1,29 @@
 import type { ReactElement } from 'react';
-import { EmptyStatePanel } from '../../components/skeletons/EmptyStatePanel';
+import { InviteUserForm } from '../../components/users/InviteUserForm.js';
+import { UsersTable } from '../../components/users/UsersTable.js';
+import { useUsers } from '../../hooks/useUsers.js';
+import { useAuthStore } from '../../store/auth.store';
+import { canInviteUsers } from '../../utils/roles.js';
 
 /**
- * User management — skeleton until users API exists (Phase 9).
+ * User management — list users; super_admin can invite.
  */
 export function AdminUsersTab(): ReactElement {
+  const roles = useAuthStore((s) => s.user?.roles ?? []);
+  const usersQuery = useUsers();
+  const showInvite = canInviteUsers(roles);
+
   return (
-    <EmptyStatePanel
-      title="User management coming in Phase 9"
-      description="Invite, edit, and deactivate users when the admin users API is available."
-    />
+    <div className="space-y-6">
+      {showInvite ? <InviteUserForm /> : null}
+      <div>
+        <h3 className="mb-3 text-sm font-bold text-gray-900">Organization users</h3>
+        {usersQuery.isLoading ? (
+          <p className="text-sm text-gray-500">Loading users…</p>
+        ) : (
+          <UsersTable users={usersQuery.data?.data ?? []} />
+        )}
+      </div>
+    </div>
   );
 }

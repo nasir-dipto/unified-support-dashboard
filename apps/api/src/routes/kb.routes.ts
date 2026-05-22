@@ -3,6 +3,8 @@ import {
   deleteKb,
   getKbById,
   getKbList,
+  getKbPublishedById,
+  getKbPublishedList,
   postKb,
   postKbPublish,
   postKbSearch,
@@ -14,6 +16,8 @@ import {
  */
 export const kbRouter = Router();
 
+kbRouter.get('/published', ...getKbPublishedList);
+kbRouter.get('/published/:kbId', ...getKbPublishedById);
 kbRouter.get('/', ...getKbList);
 kbRouter.post('/search', ...postKbSearch);
 kbRouter.post('/', ...postKb);

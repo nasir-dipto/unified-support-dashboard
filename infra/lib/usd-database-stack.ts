@@ -125,6 +125,15 @@ export class UsdDatabaseStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
     this.tables.push(notifications);
+
+    const authTokens = new dynamodb.Table(this, 'SupportAuthTokens', {
+      tableName: 'support_auth_tokens',
+      partitionKey: { name: 'orgId', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'tokenId', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+    this.tables.push(authTokens);
   }
 
   /**

@@ -5,7 +5,7 @@ import axios from 'axios';
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useAuthStore } from '../store/auth.store';
 import { getHomePathForRoles } from '../utils/roles';
@@ -148,12 +148,31 @@ export function LoginView(): ReactElement {
           >
             {isSubmitting ? 'Signing in…' : 'Sign in'}
           </button>
+          <p className="mt-4 text-center text-sm">
+            <Link to="/forgot-password" className="font-semibold text-usd-indigo">
+              Forgot password?
+            </Link>
+          </p>
           {import.meta.env.DEV ? (
-            <p className="mt-5 text-center text-xs text-gray-400">
-              {defaultOrgId.length > 0
-                ? `Dev: organization prefilled from VITE_DEFAULT_ORG_ID (${defaultOrgId}).`
-                : 'Dev: set VITE_DEFAULT_ORG_ID in .env.local to prefill organization ID.'}
-            </p>
+            <div className="mt-5 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-3 text-xs text-gray-600">
+              <p className="mb-2 font-bold text-gray-700">Demo credentials (dev)</p>
+              <ul className="space-y-1 text-left">
+                <li>
+                  <span className="font-semibold">Super Admin:</span> admin@usd.dev / Admin123!
+                </li>
+                <li>
+                  <span className="font-semibold">Manager:</span> manager@usd.dev / Mgr123!
+                </li>
+                <li>
+                  <span className="font-semibold">Technician:</span> technician@usd.dev / Tech123!
+                </li>
+              </ul>
+              {defaultOrgId.length > 0 ? (
+                <p className="mt-2 text-gray-400">Org: {defaultOrgId}</p>
+              ) : (
+                <p className="mt-2 text-gray-400">Org: demo-org</p>
+              )}
+            </div>
           ) : null}
         </form>
       </div>

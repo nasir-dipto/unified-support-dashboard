@@ -57,7 +57,7 @@ async function sendReport(
  */
 export const getReportsVolume: RequestHandler[] = [
   requireAuth,
-  requireRole('admin'),
+  requireRole('manager', 'super_admin'),
   asyncHandler(async (req, res) => {
     await sendReport(req, res, getVolumeReport);
   }),
@@ -68,7 +68,7 @@ export const getReportsVolume: RequestHandler[] = [
  */
 export const getReportsResolution: RequestHandler[] = [
   requireAuth,
-  requireRole('admin'),
+  requireRole('manager', 'super_admin'),
   asyncHandler(async (req, res) => {
     await sendReport(req, res, getResolutionReport);
   }),
@@ -79,7 +79,7 @@ export const getReportsResolution: RequestHandler[] = [
  */
 export const getReportsSla: RequestHandler[] = [
   requireAuth,
-  requireRole('admin'),
+  requireRole('manager', 'super_admin'),
   asyncHandler(async (req, res) => {
     await sendReport(req, res, getSlaReport);
   }),
@@ -90,7 +90,7 @@ export const getReportsSla: RequestHandler[] = [
  */
 export const getReportsTeam: RequestHandler[] = [
   requireAuth,
-  requireRole('admin'),
+  requireRole('manager', 'super_admin'),
   asyncHandler(async (req, res) => {
     await sendReport(req, res, getTeamReport);
   }),

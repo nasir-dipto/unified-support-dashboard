@@ -24,7 +24,7 @@ const user = {
   userId: '01USER',
   orgId: 'demo-org',
   email: 'admin@usd.dev',
-  roles: ['admin' as const],
+  roles: ['super_admin' as const],
 };
 
 describe('ticket-display', () => {

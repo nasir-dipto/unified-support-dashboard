@@ -3,9 +3,14 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AppShell } from './components/layout/AppShell';
 import { AuthGuard } from './components/layout/AuthGuard';
 import { RoleGuard } from './components/layout/RoleGuard';
+import { AcceptInviteView } from './views/AcceptInviteView';
 import { AdminPanelView } from './views/AdminPanelView';
+import { ForgotPasswordView } from './views/ForgotPasswordView';
+import { KbArticleView } from './views/KbArticleView';
+import { KnowledgeBaseView } from './views/KnowledgeBaseView';
 import { LoginView } from './views/LoginView';
 import { ManagerDashboardView } from './views/ManagerDashboardView';
+import { ResetPasswordView } from './views/ResetPasswordView';
 import { TechnicianTicketsView } from './views/TechnicianTicketsView';
 
 function Forbidden(): ReactElement {
@@ -24,6 +29,9 @@ export function AppRouter(): ReactElement {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginView />} />
+        <Route path="/forgot-password" element={<ForgotPasswordView />} />
+        <Route path="/reset-password" element={<ResetPasswordView />} />
+        <Route path="/accept-invite" element={<AcceptInviteView />} />
         <Route path="/403" element={<Forbidden />} />
         <Route element={<AuthGuard />}>
           <Route element={<AppShell />}>
@@ -31,15 +39,31 @@ export function AppRouter(): ReactElement {
             <Route
               path="/tickets"
               element={
-                <RoleGuard allow={['viewer', 'agent', 'admin']}>
+                <RoleGuard allow={['technician', 'manager', 'super_admin']}>
                   <TechnicianTicketsView />
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/kb"
+              element={
+                <RoleGuard allow={['technician', 'manager', 'super_admin']}>
+                  <KnowledgeBaseView />
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/kb/:kbId"
+              element={
+                <RoleGuard allow={['technician', 'manager', 'super_admin']}>
+                  <KbArticleView />
                 </RoleGuard>
               }
             />
             <Route
               path="/manager"
               element={
-                <RoleGuard allow={['admin']}>
+                <RoleGuard allow={['manager', 'super_admin']}>
                   <ManagerDashboardView />
                 </RoleGuard>
               }
@@ -47,7 +71,7 @@ export function AppRouter(): ReactElement {
             <Route
               path="/admin"
               element={
-                <RoleGuard allow={['admin']}>
+                <RoleGuard allow={['super_admin']}>
                   <AdminPanelView />
                 </RoleGuard>
               }

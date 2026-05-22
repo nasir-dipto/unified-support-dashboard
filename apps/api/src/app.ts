@@ -8,6 +8,7 @@ import { reportsRouter } from './routes/reports.routes.js';
 import { notificationsRouter } from './routes/notifications.routes.js';
 import { settingsRouter } from './routes/settings.routes.js';
 import { authRouter } from './routes/auth.routes.js';
+import { usersRouter } from './routes/users.routes.js';
 import { healthRouter } from './routes/health.routes.js';
 import { ticketsRouter } from './routes/tickets.routes.js';
 import { webhooksRouter } from './routes/webhooks.routes.js';
@@ -40,6 +41,7 @@ export function createApp(): express.Application {
 
   app.use('/api/health', healthRouter);
   app.use('/api/auth', authRouter);
+  app.use('/api/users', usersRouter);
   app.use('/api/ai', aiRouter);
   app.use('/api/sentiment', sentimentRouter);
   app.use('/api/kb', kbRouter);

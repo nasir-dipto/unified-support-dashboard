@@ -8,7 +8,7 @@ describe('useAuthStore', () => {
       userId: 'u',
       orgId: 'o',
       email: 'e@e.com',
-      roles: ['viewer'],
+      roles: ['technician'],
     });
     expect(useAuthStore.getState().accessToken).toBe('a');
     expect(useAuthStore.getState().refreshToken).toBe('r');

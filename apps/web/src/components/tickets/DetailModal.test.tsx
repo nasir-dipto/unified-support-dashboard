@@ -76,6 +76,22 @@ vi.mock('../../hooks/useKb', () => ({
   }),
 }));
 
+vi.mock('../../store/auth.store', () => ({
+  useAuthStore: (
+    selector: (state: {
+      user: { orgId: string; email: string; roles: ['manager']; userId: string } | null;
+    }) => unknown,
+  ) =>
+    selector({
+      user: {
+        orgId: 'o',
+        email: 'manager@usd.dev',
+        roles: ['manager'],
+        userId: 'mgr-1',
+      },
+    }),
+}));
+
 vi.mock('../../hooks/useTickets', () => ({
   useTicketDetail: () => ({
     data: { data: ticketDetail },

@@ -1,4 +1,4 @@
-import type { SupportRole } from '@usd/shared-types';
+import type { SupportRole, TicketApiDto } from '@usd/shared-types';
 
 declare global {
   namespace Express {
@@ -10,6 +10,7 @@ declare global {
         roles: SupportRole[];
       };
       accessTokenRaw?: string;
+      ticket?: TicketApiDto;
     }
   }
 }

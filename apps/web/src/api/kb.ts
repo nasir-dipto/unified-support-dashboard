@@ -91,3 +91,21 @@ export async function generateKbDraft(ticketId: string): Promise<KbDraftResponse
   const res = await apiClient.post('/api/ai/invoke', { feature: 'kb_draft', ticketId });
   return kbDraftResponseSchema.parse(res.data);
 }
+
+/**
+ * Lists published KB articles for browse (all roles).
+ */
+export async function listPublishedKbArticles(q?: string): Promise<KbArticle[]> {
+  const res = await apiClient.get('/api/kb/published', {
+    params: q !== undefined && q.length > 0 ? { q } : undefined,
+  });
+  return kbArticlesListResponseSchema.parse(res.data).data;
+}
+
+/**
+ * Fetches one published KB article for the reader view.
+ */
+export async function getPublishedKbArticle(kbId: string): Promise<KbArticle> {
+  const res = await apiClient.get(`/api/kb/published/${kbId}`);
+  return kbArticleDetailResponseSchema.parse(res.data).data;
+}

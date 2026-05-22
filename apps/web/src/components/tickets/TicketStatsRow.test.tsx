@@ -39,7 +39,7 @@ describe('TicketStatsRow', () => {
       userId: '01USER',
       orgId: 'demo-org',
       email: 'admin@usd.dev',
-      roles: ['admin'],
+      roles: ['super_admin'],
     });
     render(<TicketStatsRow tickets={tickets} />);
     expect(screen.getByText('Open').previousElementSibling?.textContent).toBe('2');

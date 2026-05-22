@@ -26,7 +26,7 @@ describe('useTicketsList', () => {
         userId: 'u1',
         orgId: 'org-x',
         email: 'a@b.com',
-        roles: ['viewer'],
+        roles: ['technician'],
       },
     });
     const spy = vi.spyOn(ticketsApi, 'fetchTicketsList').mockResolvedValue({

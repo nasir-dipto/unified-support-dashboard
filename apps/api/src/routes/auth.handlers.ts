@@ -1,11 +1,17 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import {
+  acceptInviteRequestSchema,
+  authOkResponseSchema,
   forgotPasswordRequestSchema,
   loginRequestSchema,
   refreshRequestSchema,
   resetPasswordRequestSchema,
-  stubOkSchema,
 } from '@usd/shared-types';
+import {
+  acceptInviteWithToken,
+  requestPasswordReset,
+  resetPasswordWithToken,
+} from '../services/password-reset.service.js';
 import {
   loginWithPassword,
   logoutFromAccessToken,
@@ -70,29 +76,39 @@ export const postLogout: RequestHandler[] = [
 ];
 
 /**
- * POST /api/auth/forgot-password — stub until SES-backed flow exists.
+ * POST /api/auth/forgot-password — sends reset email when user exists.
  */
-export const postForgotPassword: RequestHandler = asyncHandler((req, res) => {
+export const postForgotPassword: RequestHandler = asyncHandler(async (req, res) => {
   const parsed = forgotPasswordRequestSchema.safeParse(req.body);
   if (!parsed.success) {
     throw new AppError('Invalid request body', 'VALIDATION', 400);
   }
-  // TODO(USD-PH1): Send reset email via SES + store reset token in DynamoDB.
-  void parsed.data;
-  res.json(stubOkSchema.parse({ status: 'ok' as const }));
+  await requestPasswordReset(parsed.data.orgId, parsed.data.email);
+  res.json(authOkResponseSchema.parse({ status: 'ok' as const }));
 });
 
 /**
- * POST /api/auth/reset-password — stub until SES-backed flow exists.
+ * POST /api/auth/reset-password — sets new password from one-time token.
  */
-export const postResetPassword: RequestHandler = asyncHandler((req, res) => {
+export const postResetPassword: RequestHandler = asyncHandler(async (req, res) => {
   const parsed = resetPasswordRequestSchema.safeParse(req.body);
   if (!parsed.success) {
     throw new AppError('Invalid request body', 'VALIDATION', 400);
   }
-  // TODO(USD-PH1): Validate reset token and update password hash in DynamoDB.
-  void parsed.data;
-  res.json(stubOkSchema.parse({ status: 'ok' as const }));
+  await resetPasswordWithToken(parsed.data.orgId, parsed.data.token, parsed.data.password);
+  res.json(authOkResponseSchema.parse({ status: 'ok' as const }));
+});
+
+/**
+ * POST /api/auth/accept-invite — completes invite with password setup.
+ */
+export const postAcceptInvite: RequestHandler = asyncHandler(async (req, res) => {
+  const parsed = acceptInviteRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throw new AppError('Invalid request body', 'VALIDATION', 400);
+  }
+  await acceptInviteWithToken(parsed.data.orgId, parsed.data.token, parsed.data.password);
+  res.json(authOkResponseSchema.parse({ status: 'ok' as const }));
 });
 
 /**

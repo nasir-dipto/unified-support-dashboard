@@ -54,7 +54,7 @@ dynamoDescribe('GET /api/sentiment/summary (DynamoDB Local)', () => {
     await doc.send(
       new PutCommand({
         TableName: env.SUPPORT_ROLES_TABLE,
-        Item: { orgId: ORG, userId: '01HZINTSENTUSER', role: 'viewer' },
+        Item: { orgId: ORG, userId: '01HZINTSENTUSER', role: 'manager' },
       }),
     );
     await doc.send(

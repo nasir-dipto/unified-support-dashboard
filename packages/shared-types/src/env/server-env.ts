@@ -59,6 +59,10 @@ export const serverEnvSchema = z.object({
     .string()
     .min(1)
     .default('support_notification_rules'),
+  /** One-time invite and password-reset tokens. */
+  SUPPORT_AUTH_TOKENS_TABLE: z.string().min(1).default('support_auth_tokens'),
+  /** Public web app URL for invite/reset links (e.g. http://localhost:5173). */
+  WEB_APP_URL: z.string().url().optional(),
   /** PEM-encoded RS256 private key (local dev via .env.local). */
   JWT_PRIVATE_KEY: z.string().min(1).optional(),
   /** PEM-encoded RS256 public key (local dev via .env.local). */

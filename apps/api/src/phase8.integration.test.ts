@@ -49,7 +49,7 @@ describe('Phase 8 API (DynamoDB Local)', () => {
     await doc.send(
       new PutCommand({
         TableName: env.SUPPORT_ROLES_TABLE,
-        Item: { orgId: ORG, userId: '01HZP8USER', role: 'admin' },
+        Item: { orgId: ORG, userId: '01HZP8USER', role: 'super_admin' },
       }),
     );
     const ticketCreated = '2026-05-01T10:00:00.000Z';

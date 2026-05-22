@@ -20,6 +20,7 @@ export type UsdDynamoTableNames = {
   notifications: string;
   kb: string;
   reports: string;
+  authTokens: string;
 };
 
 /**
@@ -37,6 +38,7 @@ export function resolveUsdDynamoTableNames(): UsdDynamoTableNames {
       notifications: env.SUPPORT_NOTIFICATIONS_TABLE,
       kb: 'support_kb',
       reports: 'support_reports',
+      authTokens: env.SUPPORT_AUTH_TOKENS_TABLE,
     };
   } catch {
     loadServerEnv();
@@ -296,6 +298,20 @@ export async function ensureAllUsdLocalDynamoTables(
     [
       { AttributeName: 'orgId', KeyType: 'HASH' },
       { AttributeName: 'ticketCommentKey', KeyType: 'RANGE' },
+    ],
+    [],
+  );
+
+  await ensureDynamoTableIfMissing(
+    client,
+    tableNames.authTokens,
+    [
+      { AttributeName: 'orgId', AttributeType: 'S' },
+      { AttributeName: 'tokenId', AttributeType: 'S' },
+    ],
+    [
+      { AttributeName: 'orgId', KeyType: 'HASH' },
+      { AttributeName: 'tokenId', KeyType: 'RANGE' },
     ],
     [],
   );

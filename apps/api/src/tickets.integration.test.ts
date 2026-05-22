@@ -56,7 +56,7 @@ dynamoDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
         Item: {
           orgId: 'demo-org',
           userId: '01HZINTTICKUSER',
-          role: 'viewer',
+          role: 'technician',
         },
       }),
     );

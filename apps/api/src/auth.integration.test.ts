@@ -3,14 +3,21 @@ import { loginResponseSchema, refreshResponseSchema } from '@usd/shared-types';
 import bcrypt from 'bcryptjs';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import { beforeAll, expect, it } from 'vitest';
+import { beforeAll, expect, it, vi } from 'vitest';
 import { createApp } from './app.js';
 import { getServerEnv } from './config/loadEnv.js';
 import { getDocumentClient, resetDocumentClientForTests } from './db/dynamo.client.js';
+import { createAuthToken } from './db/tables/auth-tokens.js';
+import { seedOrgSettingsDefaults } from './db/tables/org-settings.js';
 import { setSupportRole } from './db/tables/roles.js';
 import { createUser, getUserByEmail } from './db/tables/users.js';
 import { ensureSupportTablesExist } from './test/helpers/create-tables.js';
 import { dynamoDescribe } from './test/helpers/dynamo-integration.js';
+
+vi.mock('./services/email.service.js', () => ({
+  sendAuthEmail: vi.fn().mockResolvedValue(undefined),
+  sendTestEmail: vi.fn().mockResolvedValue(undefined),
+}));
 
 const INT_TEST_ORG = 'demo-org';
 const INT_TEST_EMAIL = 'auth-int@example.com';
@@ -57,7 +64,8 @@ dynamoDescribe('auth HTTP (DynamoDB Local)', () => {
       });
       intTestUserId = user.userId;
     }
-    await setSupportRole(INT_TEST_ORG, intTestUserId, 'viewer');
+    await setSupportRole(INT_TEST_ORG, intTestUserId, 'technician');
+    await seedOrgSettingsDefaults(INT_TEST_ORG);
   });
 
   it('POST /api/auth/login returns tokens', async () => {
@@ -108,7 +116,7 @@ dynamoDescribe('auth HTTP (DynamoDB Local)', () => {
     expect(res.status).toBe(204);
   });
 
-  it('POST stub forgot-password returns ok', async () => {
+  it('POST forgot-password returns ok when user exists', async () => {
     const res = await request(createApp())
       .post('/api/auth/forgot-password')
       .send({ orgId: INT_TEST_ORG, email: INT_TEST_EMAIL });
@@ -116,13 +124,19 @@ dynamoDescribe('auth HTTP (DynamoDB Local)', () => {
     expect(res.body).toEqual({ status: 'ok' });
   });
 
-  it('POST stub reset-password returns ok', async () => {
+  it('POST reset-password accepts a valid one-time token', async () => {
+    const { tokenId } = await createAuthToken({
+      orgId: INT_TEST_ORG,
+      tokenType: 'password_reset',
+      email: INT_TEST_EMAIL,
+      userId: intTestUserId,
+    });
     const res = await request(createApp())
       .post('/api/auth/reset-password')
       .send({
         orgId: INT_TEST_ORG,
-        token: 'x',
-        password: 'secret12345',
+        token: tokenId,
+        password: 'newSecret99',
       });
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ status: 'ok' });
