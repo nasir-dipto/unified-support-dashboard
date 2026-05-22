@@ -15,8 +15,6 @@ import { TriageScoreRing } from './TriageScoreRing';
 
 export type TicketCardProps = {
   ticket: TicketApiDto;
-  /** When true, shows read-only banner (technician viewing unassigned ticket on All tab). */
-  readOnly?: boolean;
   onOpenDetail?: (ticket: TicketApiDto) => void;
   onOpenComment?: (ticket: TicketApiDto) => void;
 };
@@ -25,7 +23,7 @@ export type TicketCardProps = {
  * Compact single-row ticket item for the technician queue list.
  */
 export function TicketCard(props: TicketCardProps): ReactElement {
-  const { ticket, readOnly = false, onOpenDetail, onOpenComment } = props;
+  const { ticket, onOpenDetail, onOpenComment } = props;
   const accent = sourceAccentColor(ticket.source);
   const isJira = ticket.source === 'jira';
   const sla = estimateSlaPercentRemaining(ticket.createdAt, ticket.updatedAt);
@@ -55,15 +53,9 @@ export function TicketCard(props: TicketCardProps): ReactElement {
 
   return (
     <article
-      className="border-b border-gray-100 bg-white last:border-b-0 transition-colors hover:bg-gray-50"
+      className="flex items-center gap-2 border-b border-gray-100 bg-white px-2 py-1.5 last:border-b-0 transition-colors hover:bg-gray-50"
       style={{ borderLeftWidth: 3, borderLeftColor: accent }}
     >
-      {readOnly ? (
-        <p className="border-b border-amber-100 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
-          You have read-only access to this ticket
-        </p>
-      ) : null}
-      <div className="flex items-center gap-2 px-2 py-1.5">
       <div
         className={`flex min-w-0 flex-1 items-center gap-2 ${detailInteractive ? 'cursor-pointer' : ''}`}
         onClick={detailInteractive ? openDetail : undefined}
@@ -137,7 +129,6 @@ export function TicketCard(props: TicketCardProps): ReactElement {
             Details
           </button>
         ) : null}
-      </div>
       </div>
     </article>
   );

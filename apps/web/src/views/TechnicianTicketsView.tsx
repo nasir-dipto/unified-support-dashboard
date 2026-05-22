@@ -166,13 +166,10 @@ export function TechnicianTicketsView(): ReactElement {
           const canWrite =
             user !== null &&
             canWriteTicket(user.roles, t, user.email, user.displayName);
-          const showReadOnlyBanner =
-            technicianOnly && tab === 'all' && !canWrite;
           return (
             <TicketCard
               key={t.ticketId}
               ticket={t}
-              readOnly={showReadOnlyBanner}
               onOpenDetail={() => { setDetailId(t.ticketId); }}
               onOpenComment={canWrite ? setCommentTicket : undefined}
             />
