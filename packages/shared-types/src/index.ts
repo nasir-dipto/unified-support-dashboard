@@ -22,3 +22,4 @@ export * from './websocket/schemas.js';
 export * from './reports/schemas.js';
 export * from './notifications/schemas.js';
 export * from './settings/schemas.js';
+export * from './activity/schemas.js';

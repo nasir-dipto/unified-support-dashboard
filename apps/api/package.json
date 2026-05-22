@@ -29,6 +29,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^5.0.1",
+    "express-rate-limit": "^8.5.2",
     "ioredis": "^5.10.1",
     "jose": "^5.9.6",
     "nodemailer": "^8.0.7",

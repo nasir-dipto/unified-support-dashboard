@@ -61,6 +61,8 @@ export const serverEnvSchema = z.object({
     .default('support_notification_rules'),
   /** One-time invite and password-reset tokens. */
   SUPPORT_AUTH_TOKENS_TABLE: z.string().min(1).default('support_auth_tokens'),
+  /** WebSocket activity feed history (7-day TTL via expiresAt). */
+  SUPPORT_WS_ACTIVITY_TABLE: z.string().min(1).default('support_ws_activity_events'),
   /** Public web app URL for invite/reset links (e.g. http://localhost:5173). */
   WEB_APP_URL: z.string().url().optional(),
   /** PEM-encoded RS256 private key (local dev via .env.local). */

@@ -52,6 +52,28 @@ export function canWriteTicket(
 }
 
 /**
+ * Returns true when the user may write on a merged incident (assigned to either ticket).
+ */
+export function canWriteMergedIncident(
+  roles: SupportRole[],
+  primary: Pick<TicketApiDto, 'assigneeId'>,
+  linked: Pick<TicketApiDto, 'assigneeId'>,
+  userEmail: string,
+  userDisplayName?: string,
+): boolean {
+  if (canAccessManagerPanel(roles)) {
+    return true;
+  }
+  if (roles.includes('technician')) {
+    return (
+      isTicketAssignedToUser(primary, userEmail, userDisplayName) ||
+      isTicketAssignedToUser(linked, userEmail, userDisplayName)
+    );
+  }
+  return false;
+}
+
+/**
  * Re-exports for convenience in components.
  */
 export { canAccessAdminPanel, canAccessManagerPanel };

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { canWriteTicket, isTicketAssignedToUser } from './ticket-access.js';
+import {
+  canWriteMergedIncident,
+  canWriteTicket,
+  isTicketAssignedToUser,
+} from './ticket-access.js';
 
 describe('ticket-access', () => {
   const ticket = { assigneeId: 'Jane Agent' };
@@ -20,6 +24,18 @@ describe('ticket-access', () => {
 
   it('technician can write assigned ticket', () => {
     expect(canWriteTicket(['technician'], ticket, 'jane.agent@usd.dev')).toBe(true);
+  });
+
+  it('technician can write merged incident when assigned to either ticket', () => {
+    expect(
+      canWriteMergedIncident(
+        ['technician'],
+        { assigneeId: 'Other' },
+        { assigneeId: 'Nasir Dipto Personal' },
+        'technician@usd.dev',
+        'Nasir Dipto Personal',
+      ),
+    ).toBe(true);
   });
 
   it('matches assignee by DynamoDB displayName', () => {

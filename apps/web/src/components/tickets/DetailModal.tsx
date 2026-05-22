@@ -10,15 +10,28 @@ import { Badge, Overlay, Pill, SlaBar, priorityColors, usdColors } from '@usd/ui
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { postTicketCrossLink } from '../../api/tickets';
+import { postTicketComment, postTicketCrossLink } from '../../api/tickets';
 import { KbDraftForm } from '../kb/KbDraftForm';
 import { KbSearchResults } from '../kb/KbSearchResults';
 import { useAiInvoke } from '../../hooks/useAI';
 import { useKbDraft, useKbDraftExists, useKbSearch } from '../../hooks/useKb';
 import { useHealthDetail } from '../../hooks/useHealthDetail';
-import { usePostTicketComment, useTicketComments, useTicketDetail } from '../../hooks/useTickets';
+import {
+  useLinkedTicketDetail,
+  usePostTicketComment,
+  useTicketComments,
+  useTicketDetail,
+} from '../../hooks/useTickets';
 import { useAuthStore } from '../../store/auth.store';
+import { MergedTicketPanels } from './MergedTicketPanels';
 import { canWriteTicket } from '../../utils/permissions';
+import {
+  canWriteHdSide,
+  canWriteJiraSide,
+  canWriteMergedIncident,
+  mergeThreadComments,
+  resolveJiraAndHdTickets,
+} from '../../utils/merged-incident';
 import {
   commentSourceColor,
   commentSourceLabel,
@@ -80,7 +93,17 @@ export function DetailModal(props: DetailModalProps): ReactElement {
   const { ticketId, open, onClose } = props;
   const activeTicketId = open && ticketId !== null ? ticketId : undefined;
   const detailQuery = useTicketDetail(activeTicketId);
+  const ticket = detailQuery.data?.data;
+  const linkedTicketId = ticket?.linkedTicketId;
+  const linkedQuery = useLinkedTicketDetail(linkedTicketId, open && linkedTicketId !== undefined);
+  const linkedTicket = linkedQuery.data?.data;
+  const mergedPair =
+    ticket !== undefined ? resolveJiraAndHdTickets(ticket, linkedTicket) : undefined;
+
   const commentsQuery = useTicketComments(activeTicketId);
+  const linkedCommentsQuery = useTicketComments(
+    mergedPair !== undefined ? linkedTicket?.ticketId : undefined,
+  );
   const postComment = usePostTicketComment(activeTicketId);
   const healthQuery = useHealthDetail(open);
   const ai = useAiInvoke();
@@ -105,15 +128,37 @@ export function DetailModal(props: DetailModalProps): ReactElement {
     return <></>;
   }
 
-  const ticket = detailQuery.data?.data;
   const canWrite =
     ticket !== undefined &&
     user !== null &&
-    canWriteTicket(user.roles, ticket, user.email, user.displayName);
-  const comments = sortThreadComments(commentsQuery.data?.data ?? []);
+    (mergedPair !== undefined
+      ? canWriteMergedIncident(user, mergedPair.jira, mergedPair.hd)
+      : canWriteTicket(user.roles, ticket, user.email, user.displayName));
+  const canWriteJira =
+    mergedPair !== undefined ? canWriteJiraSide(user, mergedPair.jira) : false;
+  const canWriteHd =
+    mergedPair !== undefined ? canWriteHdSide(user, mergedPair.hd) : false;
+  const comments =
+    mergedPair !== undefined
+      ? mergeThreadComments(
+          commentsQuery.data?.data ?? [],
+          linkedCommentsQuery.data?.data ?? [],
+        )
+      : sortThreadComments(commentsQuery.data?.data ?? []);
   const emailReplyEnabled = healthQuery.data?.helpdesk.emailReplyEnabled ?? false;
-  const originalDescriptionEntry =
-    ticket !== undefined && hasDisplayableDescription(ticket.description) ? ticket : undefined;
+  const descriptionEntries: TicketApiDto[] = [];
+  if (mergedPair !== undefined) {
+    if (hasDisplayableDescription(mergedPair.jira.description)) {
+      descriptionEntries.push(mergedPair.jira);
+    }
+    if (hasDisplayableDescription(mergedPair.hd.description)) {
+      descriptionEntries.push(mergedPair.hd);
+    }
+  } else if (ticket !== undefined && hasDisplayableDescription(ticket.description)) {
+    descriptionEntries.push(ticket);
+  }
+  const showReplyActions =
+    mergedPair !== undefined ? canWriteJira || canWriteHd : canWrite;
 
   const sla =
     ticket !== undefined
@@ -199,63 +244,93 @@ export function DetailModal(props: DetailModalProps): ReactElement {
     setKbDraft(null);
   };
 
-  const submitReply = (replyKind: CommentReplyKind): void => {
+  const submitReply = (targetTicketId: string, replyKind: CommentReplyKind): void => {
     const body = commentDraft.trim();
     if (body.length === 0) {
       return;
     }
-    void postComment.mutateAsync({ body, replyKind }).then(() => {
+    const post =
+      targetTicketId === activeTicketId
+        ? postComment.mutateAsync({ body, replyKind })
+        : postTicketComment(targetTicketId, { body, replyKind }).then(async () => {
+            await qc.invalidateQueries({ queryKey: ['ticket-comments', orgId, targetTicketId] });
+            await qc.invalidateQueries({ queryKey: ['ticket', orgId, targetTicketId] });
+          });
+    void post.then(() => {
       setCommentDraft('');
+      if (mergedPair !== undefined) {
+        void qc.invalidateQueries({ queryKey: ['ticket-comments', orgId, activeTicketId] });
+        void qc.invalidateQueries({
+          queryKey: ['ticket-comments', orgId, linkedTicket?.ticketId],
+        });
+      }
     });
   };
 
   return (
-    <Overlay title={ticket?.externalId ?? ticketId} sub={ticket?.summary} onClose={close} width={520}>
+    <Overlay
+      title={
+        mergedPair !== undefined
+          ? `${mergedPair.jira.externalId} ↔ ${mergedPair.hd.externalId}`
+          : (ticket?.externalId ?? ticketId)
+      }
+      sub={ticket?.summary}
+      onClose={close}
+      width={mergedPair !== undefined ? 640 : 520}
+    >
       {ticket !== undefined ? (
         <>
-          <div className="mb-3 flex flex-wrap gap-1.5">
-            <Badge label={formatStatusLabel(ticket.status)} color={statusColor(ticket.status)} />
-            <Badge label={ticket.priority} color={priorityColors[ticket.priority] ?? usdColors.gray} />
-            <Badge label={ticket.source === 'jira' ? 'Jira' : 'ManageEngine'} color={accent} />
-          </div>
-
-
-          <div className="mb-3 grid grid-cols-2 gap-2">
-            {[
-              ['Assignee', formatAssignee(ticket.assigneeId)],
-              ['Customer', formatCustomer(ticket)],
-              ['Created', formatTicketTimestamp(ticket.createdAt)],
-              ['Updated', formatTicketTimestamp(ticket.updatedAt)],
-            ].map(([label, value]) => (
-              <div key={label} className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
-                <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">{label}</div>
-                <div className="text-[13px] font-semibold">{value}</div>
+          {mergedPair !== undefined ? (
+            <>
+              <p className="mb-2 text-xs font-semibold text-usd-blue">Merged incident (Jira + Helpdesk)</p>
+              <MergedTicketPanels pair={mergedPair} />
+            </>
+          ) : (
+            <>
+              <div className="mb-3 flex flex-wrap gap-1.5">
+                <Badge label={formatStatusLabel(ticket.status)} color={statusColor(ticket.status)} />
+                <Badge label={ticket.priority} color={priorityColors[ticket.priority] ?? usdColors.gray} />
+                <Badge label={ticket.source === 'jira' ? 'Jira' : 'ManageEngine'} color={accent} />
               </div>
-            ))}
-          </div>
 
-          <div className="mb-3">
-            <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">SLA health</div>
-            <SlaBar value={sla} />
-          </div>
+              <div className="mb-3 grid grid-cols-2 gap-2">
+                {[
+                  ['Assignee', formatAssignee(ticket.assigneeId)],
+                  ['Customer', formatCustomer(ticket)],
+                  ['Created', formatTicketTimestamp(ticket.createdAt)],
+                  ['Updated', formatTicketTimestamp(ticket.updatedAt)],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2">
+                    <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">{label}</div>
+                    <div className="text-[13px] font-semibold">{value}</div>
+                  </div>
+                ))}
+              </div>
 
-          {ticket.linkedTicketId !== undefined ? (
-            <p className="mb-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[13px]">
-              Linked: <span className="font-bold text-usd-blue">{ticket.linkedTicketId}</span>
-            </p>
-          ) : null}
+              <div className="mb-3">
+                <div className="mb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">SLA health</div>
+                <SlaBar value={sla} />
+              </div>
 
-          {externalUrl !== undefined ? (
-            <a
-              href={externalUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="mb-3 inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-bold"
-              style={{ borderColor: accent, color: accent }}
-            >
-              {ticket.source === 'jira' ? 'Open in Jira' : 'Open in ManageEngine'}
-            </a>
-          ) : null}
+              {ticket.linkedTicketId !== undefined ? (
+                <p className="mb-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[13px]">
+                  Linked: <span className="font-bold text-usd-blue">{ticket.linkedTicketId}</span>
+                </p>
+              ) : null}
+
+              {externalUrl !== undefined ? (
+                <a
+                  href={externalUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mb-3 inline-flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-bold"
+                  style={{ borderColor: accent, color: accent }}
+                >
+                  {ticket.source === 'jira' ? 'Open in Jira' : 'Open in ManageEngine'}
+                </a>
+              ) : null}
+            </>
+          )}
 
           {!canWrite ? (
             <p className="mb-3 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-800">
@@ -314,20 +389,24 @@ export function DetailModal(props: DetailModalProps): ReactElement {
       <section className="border-t border-gray-100 pt-4">
         <h3 className="text-sm font-bold text-gray-900">Conversation</h3>
         <ul className="mt-3 max-h-48 space-y-2 overflow-y-auto">
-          {originalDescriptionEntry !== undefined ? (
+          {descriptionEntries.map((entry) => (
             <li
+              key={`desc-${entry.ticketId}`}
               data-testid="ticket-original-description"
               className="rounded-lg border border-gray-200 bg-gray-100 p-3 text-sm"
             >
               <div className="flex justify-between text-xs text-gray-500">
-                <span className="font-medium">{originalDescriptionLabel(originalDescriptionEntry.source)}</span>
-                <time dateTime={originalDescriptionEntry.createdAt}>
-                  {formatTicketTimestamp(originalDescriptionEntry.createdAt)}
+                <span className="font-medium">
+                  {originalDescriptionLabel(entry.source)}
+                  {mergedPair !== undefined ? ` (${entry.externalId})` : ''}
+                </span>
+                <time dateTime={entry.createdAt}>
+                  {formatTicketTimestamp(entry.createdAt)}
                 </time>
               </div>
-              <p className="mt-2 whitespace-pre-wrap">{originalDescriptionEntry.description}</p>
+              <p className="mt-2 whitespace-pre-wrap">{entry.description}</p>
             </li>
-          ) : null}
+          ))}
           {comments.map((c) => (
             <li key={c.commentId} className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
@@ -347,7 +426,7 @@ export function DetailModal(props: DetailModalProps): ReactElement {
             </li>
           ))}
         </ul>
-        {canWrite ? (
+        {showReplyActions ? (
         <div className="mt-3 space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">
@@ -367,28 +446,73 @@ export function DetailModal(props: DetailModalProps): ReactElement {
           <textarea
             className="min-h-[80px] w-full rounded-lg border border-gray-200 p-2 text-sm"
             placeholder={
-              ticket.source === 'jira' ? 'Add an internal comment…' : 'Write a note or reply…'
+              mergedPair !== undefined
+                ? 'Reply on Jira or Helpdesk…'
+                : (ticket.source === 'jira' ? 'Add an internal comment…' : 'Write a note or reply…')
             }
             value={commentDraft}
             onChange={(e) => { setCommentDraft(e.target.value); }}
             disabled={postComment.isPending}
           />
-          <button
-            type="button"
-            disabled={ai.isPending}
-            onClick={draftCommentAi}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 py-2 text-sm font-bold text-indigo-900 disabled:opacity-60"
-          >
-            {ai.isPending ? 'Generating draft…' : 'AI: draft comment'}
-          </button>
+          {canWrite ? (
+            <button
+              type="button"
+              disabled={ai.isPending}
+              onClick={draftCommentAi}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 py-2 text-sm font-bold text-indigo-900 disabled:opacity-60"
+            >
+              {ai.isPending ? 'Generating draft…' : 'AI: draft comment'}
+            </button>
+          ) : null}
           <div className="flex flex-wrap gap-2">
-            {ticket.source === 'jira' ? (
+            {mergedPair !== undefined ? (
+              <>
+                {canWriteJira ? (
+                  <button
+                    type="button"
+                    className="rounded-lg px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+                    style={{ backgroundColor: usdColors.blue }}
+                    disabled={postComment.isPending || commentDraft.trim().length === 0}
+                    onClick={() => { submitReply(mergedPair.jira.ticketId, 'jira_comment'); }}
+                  >
+                    Comment (Jira)
+                  </button>
+                ) : null}
+                {canWriteHd ? (
+                  <>
+                    <button
+                      type="button"
+                      className="rounded-lg px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+                      style={{ backgroundColor: usdColors.purple }}
+                      disabled={postComment.isPending || commentDraft.trim().length === 0}
+                      onClick={() => { submitReply(mergedPair.hd.ticketId, 'hd_note'); }}
+                    >
+                      Add Note
+                    </button>
+                    <button
+                      type="button"
+                      title={emailReplyEnabled ? undefined : HD_EMAIL_REPLY_DISABLED_TOOLTIP}
+                      className="rounded-lg px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      style={{ backgroundColor: usdColors.teal }}
+                      disabled={
+                        !emailReplyEnabled ||
+                        postComment.isPending ||
+                        commentDraft.trim().length === 0
+                      }
+                      onClick={() => { submitReply(mergedPair.hd.ticketId, 'hd_email'); }}
+                    >
+                      Reply to Customer
+                    </button>
+                  </>
+                ) : null}
+              </>
+            ) : ticket.source === 'jira' ? (
               <button
                 type="button"
                 className="rounded-lg px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
                 style={{ backgroundColor: usdColors.blue }}
                 disabled={postComment.isPending || commentDraft.trim().length === 0}
-                onClick={() => { submitReply('jira_comment'); }}
+                onClick={() => { submitReply(ticket.ticketId, 'jira_comment'); }}
               >
                 Comment
               </button>
@@ -399,7 +523,7 @@ export function DetailModal(props: DetailModalProps): ReactElement {
                   className="rounded-lg px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
                   style={{ backgroundColor: usdColors.purple }}
                   disabled={postComment.isPending || commentDraft.trim().length === 0}
-                  onClick={() => { submitReply('hd_note'); }}
+                  onClick={() => { submitReply(ticket.ticketId, 'hd_note'); }}
                 >
                   Add Note
                 </button>
@@ -413,7 +537,7 @@ export function DetailModal(props: DetailModalProps): ReactElement {
                     postComment.isPending ||
                     commentDraft.trim().length === 0
                   }
-                  onClick={() => { submitReply('hd_email'); }}
+                  onClick={() => { submitReply(ticket.ticketId, 'hd_email'); }}
                 >
                   Reply to Customer
                 </button>
@@ -469,7 +593,7 @@ export function DetailModal(props: DetailModalProps): ReactElement {
         ) : null}
       </section>
 
-      {canWrite ? (
+      {canWrite && mergedPair === undefined ? (
       <section className="mt-4 border-t border-gray-100 pt-4">
         <h3 className="text-sm font-bold text-gray-900">Cross-link</h3>
         <p className="mt-1 text-xs text-gray-500">

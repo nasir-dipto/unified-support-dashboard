@@ -50,6 +50,28 @@ export function canReadTicket(): boolean {
 }
 
 /**
+ * Returns true when the technician may write on a merged incident (assigned to either ticket).
+ */
+export function canWriteMergedIncident(
+  roles: SupportRole[],
+  primary: Pick<TicketApiDto, 'assigneeId'>,
+  linked: Pick<TicketApiDto, 'assigneeId'>,
+  userEmail: string,
+  userDisplayName?: string,
+): boolean {
+  if (canAccessManagerFeatures(roles)) {
+    return true;
+  }
+  if (roles.includes('technician')) {
+    return (
+      isTicketAssignedToUser(primary, userEmail, userDisplayName) ||
+      isTicketAssignedToUser(linked, userEmail, userDisplayName)
+    );
+  }
+  return false;
+}
+
+/**
  * Returns true when the principal may mutate the ticket (comment, link, etc.).
  */
 export function canWriteTicket(

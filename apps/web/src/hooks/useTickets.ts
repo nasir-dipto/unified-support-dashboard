@@ -33,6 +33,23 @@ export function useTicketsList(params?: TicketsListParams) {
 }
 
 /**
+ * TanStack Query: linked ticket detail when `linkedTicketId` is set.
+ */
+export function useLinkedTicketDetail(linkedTicketId: string | undefined, enabled: boolean) {
+  const orgId = useAuthStore((s) => s.user?.orgId);
+  return useQuery({
+    queryKey: ['ticket', orgId, linkedTicketId],
+    queryFn: async () => fetchTicketDetail(linkedTicketId ?? ''),
+    enabled:
+      enabled &&
+      orgId !== undefined &&
+      orgId.length > 0 &&
+      linkedTicketId !== undefined &&
+      linkedTicketId.length > 0,
+  });
+}
+
+/**
  * TanStack Query: single ticket detail.
  */
 export function useTicketDetail(ticketId: string | undefined) {

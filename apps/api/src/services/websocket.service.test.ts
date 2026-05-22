@@ -8,6 +8,10 @@ import {
   registerLocalWsClient,
 } from './websocket.service.js';
 
+vi.mock('../db/tables/ws-activity-events.js', () => ({
+  putWsActivityEvent: vi.fn().mockResolvedValue(undefined),
+}));
+
 describe('websocket.service', () => {
   beforeEach(() => {
     resetServerEnvForTests();
