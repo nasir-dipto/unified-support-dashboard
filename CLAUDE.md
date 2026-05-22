@@ -245,3 +245,63 @@ Follow jira.service.ts pattern:
 - 293 tests passing
 
 ## Current test count: 293 (192 API + 76 web + 16 shared-types + 9 UI)
+
+## Phase 9 — Admin, Polish & Hardening
+### Decision: Option B — Permission model + polish first, then AWS deployment
+
+### Permission model (confirmed)
+
+#### Roles
+- technician: assigned tickets full access, others read-only, KB tab, no Manager/Admin tab
+- manager: all tickets full access, Manager tab, KB tab, invite technicians only, no Admin tab
+- super_admin: everything + Admin tab + user management + integrations + delete
+
+#### Navigation by role
+- Technician: Tickets | Knowledge Base
+- Manager: Tickets | Knowledge Base | Manager
+- Super Admin: Tickets | Knowledge Base | Manager | Admin
+
+#### KB access by role
+- All roles: browse/search published articles, read full articles
+- Technician: generate KB draft (own tickets only), save draft
+- Manager/Super Admin: generate KB draft (any ticket), publish, edit
+- Admin Panel KB tab: Manager + Super Admin only
+- KB nav tab: all roles
+
+#### User management
+- Super Admin: invite Technician, Manager, Super Admin
+- Manager: invitchnician only
+- Technician: cannot invite
+- Invitation flow: email with one-time password setup link (24hr expiry)
+- Password reset: self-service via email
+- Email via internal SMTP (configured in Admin → SMTP tab)
+
+#### Demo credentials (always seeded, shown on login page in dev mode)
+- admin@usd.dev / Admin123! (Super Admin)
+- manager@usd.dev / Mgr123! (Manager)
+- technician@usd.dev / Tech123! (Technician)
+
+### What to build in Phase 9
+
+#### Part 1 — Permission model + User management
+- Enforce JWT role checks on all API routes (currently admin-only or requireAuth)
+- Ticket ownership middleware: technician can only write on assigned tickets
+- Admin → Users tab: real user list from DynamoDB
+- Invite user flow: form + email invitation + one-time token + password setup page
+- Password reset: forgot password flow via email
+- Login page: show 3 demo credential hints in dev mode
+- KB nav tab: new route /kb for all roles
+- KB browsing page: search + list published articles + article reader
+
+#### Part 2 —- Merged incident view: when ticket has linkedTicketId, DetailModal shows both HD + Jira context merged
+- ActivitySidebar history on connect: load last 50 events from DB on WS connect
+- Webhook real-time comment sync: when Jira/HD fires comment webhook, store immediately
+- Attachment proxy: GET /api/tickets/:id/attachments/:attachmentId streams from Jira/HD with auth
+- Rate limiting on API (express-rate-limit)
+- Full UI redesign: split view, sortable columns, keyboard shortcuts, bulk actions
+
+#### Part 3 — AWS Deployment (discuss separately)
+- CDK deploy to staging
+- Real Bedrock, RDS PostgreSQL, SES
+- CloudWatch alarms
+- Production deployment after staging verified
