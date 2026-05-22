@@ -307,3 +307,23 @@ Follow jira.service.ts pattern:
 - Real Bedrock, RDS PostgreSQL, SES
 - CloudWatch alarms
 - Production deployment after staging verified
+
+## Phase 9 Part 2 — decisions confirmed
+
+### Merged incident view
+- Option A: both linked tickets open the merged view
+- No unlink button — remove link via cross-link field only
+- Show both Jira + HD context side by side
+- Unified conversation thread (all sources sorted by time)
+- Separate reply options: Add Note (HD), Comment (Jira), Reply to Customer
+- AI uses full merged context from both tickets
+
+### Rate limiting
+- express-rate-limit: 100 requests per minute per IP
+- Applied to all /api routes
+- Returns 429 Too Many Requests when exceeded
+
+### ActivitySidebar history
+- On WebSocket connect: load last 50 events from DB
+- GET /api/activity/recent?limit=50
+- Seeds Zustand store on connect
