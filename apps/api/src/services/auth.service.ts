@@ -43,6 +43,7 @@ export async function loginWithPassword(
     orgId,
     email: user.email,
     roles: roleList,
+    displayName: user.displayName,
   });
   const { token: refreshToken, jti } = await signRefreshToken({
     userId: user.userId,
@@ -56,6 +57,9 @@ export async function loginWithPassword(
     orgId,
     email: user.email,
     roles: roleList,
+    ...(user.displayName !== undefined && user.displayName.length > 0
+      ? { displayName: user.displayName }
+      : {}),
   };
   return { accessToken, refreshToken, user: userPublic };
 }
@@ -92,6 +96,7 @@ export async function refreshSession(refreshToken: string): Promise<RefreshRespo
     orgId: payload.orgId,
     email: user.email,
     roles: roleList,
+    displayName: user.displayName,
   });
   const { token: newRefresh, jti } = await signRefreshToken({
     userId: user.userId,

@@ -44,7 +44,7 @@ export function requireTicketWriteAccess(): RequestHandler {
       next(new AppError('Ticket not loaded', 'INTERNAL', 500));
       return;
     }
-    if (!canWriteTicket(req.auth.roles, ticket, req.auth.email)) {
+    if (!canWriteTicket(req.auth.roles, ticket, req.auth.email, req.auth.displayName)) {
       next(new AppError('Forbidden', 'FORBIDDEN', 403));
       return;
     }

@@ -50,7 +50,7 @@ export const postAiInvoke: RequestHandler[] = [
     }
 
     const ticket = await getTicketById(req.auth.orgId, body.ticketId);
-    if (!canWriteTicket(req.auth.roles, ticket, req.auth.email)) {
+    if (!canWriteTicket(req.auth.roles, ticket, req.auth.email, req.auth.displayName)) {
       throw new AppError('Forbidden', 'FORBIDDEN', 403);
     }
 

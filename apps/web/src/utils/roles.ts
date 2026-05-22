@@ -15,6 +15,17 @@ export function canAccessManagerPanel(roles: SupportRole[]): boolean {
 }
 
 /**
+ * Returns true when the user is a technician without manager or super_admin roles.
+ */
+export function isTechnicianOnly(roles: SupportRole[]): boolean {
+  return (
+    roles.includes('technician') &&
+    !roles.includes('manager') &&
+    !roles.includes('super_admin')
+  );
+}
+
+/**
  * Returns true when the user may manage KB drafts in admin (manager + super_admin).
  */
 export function canManageKnowledgeBase(roles: SupportRole[]): boolean {

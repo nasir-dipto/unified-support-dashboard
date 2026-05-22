@@ -12,6 +12,7 @@ export type AccessTokenPayload = {
   orgId: string;
   email: string;
   roles: SupportRole[];
+  displayName?: string;
   typ: typeof ACCESS_TYP;
 };
 
@@ -30,16 +31,21 @@ export async function signAccessToken(payload: {
   orgId: string;
   email: string;
   roles: SupportRole[];
+  displayName?: string;
 }): Promise<string> {
   const env = getServerEnv();
   const keys = await getJwtKeyMaterial();
   const privateKey = await jose.importPKCS8(keys.privateKey, 'RS256');
   const exp = Math.floor(Date.now() / 1000) + env.ACCESS_TOKEN_TTL_SECONDS;
+  const displayName = payload.displayName?.trim();
   return await new jose.SignJWT({
     orgId: payload.orgId,
     email: payload.email,
     roles: payload.roles,
     typ: ACCESS_TYP,
+    ...(displayName !== undefined && displayName.length > 0
+      ? { displayName }
+      : {}),
   })
     .setProtectedHeader({ alg: 'RS256' })
     .setSubject(payload.userId)
@@ -102,7 +108,12 @@ export async function verifyAccessToken(token: string): Promise<AccessTokenPaylo
     rolesParsed.push(one.data);
   }
   const roles = rolesParsed;
-  return { sub: userId, orgId, email, roles, typ: ACCESS_TYP };
+  const displayNameRaw = payload.displayName;
+  const displayName =
+    typeof displayNameRaw === 'string' && displayNameRaw.trim().length > 0
+      ? displayNameRaw.trim()
+      : undefined;
+  return { sub: userId, orgId, email, roles, displayName, typ: ACCESS_TYP };
 }
 
 /**

@@ -8,6 +8,7 @@ declare global {
         orgId: string;
         email: string;
         roles: SupportRole[];
+        displayName?: string;
       };
       accessTokenRaw?: string;
       ticket?: TicketApiDto;

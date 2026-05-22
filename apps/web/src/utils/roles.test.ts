@@ -4,6 +4,7 @@ import {
   canAccessManagerPanel,
   canInviteUsers,
   getPrimaryRole,
+  isTechnicianOnly,
   roleLabel,
 } from './roles.js';
 
@@ -24,6 +25,8 @@ describe('roles utils', () => {
     expect(getPrimaryRole(['technician'])).toBe('technician');
     expect(canAccessAdminPanel(['technician'])).toBe(false);
     expect(canInviteUsers(['technician'])).toBe(false);
+    expect(isTechnicianOnly(['technician'])).toBe(true);
+    expect(isTechnicianOnly(['manager'])).toBe(false);
   });
 
   it('roleLabel formats names', () => {

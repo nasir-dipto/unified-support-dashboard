@@ -109,7 +109,7 @@ export function DetailModal(props: DetailModalProps): ReactElement {
   const canWrite =
     ticket !== undefined &&
     user !== null &&
-    canWriteTicket(user.roles, ticket, user.email);
+    canWriteTicket(user.roles, ticket, user.email, user.displayName);
   const comments = sortThreadComments(commentsQuery.data?.data ?? []);
   const emailReplyEnabled = healthQuery.data?.helpdesk.emailReplyEnabled ?? false;
   const originalDescriptionEntry =
@@ -259,7 +259,7 @@ export function DetailModal(props: DetailModalProps): ReactElement {
 
           {!canWrite ? (
             <p className="mb-3 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              Read-only — you can view this ticket but cannot modify it.
+              You have read-only access to this ticket
             </p>
           ) : null}
 

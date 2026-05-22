@@ -15,6 +15,7 @@ export type SupportUserRecord = {
   userId: string;
   email: string;
   passwordHash: string;
+  displayName?: string;
   refreshJti?: string;
   refreshExp?: number;
   createdAt: string;
@@ -149,6 +150,26 @@ export async function listUsersByOrg(orgId: string): Promise<SupportUserRecord[]
     }),
   );
   return (out.Items ?? []) as SupportUserRecord[];
+}
+
+/**
+ * Updates a user's display name (used for ticket assignee matching).
+ */
+export async function updateUserDisplayName(
+  orgId: string,
+  userId: string,
+  displayName: string,
+): Promise<void> {
+  const env = getServerEnv();
+  const doc = getDocumentClient();
+  await doc.send(
+    new UpdateCommand({
+      TableName: env.SUPPORT_USERS_TABLE,
+      Key: { orgId, userId },
+      UpdateExpression: 'SET displayName = :n',
+      ExpressionAttributeValues: { ':n': displayName.trim() },
+    }),
+  );
 }
 
 /**

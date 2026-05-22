@@ -26,6 +26,7 @@ export const requireAuth: RequestHandler = (
       orgId: payload.orgId,
       email: payload.email,
       roles: payload.roles,
+      ...(payload.displayName !== undefined ? { displayName: payload.displayName } : {}),
     };
     next();
   })().catch(next);

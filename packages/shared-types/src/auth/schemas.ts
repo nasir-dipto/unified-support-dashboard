@@ -53,6 +53,7 @@ export const authUserPublicSchema = z.object({
   orgId: z.string().min(1),
   email: z.string().email(),
   roles: z.array(supportRoleSchema),
+  displayName: z.string().min(1).optional(),
 });
 
 export type AuthUserPublic = z.infer<typeof authUserPublicSchema>;

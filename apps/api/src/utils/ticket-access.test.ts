@@ -21,4 +21,22 @@ describe('ticket-access', () => {
   it('technician can write assigned ticket', () => {
     expect(canWriteTicket(['technician'], ticket, 'jane.agent@usd.dev')).toBe(true);
   });
+
+  it('matches assignee by DynamoDB displayName', () => {
+    expect(
+      isTicketAssignedToUser(
+        { assigneeId: 'Nasir Dipto Personal' },
+        'technician@usd.dev',
+        'Nasir Dipto Personal',
+      ),
+    ).toBe(true);
+    expect(
+      canWriteTicket(
+        ['technician'],
+        { assigneeId: 'Nasir Dipto Personal' },
+        'technician@usd.dev',
+        'Nasir Dipto Personal',
+      ),
+    ).toBe(true);
+  });
 });

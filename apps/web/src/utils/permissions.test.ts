@@ -11,4 +11,15 @@ describe('permissions', () => {
   it('manager can write any ticket', () => {
     expect(canWriteTicket(['manager'], { assigneeId: 'X' }, 'm@usd.dev')).toBe(true);
   });
+
+  it('technician can write when assignee matches displayName', () => {
+    expect(
+      canWriteTicket(
+        ['technician'],
+        { assigneeId: 'Nasir Dipto Personal' },
+        'technician@usd.dev',
+        'Nasir Dipto Personal',
+      ),
+    ).toBe(true);
+  });
 });

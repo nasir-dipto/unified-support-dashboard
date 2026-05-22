@@ -126,6 +126,7 @@ export const getMe: RequestHandler[] = [
         orgId: req.auth.orgId,
         email: req.auth.email,
         roles: req.auth.roles,
+        ...(req.auth.displayName !== undefined ? { displayName: req.auth.displayName } : {}),
       },
     });
   }),

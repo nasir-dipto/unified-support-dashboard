@@ -8,7 +8,12 @@ import { getServerEnv, loadServerEnv, resetServerEnvForTests } from '../config/l
 import { resetDocumentClientForTests } from '../db/dynamo.client.js';
 import { seedOrgSettingsDefaults } from '../db/tables/org-settings.js';
 import { setSupportRole } from '../db/tables/roles.js';
-import { createUser, getUserByEmail, updatePasswordHash } from '../db/tables/users.js';
+import {
+  createUser,
+  getUserByEmail,
+  updatePasswordHash,
+  updateUserDisplayName,
+} from '../db/tables/users.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -18,12 +23,18 @@ type SeedUser = {
   email: string;
   password: string;
   role: SupportRole;
+  displayName?: string;
 };
 
 const SEED_USERS: SeedUser[] = [
   { email: 'admin@usd.dev', password: 'Admin123!', role: 'super_admin' },
   { email: 'manager@usd.dev', password: 'Mgr123!', role: 'manager' },
-  { email: 'technician@usd.dev', password: 'Tech123!', role: 'technician' },
+  {
+    email: 'technician@usd.dev',
+    password: 'Tech123!',
+    role: 'technician',
+    displayName: 'Nasir Dipto Personal',
+  },
 ];
 
 /**
@@ -55,11 +66,17 @@ async function main(): Promise<void> {
     if (existing !== undefined) {
       await updatePasswordHash(orgId, existing.userId, passwordHash);
       await setSupportRole(orgId, existing.userId, seed.role);
+      if (seed.displayName !== undefined) {
+        await updateUserDisplayName(orgId, existing.userId, seed.displayName);
+      }
       console.log(`Updated ${seed.role} user ${seed.email} (userId=${existing.userId}).`);
       continue;
     }
     const user = await createUser({ orgId, email: seed.email, passwordHash });
     await setSupportRole(orgId, user.userId, seed.role);
+    if (seed.displayName !== undefined) {
+      await updateUserDisplayName(orgId, user.userId, seed.displayName);
+    }
     console.log(`Created ${seed.role} user ${seed.email} (userId=${user.userId}).`);
   }
 }

@@ -64,4 +64,19 @@ describe('ticket-display', () => {
       false,
     );
   });
+
+  it('matches assignee by user displayName', () => {
+    const techUser = {
+      ...user,
+      email: 'technician@usd.dev',
+      roles: ['technician' as const],
+      displayName: 'Nasir Dipto Personal',
+    };
+    expect(
+      isTicketAssignedToCurrentUser(
+        { ...base, assigneeId: 'Nasir Dipto Personal' },
+        techUser,
+      ),
+    ).toBe(true);
+  });
 });

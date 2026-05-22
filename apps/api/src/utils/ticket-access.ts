@@ -14,6 +14,7 @@ function normalizeLabel(value: string): string {
 export function isTicketAssignedToUser(
   ticket: Pick<TicketApiDto, 'assigneeId'>,
   userEmail: string,
+  userDisplayName?: string,
 ): boolean {
   const assignee = ticket.assigneeId?.trim();
   if (assignee === undefined || assignee.length === 0) {
@@ -23,6 +24,12 @@ export function isTicketAssignedToUser(
   const normalizedEmail = normalizeLabel(userEmail);
   if (normalizedAssignee === normalizedEmail) {
     return true;
+  }
+  const displayName = userDisplayName?.trim();
+  if (displayName !== undefined && displayName.length > 0) {
+    if (normalizedAssignee === normalizeLabel(displayName)) {
+      return true;
+    }
   }
   const localPart = normalizedEmail.split('@')[0] ?? '';
   if (localPart.length > 0 && normalizedAssignee === localPart) {
@@ -49,12 +56,13 @@ export function canWriteTicket(
   roles: SupportRole[],
   ticket: Pick<TicketApiDto, 'assigneeId'>,
   userEmail: string,
+  userDisplayName?: string,
 ): boolean {
   if (canAccessManagerFeatures(roles)) {
     return true;
   }
   if (roles.includes('technician')) {
-    return isTicketAssignedToUser(ticket, userEmail);
+    return isTicketAssignedToUser(ticket, userEmail, userDisplayName);
   }
   return false;
 }
