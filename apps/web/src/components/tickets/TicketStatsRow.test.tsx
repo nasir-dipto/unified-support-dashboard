@@ -39,12 +39,25 @@ describe('TicketStatsRow', () => {
       userId: '01USER',
       orgId: 'demo-org',
       email: 'admin@usd.dev',
-      roles: ['admin'],
+      roles: ['super_admin'],
     });
     render(<TicketStatsRow tickets={tickets} />);
     expect(screen.getByText('Open').previousElementSibling?.textContent).toBe('2');
     expect(screen.getByText('Critical').previousElementSibling?.textContent).toBe('1');
     expect(screen.getByText('Jira tickets').previousElementSibling?.textContent).toBe('1');
     expect(screen.getByText('ME tickets').previousElementSibling?.textContent).toBe('1');
+  });
+
+  it('shows My Tickets label for technician-only view', () => {
+    useAuthStore.getState().setSession('a', 'r', {
+      userId: '01TECH',
+      orgId: 'demo-org',
+      email: 'technician@usd.dev',
+      roles: ['technician'],
+      displayName: 'Nasir Dipto Personal',
+    });
+    render(<TicketStatsRow tickets={tickets} technicianOnly />);
+    expect(screen.getByText('My Tickets')).toBeInTheDocument();
+    useAuthStore.getState().clear();
   });
 });

@@ -33,13 +33,17 @@ export async function loginWithPassword(
     throw new AppError('Invalid credentials', 'UNAUTHORIZED', 401);
   }
   const roleRec = await roles.getSupportRole(orgId, user.userId);
+  if (user.passwordHash.length === 0) {
+    throw new AppError('Invalid credentials', 'UNAUTHORIZED', 401);
+  }
   const roleList: SupportRole[] =
-    roleRec !== undefined ? [roleRec.role] : ['viewer'];
+    roleRec !== undefined ? [roleRec.role] : ['technician'];
   const accessToken = await signAccessToken({
     userId: user.userId,
     orgId,
     email: user.email,
     roles: roleList,
+    displayName: user.displayName,
   });
   const { token: refreshToken, jti } = await signRefreshToken({
     userId: user.userId,
@@ -53,6 +57,9 @@ export async function loginWithPassword(
     orgId,
     email: user.email,
     roles: roleList,
+    ...(user.displayName !== undefined && user.displayName.length > 0
+      ? { displayName: user.displayName }
+      : {}),
   };
   return { accessToken, refreshToken, user: userPublic };
 }
@@ -79,13 +86,17 @@ export async function refreshSession(refreshToken: string): Promise<RefreshRespo
     throw new AppError('Refresh token expired', 'UNAUTHORIZED', 401);
   }
   const roleRec = await roles.getSupportRole(payload.orgId, user.userId);
+  if (user.passwordHash.length === 0) {
+    throw new AppError('Invalid credentials', 'UNAUTHORIZED', 401);
+  }
   const roleList: SupportRole[] =
-    roleRec !== undefined ? [roleRec.role] : ['viewer'];
+    roleRec !== undefined ? [roleRec.role] : ['technician'];
   const accessToken = await signAccessToken({
     userId: user.userId,
     orgId: payload.orgId,
     email: user.email,
     roles: roleList,
+    displayName: user.displayName,
   });
   const { token: newRefresh, jti } = await signRefreshToken({
     userId: user.userId,

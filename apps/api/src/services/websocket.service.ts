@@ -2,6 +2,7 @@ import type { WsOutboundEnvelope } from '@usd/shared-types';
 import { wsOutboundEnvelopeSchema } from '@usd/shared-types';
 import { WebSocket } from 'ws';
 import { getServerEnv } from '../config/loadEnv.js';
+import { putWsActivityEvent } from '../db/tables/ws-activity-events.js';
 
 const orgClients = new Map<string, Set<WebSocket>>();
 
@@ -56,6 +57,9 @@ export function broadcastWsEnvelope(envelope: WsOutboundEnvelope): void {
     console.info('API Gateway WebSocket not configured');
     return;
   }
+  void putWsActivityEvent(parsed.data).catch(() => {
+    /* persistence is best-effort; live fan-out still proceeds */
+  });
   const text = JSON.stringify(parsed.data);
   const bucket = orgClients.get(parsed.data.orgId);
   if (bucket === undefined) {

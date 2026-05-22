@@ -53,10 +53,11 @@ Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentim
 
 ## Phase status
 - Phases 0-7: COMPLETE — see CLAUDE-HISTORY.md
-- Phase 8: IN PROGRESS — reports + notifications
-- Phase 9: NOT STARTED — admin + hardening + AWS deployment
+- Phase 8: COMPLETE — reports + notifications (PR #13)
+- Phase 9 Part 1: COMPLETE — permission model, user mgmt, KB nav, invite flow (branch: feature/phase-9-admin)
+- Phase 9 Part 2+: NOT STARTED — merged incident, webhook comments, attachment proxy, AWS deploy
 
-## Current test count: 269 (179 API + 66 web + 16 shared-types + 8 UI)
+## Current test count: 325 (207 API + 93 web + 16 shared-types + 9 UI)
 
 ## Architecture decisions
 - pgvector (RDS PostgreSQL) for KB search — not OpenSearch (~$15-25/mo)
@@ -70,14 +71,15 @@ Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentim
 - KB embeddings: computed on publish only (not draft save)
 - JIRA_INCLUDE_PROJECTS: empty = all projects (admin sets in Phase 9)
 
-## Permission model (enforced in Phase 9)
-- technician: own tickets = full access, others = read only
-- manager: all tickets full access + reports + sentiment + AI + KB review
-- super_admin: everything + user mgmt + integrations + delete
-- Current: admin role has full access (role enforcement deferred to Phase 9)
+## Permission model (enforced — Phase 9 Part 1)
+- technician: assigned tickets full write (assigneeId vs email), others read-only; KB browse + draft on assigned only
+- manager: all tickets full write + reports + sentiment + AI; list users, cannot invite/mutate users
+- super_admin: everything + user invite/password + settings SMTP
 
 ## Local dev credentials
-- Admin user: admin@usd.dev / Admin123! / orgId: demo-org
+- Super Admin: admin@usd.dev / Admin123! / orgId: demo-org
+- Manager: manager@usd.dev / Mgr123!
+- Technician: technician@usd.dev / Tech123!
 - Jira: dknasir007.atlassian.net (SCRUM + USD projects)
 - HD: servicedeskplus.uk (display IDs hd_1 to hd_12)
 
@@ -283,7 +285,7 @@ Follow jira.service.ts pattern:
 
 ### What to build in Phase 9
 
-#### Part 1 — Permission model + User management
+#### Part 1 — Permission model + User management — COMPLETE
 - Enforce JWT role checks on all API routes (currently admin-only or requireAuth)
 - Ticket ownership middleware: technician can only write on assigned tickets
 - Admin → Users tab: real user list from DynamoDB
@@ -305,3 +307,23 @@ Follow jira.service.ts pattern:
 - Real Bedrock, RDS PostgreSQL, SES
 - CloudWatch alarms
 - Production deployment after staging verified
+
+## Phase 9 Part 2 — decisions confirmed
+
+### Merged incident view
+- Option A: both linked tickets open the merged view
+- No unlink button — remove link via cross-link field only
+- Show both Jira + HD context side by side
+- Unified conversation thread (all sources sorted by time)
+- Separate reply options: Add Note (HD), Comment (Jira), Reply to Customer
+- AI uses full merged context from both tickets
+
+### Rate limiting
+- express-rate-limit: 100 requests per minute per IP
+- Applied to all /api routes
+- Returns 429 Too Many Requests when exceeded
+
+### ActivitySidebar history
+- On WebSocket connect: load last 50 events from DB
+- GET /api/activity/recent?limit=50
+- Seeds Zustand store on connect

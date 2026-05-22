@@ -31,6 +31,15 @@ export const smtpSettingsSchema = z.object({
 
 export type SmtpSettings = z.infer<typeof smtpSettingsSchema>;
 
+/** Mailhog defaults for local development. */
+export const defaultLocalSmtpSettings: SmtpSettings = {
+  host: 'localhost',
+  port: 1025,
+  secure: false,
+  fromEmail: 'noreply@usd.dev',
+  fromName: 'Unified Support',
+};
+
 export const notificationPreferencesSchema = z.object({
   slaBreachEmail: z.boolean(),
   criticalTicketEmail: z.boolean(),

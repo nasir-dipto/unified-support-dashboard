@@ -1,5 +1,6 @@
 import { GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
 import {
+  defaultLocalSmtpSettings,
   defaultNotificationPreferences,
   defaultSlaPolicy,
   notificationPreferencesSchema,
@@ -95,6 +96,10 @@ export async function seedOrgSettingsDefaults(orgId: string): Promise<void> {
   const prefs = await getRulePayload(orgId, RULE_PREFS);
   if (prefs === undefined) {
     await putRulePayload(orgId, RULE_PREFS, defaultNotificationPreferences);
+  }
+  const smtp = await getRulePayload(orgId, RULE_SMTP);
+  if (smtp === undefined) {
+    await putRulePayload(orgId, RULE_SMTP, defaultLocalSmtpSettings);
   }
 }
 

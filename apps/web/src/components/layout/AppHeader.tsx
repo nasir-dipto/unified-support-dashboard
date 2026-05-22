@@ -3,13 +3,13 @@ import type { ReactElement } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth.store';
 import { NotificationBell } from '../notifications/NotificationBell';
-import { canAccessAdminPanel } from '../../utils/roles';
-
-const roleLabels: Record<string, string> = {
-  admin: 'Admin',
-  agent: 'Technician',
-  viewer: 'Technician',
-};
+import {
+  canAccessAdminPanel,
+  canAccessKbNav,
+  canAccessManagerPanel,
+  getPrimaryRole,
+  roleLabel,
+} from '../../utils/roles';
 
 /**
  * Sticky top header matching design reference.
@@ -17,12 +17,15 @@ const roleLabels: Record<string, string> = {
 export function AppHeader(): ReactElement {
   const user = useAuthStore((s) => s.user);
   const clear = useAuthStore((s) => s.clear);
-  const primaryRole = user?.roles[0] ?? 'viewer';
+  const roles = user?.roles ?? [];
+  const primaryRole = getPrimaryRole(roles);
   const initials =
     user?.email !== undefined
       ? user.email.slice(0, 2).toUpperCase()
       : 'US';
-  const showAdmin = user !== null && canAccessAdminPanel(user.roles);
+  const showManager = canAccessManagerPanel(roles);
+  const showAdmin = user !== null && canAccessAdminPanel(roles);
+  const showKb = canAccessKbNav();
 
   return (
     <header className="sticky top-0 z-[200] flex h-[52px] items-center border-b border-gray-200 bg-white px-5">
@@ -53,7 +56,17 @@ export function AppHeader(): ReactElement {
         >
           Tickets
         </NavLink>
-        {primaryRole === 'admin' ? (
+        {showKb ? (
+          <NavLink
+            to="/kb"
+            className={({ isActive }) =>
+              isActive ? 'text-usd-indigo' : 'text-gray-500 hover:text-gray-800'
+            }
+          >
+            Knowledge Base
+          </NavLink>
+        ) : null}
+        {showManager ? (
           <NavLink
             to="/manager"
             className={({ isActive }) =>
@@ -86,7 +99,7 @@ export function AppHeader(): ReactElement {
           </div>
           <div>
             <div className="text-[13px] font-bold text-gray-900">{user?.email ?? 'User'}</div>
-            <div className="text-[11px] text-gray-400">{roleLabels[primaryRole] ?? primaryRole}</div>
+            <div className="text-[11px] text-gray-400">{roleLabel(primaryRole)}</div>
           </div>
         </div>
         <div className="h-6 w-px bg-gray-200" />

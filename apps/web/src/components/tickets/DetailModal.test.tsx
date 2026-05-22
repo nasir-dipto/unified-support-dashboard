@@ -76,9 +76,31 @@ vi.mock('../../hooks/useKb', () => ({
   }),
 }));
 
+vi.mock('../../store/auth.store', () => ({
+  useAuthStore: (
+    selector: (state: {
+      user: { orgId: string; email: string; roles: ['manager']; userId: string } | null;
+    }) => unknown,
+  ) =>
+    selector({
+      user: {
+        orgId: 'o',
+        email: 'manager@usd.dev',
+        roles: ['manager'],
+        userId: 'mgr-1',
+      },
+    }),
+}));
+
+let linkedTicketDetail: TicketApiDto | undefined;
+
 vi.mock('../../hooks/useTickets', () => ({
   useTicketDetail: () => ({
     data: { data: ticketDetail },
+    isLoading: false,
+  }),
+  useLinkedTicketDetail: () => ({
+    data: linkedTicketDetail !== undefined ? { data: linkedTicketDetail } : undefined,
     isLoading: false,
   }),
   useTicketComments: () => ({
@@ -134,6 +156,7 @@ describe('DetailModal', () => {
   afterEach(() => {
     cleanup();
     ticketDetail = { ...baseTicket };
+    linkedTicketDetail = undefined;
     mutateAsyncMock.mockReset();
     kbSearchMock.mockReset();
     kbDraftMock.mockReset();
@@ -257,6 +280,31 @@ describe('DetailModal', () => {
     renderModal();
     expect(screen.getByText(/checking for existing kb draft/i)).toBeTruthy();
     expect(screen.getByRole('button', { name: /generate kb draft/i })).toBeDisabled();
+  });
+
+  it('renders merged incident panels when linked Jira and HD tickets resolve', () => {
+    ticketDetail = {
+      ...baseTicket,
+      linkedTicketId: 'hd_1',
+    };
+    linkedTicketDetail = {
+      ticketId: 'hd_1',
+      orgId: 'o',
+      source: 'helpdesk',
+      externalId: 'HD-1',
+      summary: 'Customer issue',
+      description: 'Printer offline',
+      priority: 'medium',
+      status: 'open',
+      createdAt: '2026-01-14T08:00:00.000Z',
+      updatedAt: 'u2',
+      linkedTicketId: 'jira_X',
+    };
+    renderModal();
+    expect(screen.getByText(/merged incident/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /comment \(jira\)/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /add note/i })).toBeTruthy();
+    expect(screen.queryByText(/^cross-link$/i)).toBeNull();
   });
 
   it('disables save and generate after KB draft is saved', async () => {

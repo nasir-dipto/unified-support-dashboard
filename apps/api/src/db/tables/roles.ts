@@ -1,4 +1,4 @@
-import { DeleteCommand, GetCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DeleteCommand, GetCommand, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import type { SupportRole } from '@usd/shared-types';
 import { getServerEnv } from '../../config/loadEnv.js';
 import { getDocumentClient } from '../dynamo.client.js';
@@ -60,4 +60,20 @@ export async function deleteSupportRole(
       Key: { orgId, userId },
     }),
   );
+}
+
+/**
+ * Lists all role assignments in an org (Query with orgId partition key).
+ */
+export async function listRolesByOrg(orgId: string): Promise<SupportRoleRecord[]> {
+  const env = getServerEnv();
+  const doc = getDocumentClient();
+  const out = await doc.send(
+    new QueryCommand({
+      TableName: env.SUPPORT_ROLES_TABLE,
+      KeyConditionExpression: 'orgId = :o',
+      ExpressionAttributeValues: { ':o': orgId },
+    }),
+  );
+  return (out.Items ?? []) as SupportRoleRecord[];
 }

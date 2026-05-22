@@ -24,7 +24,7 @@ const user = {
   userId: '01USER',
   orgId: 'demo-org',
   email: 'admin@usd.dev',
-  roles: ['admin' as const],
+  roles: ['super_admin' as const],
 };
 
 describe('ticket-display', () => {
@@ -63,5 +63,20 @@ describe('ticket-display', () => {
     expect(isTicketAssignedToCurrentUser({ ...base, assigneeId: 'Jane Agent' }, user)).toBe(
       false,
     );
+  });
+
+  it('matches assignee by user displayName', () => {
+    const techUser = {
+      ...user,
+      email: 'technician@usd.dev',
+      roles: ['technician' as const],
+      displayName: 'Nasir Dipto Personal',
+    };
+    expect(
+      isTicketAssignedToCurrentUser(
+        { ...base, assigneeId: 'Nasir Dipto Personal' },
+        techUser,
+      ),
+    ).toBe(true);
   });
 });

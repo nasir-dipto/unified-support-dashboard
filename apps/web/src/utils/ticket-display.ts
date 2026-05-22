@@ -1,5 +1,6 @@
 import type { AuthUserPublic, TicketApiDto } from '@usd/shared-types';
 import { statusColors, usdColors } from '@usd/ui';
+import { isTicketAssignedToUser } from './permissions.js';
 
 export type SlaEstimateOptions = {
   /** ISO due date from source system; when absent, SLA is unknown */
@@ -51,7 +52,7 @@ export function averageSlaPercentRemaining(tickets: TicketApiDto[]): number | nu
 }
 
 /**
- * Whether a ticket is assigned to the signed-in USD user (matches id or email).
+ * Whether a ticket is assigned to the signed-in USD user (email or display name).
  */
 export function isTicketAssignedToCurrentUser(
   ticket: TicketApiDto,
@@ -60,19 +61,7 @@ export function isTicketAssignedToCurrentUser(
   if (user === null || user === undefined) {
     return false;
   }
-  const assignee = ticket.assigneeId?.trim();
-  if (assignee === undefined || assignee.length === 0) {
-    return false;
-  }
-  if (assignee === user.userId || assignee === user.email) {
-    return true;
-  }
-  const localPart = user.email.split('@')[0]?.toLowerCase();
-  return (
-    localPart !== undefined &&
-    localPart.length > 0 &&
-    assignee.toLowerCase().includes(localPart)
-  );
+  return isTicketAssignedToUser(ticket, user.email, user.displayName);
 }
 
 /**

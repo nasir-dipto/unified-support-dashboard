@@ -240,3 +240,45 @@ export async function searchKbByTicket(
     sourceTicketIds: r.source_ticket_ids,
   }));
 }
+
+/**
+ * Lists published KB articles for browse (optional title/tag search).
+ */
+export async function listPublishedKbArticles(
+  orgId: string,
+  options?: { q?: string; limit?: number },
+): Promise<KbArticle[]> {
+  const limit = options?.limit ?? 50;
+  const q = options?.q?.trim();
+  if (q !== undefined && q.length > 0) {
+    const pattern = `%${q}%`;
+    const rows = await queryPostgres<KbRow>(
+      `SELECT * FROM kb_articles
+       WHERE org_id = $1 AND status = 'published'
+         AND (title ILIKE $2 OR problem ILIKE $2 OR $3 = ANY(tags))
+       ORDER BY published_at DESC NULLS LAST, updated_at DESC
+       LIMIT $4`,
+      [orgId, pattern, q, limit],
+    );
+    return rows.map(rowToArticle);
+  }
+  const rows = await queryPostgres<KbRow>(
+    `SELECT * FROM kb_articles
+     WHERE org_id = $1 AND status = 'published'
+     ORDER BY published_at DESC NULLS LAST, updated_at DESC
+     LIMIT $2`,
+    [orgId, limit],
+  );
+  return rows.map(rowToArticle);
+}
+
+/**
+ * Fetches a published KB article for read-only browse.
+ */
+export async function getPublishedKbArticle(orgId: string, kbId: string): Promise<KbArticle> {
+  const article = await getKbArticle(orgId, kbId);
+  if (article.status !== 'published') {
+    throw new AppError('KB article not found', 'NOT_FOUND', 404);
+  }
+  return article;
+}

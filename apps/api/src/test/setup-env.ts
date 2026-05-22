@@ -41,6 +41,15 @@ if (process.env.SUPPORT_NOTIFICATIONS_TABLE === undefined) {
 if (process.env.SUPPORT_NOTIFICATION_RULES_TABLE === undefined) {
   process.env.SUPPORT_NOTIFICATION_RULES_TABLE = 'support_notification_rules_test';
 }
+if (process.env.SUPPORT_AUTH_TOKENS_TABLE === undefined) {
+  process.env.SUPPORT_AUTH_TOKENS_TABLE = 'support_auth_tokens_test';
+}
+if (process.env.SUPPORT_WS_ACTIVITY_TABLE === undefined) {
+  process.env.SUPPORT_WS_ACTIVITY_TABLE = 'support_ws_activity_events_test';
+}
+if (process.env.WEB_APP_URL === undefined) {
+  process.env.WEB_APP_URL = 'http://localhost:5173';
+}
 if (process.env.HD_DEFAULT_ORG_ID === undefined) {
   process.env.HD_DEFAULT_ORG_ID = 'demo-org';
 }

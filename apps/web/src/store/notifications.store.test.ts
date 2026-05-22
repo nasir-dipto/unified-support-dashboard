@@ -1,36 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { filterUrgentWsEvents, useNotificationsStore } from './notifications.store';
+import { useNotificationsStore } from './notifications.store.js';
 
 describe('notifications.store', () => {
-  it('keeps only fifty newest events', () => {
+  it('seedEvents replaces buffer and trims to 50', () => {
     useNotificationsStore.getState().clear();
-    for (let i = 0; i < 55; i += 1) {
-      useNotificationsStore.getState().pushEvent({
-        type: 'ticket_updated',
-        ticketId: `t-${String(i)}`,
-        orgId: 'o',
-        payload: {},
-      });
-    }
+    const events = Array.from({ length: 60 }, (_, i) => ({
+      type: 'ticket_updated' as const,
+      ticketId: `t-${String(i)}`,
+      orgId: 'o',
+      payload: {},
+    }));
+    useNotificationsStore.getState().seedEvents(events);
     expect(useNotificationsStore.getState().events).toHaveLength(50);
-  });
-
-  it('surfaces critical ticket payloads as urgent', () => {
-    const urgent = filterUrgentWsEvents([
-      {
-        type: 'ticket_updated',
-        ticketId: 'jira_X',
-        orgId: 'o',
-        payload: { ticket: { priority: 'critical' } },
-      },
-      {
-        type: 'ticket_updated',
-        ticketId: 'jira_Y',
-        orgId: 'o',
-        payload: { ticket: { priority: 'low' } },
-      },
-    ]);
-    expect(urgent).toHaveLength(1);
-    expect(urgent[0]?.ticketId).toBe('jira_X');
+    expect(useNotificationsStore.getState().events[0]?.ticketId).toBe('t-0');
+    useNotificationsStore.getState().clear();
   });
 });

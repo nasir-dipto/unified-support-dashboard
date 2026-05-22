@@ -75,6 +75,14 @@ export const kbSearchResponseSchema = z.object({
 
 export type KbSearchResponse = z.infer<typeof kbSearchResponseSchema>;
 
+/** GET /api/kb/published query — browse published articles. */
+export const kbPublishedListQuerySchema = z.object({
+  q: z.string().optional(),
+  limit: z.coerce.number().int().positive().max(100).default(50),
+});
+
+export type KbPublishedListQuery = z.infer<typeof kbPublishedListQuerySchema>;
+
 /** AI-generated KB draft (POST /api/ai/invoke kb_draft). */
 export const kbDraftResponseSchema = z.object({
   title: z.string(),

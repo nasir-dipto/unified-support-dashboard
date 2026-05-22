@@ -26,6 +26,10 @@ import {
   markSentimentStale,
 } from '../db/tables/tickets.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
+import {
+  loadTicketMiddleware,
+  requireTicketWriteAccess,
+} from '../middleware/ticket-access.middleware.js';
 import * as helpdeskService from '../services/helpdesk.service.js';
 import * as jiraService from '../services/jira.service.js';
 import { broadcastWsEnvelope } from '../services/websocket.service.js';
@@ -128,6 +132,8 @@ export const getTicketComments: RequestHandler[] = [
  */
 export const postTicketComment: RequestHandler[] = [
   requireAuth,
+  loadTicketMiddleware(),
+  requireTicketWriteAccess(),
   asyncHandler(async (req, res) => {
     if (req.auth === undefined) {
       throw new AppError('Unauthorized', 'UNAUTHORIZED', 401);
@@ -137,7 +143,7 @@ export const postTicketComment: RequestHandler[] = [
       throw new AppError('Invalid comment body', 'VALIDATION', 400);
     }
     const ticketId = ticketIdFromParams(req.params);
-    const ticket = await getTicketById(req.auth.orgId, ticketId);
+    const ticket = req.ticket ?? (await getTicketById(req.auth.orgId, ticketId));
     const replyKind = resolveReplyKind(ticket, parsed.data.replyKind);
     if (replyKind === 'hd_email' && !isHelpdeskEmailReplyEnabled(getServerEnv())) {
       throw new AppError(
@@ -194,6 +200,8 @@ export const postTicketComment: RequestHandler[] = [
  */
 export const postTicketLink: RequestHandler[] = [
   requireAuth,
+  loadTicketMiddleware(),
+  requireTicketWriteAccess(),
   asyncHandler(async (req, res) => {
     if (req.auth === undefined) {
       throw new AppError('Unauthorized', 'UNAUTHORIZED', 401);

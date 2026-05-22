@@ -6,7 +6,9 @@ import { runMorningBriefing } from '../ai/briefing.js';
 import { runCommentDraft } from '../ai/commentDraft.js';
 import { runKbDraft } from '../ai/kbDraft.js';
 import { runTriageSuggest } from '../ai/triage.js';
+import { getTicketById } from '../db/tables/tickets.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
+import { canWriteTicket } from '../utils/ticket-access.js';
 import { AppError } from '../utils/errors.js';
 
 type AsyncRequestHandler = (
@@ -37,10 +39,19 @@ export const postAiInvoke: RequestHandler[] = [
     const body = parsed.data;
 
     if (body.feature === 'morning_briefing') {
+      const allowed = req.auth.roles.some((r) => r === 'manager' || r === 'super_admin');
+      if (!allowed) {
+        throw new AppError('Forbidden', 'FORBIDDEN', 403);
+      }
       const { summary, promptText } = await buildBriefingContext(req.auth.orgId);
       const result = await runMorningBriefing(summary, promptText);
       res.status(200).json(result);
       return;
+    }
+
+    const ticket = await getTicketById(req.auth.orgId, body.ticketId);
+    if (!canWriteTicket(req.auth.roles, ticket, req.auth.email, req.auth.displayName)) {
+      throw new AppError('Forbidden', 'FORBIDDEN', 403);
     }
 
     const ctx = await buildAiTicketContext(req.auth.orgId, body.ticketId);

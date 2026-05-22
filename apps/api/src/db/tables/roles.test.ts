@@ -6,8 +6,8 @@ describe('roles table types', () => {
     const r: SupportRoleRecord = {
       orgId: 'o',
       userId: 'u',
-      role: 'agent',
+      role: 'technician',
     };
-    expect(r.role).toBe('agent');
+    expect(r.role).toBe('technician');
   });
 });

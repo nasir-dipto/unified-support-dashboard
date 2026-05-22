@@ -64,7 +64,7 @@ dynamoDescribe('POST /api/ai/invoke (DynamoDB Local, USE_MOCK_AI)', () => {
     await doc.send(
       new PutCommand({
         TableName: env.SUPPORT_ROLES_TABLE,
-        Item: { orgId: AI_INT_ORG, userId: '01HZINTAIUSER', role: 'viewer' },
+        Item: { orgId: AI_INT_ORG, userId: '01HZINTAIUSER', role: 'technician' },
       }),
     );
     await doc.send(
@@ -78,6 +78,7 @@ dynamoDescribe('POST /api/ai/invoke (DynamoDB Local, USE_MOCK_AI)', () => {
           summary: 'AI integration ticket',
           priority: 'high',
           status: 'open',
+          assigneeId: AI_INT_EMAIL,
           createdAt: now,
           updatedAt: now,
         },

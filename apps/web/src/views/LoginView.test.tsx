@@ -16,7 +16,7 @@ vi.mock('../api/client', () => ({
           userId: '01HZWEB',
           orgId: 'demo-org',
           email: 'u@example.com',
-          roles: ['viewer'],
+          roles: ['technician'],
         },
       },
     }),

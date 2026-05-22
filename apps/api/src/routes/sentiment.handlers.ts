@@ -6,6 +6,7 @@ import {
 import { listHdTicketsWithSentiment } from '../db/tables/tickets.js';
 import { buildSentimentSummary } from '../sentiment/aggregateSummary.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
+import { requireRole } from '../middleware/role.middleware.js';
 import { AppError } from '../utils/errors.js';
 
 type AsyncRequestHandler = (
@@ -25,6 +26,7 @@ function asyncHandler(fn: AsyncRequestHandler): RequestHandler {
  */
 export const getSentimentSummary: RequestHandler[] = [
   requireAuth,
+  requireRole('manager', 'super_admin'),
   asyncHandler(async (req, res) => {
     if (req.auth === undefined) {
       throw new AppError('Unauthorized', 'UNAUTHORIZED', 401);

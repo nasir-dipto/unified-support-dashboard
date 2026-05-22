@@ -8,13 +8,13 @@ describe('jwt', () => {
       userId: '01HZTEST',
       orgId: 'org1',
       email: 'u@example.com',
-      roles: ['viewer'],
+      roles: ['technician'],
     });
     const payload = await verifyAccessToken(token);
     expect(payload.sub).toBe('01HZTEST');
     expect(payload.orgId).toBe('org1');
     expect(payload.email).toBe('u@example.com');
-    expect(payload.roles).toEqual(['viewer']);
+    expect(payload.roles).toEqual(['technician']);
     expect(getServerEnv().NODE_ENV).toBe('test');
   });
 });

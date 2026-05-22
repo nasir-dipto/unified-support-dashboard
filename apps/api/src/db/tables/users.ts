@@ -1,4 +1,9 @@
-import { GetCommand, PutCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import {
+  GetCommand,
+  PutCommand,
+  QueryCommand,
+  UpdateCommand,
+} from '@aws-sdk/lib-dynamodb';
 import { ulid } from 'ulid';
 import { getServerEnv } from '../../config/loadEnv.js';
 import { getDocumentClient } from '../dynamo.client.js';
@@ -10,6 +15,7 @@ export type SupportUserRecord = {
   userId: string;
   email: string;
   passwordHash: string;
+  displayName?: string;
   refreshJti?: string;
   refreshExp?: number;
   createdAt: string;
@@ -128,4 +134,87 @@ export async function clearUserRefreshMetadata(
       UpdateExpression: 'REMOVE refreshJti, refreshExp',
     }),
   );
+}
+
+/**
+ * Lists all users in an org (Query with orgId partition key).
+ */
+export async function listUsersByOrg(orgId: string): Promise<SupportUserRecord[]> {
+  const env = getServerEnv();
+  const doc = getDocumentClient();
+  const out = await doc.send(
+    new QueryCommand({
+      TableName: env.SUPPORT_USERS_TABLE,
+      KeyConditionExpression: 'orgId = :o',
+      ExpressionAttributeValues: { ':o': orgId },
+    }),
+  );
+  return (out.Items ?? []) as SupportUserRecord[];
+}
+
+/**
+ * Updates a user's display name (used for ticket assignee matching).
+ */
+export async function updateUserDisplayName(
+  orgId: string,
+  userId: string,
+  displayName: string,
+): Promise<void> {
+  const env = getServerEnv();
+  const doc = getDocumentClient();
+  await doc.send(
+    new UpdateCommand({
+      TableName: env.SUPPORT_USERS_TABLE,
+      Key: { orgId, userId },
+      UpdateExpression: 'SET displayName = :n',
+      ExpressionAttributeValues: { ':n': displayName.trim() },
+    }),
+  );
+}
+
+/**
+ * Updates a user's password hash after reset or invite acceptance.
+ */
+export async function updatePasswordHash(
+  orgId: string,
+  userId: string,
+  passwordHash: string,
+): Promise<void> {
+  const env = getServerEnv();
+  const doc = getDocumentClient();
+  await doc.send(
+    new UpdateCommand({
+      TableName: env.SUPPORT_USERS_TABLE,
+      Key: { orgId, userId },
+      UpdateExpression: 'SET passwordHash = :p',
+      ExpressionAttributeValues: { ':p': passwordHash },
+    }),
+  );
+}
+
+/**
+ * Creates a user without a password (pending invite acceptance).
+ */
+export async function createUserPendingInvite(input: {
+  orgId: string;
+  email: string;
+}): Promise<SupportUserRecord> {
+  const env = getServerEnv();
+  const doc = getDocumentClient();
+  const userId = ulid();
+  const createdAt = new Date().toISOString();
+  const record: SupportUserRecord = {
+    orgId: input.orgId,
+    userId,
+    email: input.email.toLowerCase(),
+    passwordHash: '',
+    createdAt,
+  };
+  await doc.send(
+    new PutCommand({
+      TableName: env.SUPPORT_USERS_TABLE,
+      Item: record,
+    }),
+  );
+  return record;
 }

@@ -39,7 +39,7 @@ function asyncHandler(fn: AsyncRequestHandler): RequestHandler {
  */
 export const getSlaPolicyHandler: RequestHandler[] = [
   requireAuth,
-  requireRole('admin'),
+  requireRole('super_admin'),
   asyncHandler(async (req, res) => {
     if (req.auth === undefined) {
       throw new AppError('Unauthorized', 'UNAUTHORIZED', 401);
@@ -54,7 +54,7 @@ export const getSlaPolicyHandler: RequestHandler[] = [
  */
 export const putSlaPolicyHandler: RequestHandler[] = [
   requireAuth,
-  requireRole('admin'),
+  requireRole('super_admin'),
   asyncHandler(async (req, res) => {
     if (req.auth === undefined) {
       throw new AppError('Unauthorized', 'UNAUTHORIZED', 401);
@@ -73,7 +73,7 @@ export const putSlaPolicyHandler: RequestHandler[] = [
  */
 export const getSmtpSettingsHandler: RequestHandler[] = [
   requireAuth,
-  requireRole('admin'),
+  requireRole('super_admin'),
   asyncHandler(async (req, res) => {
     if (req.auth === undefined) {
       throw new AppError('Unauthorized', 'UNAUTHORIZED', 401);
@@ -91,7 +91,7 @@ export const getSmtpSettingsHandler: RequestHandler[] = [
  */
 export const putSmtpSettingsHandler: RequestHandler[] = [
   requireAuth,
-  requireRole('admin'),
+  requireRole('super_admin'),
   asyncHandler(async (req, res) => {
     if (req.auth === undefined) {
       throw new AppError('Unauthorized', 'UNAUTHORIZED', 401);
@@ -110,7 +110,7 @@ export const putSmtpSettingsHandler: RequestHandler[] = [
  */
 export const postSmtpTestHandler: RequestHandler[] = [
   requireAuth,
-  requireRole('admin'),
+  requireRole('super_admin'),
   asyncHandler(async (req, res) => {
     if (req.auth === undefined) {
       throw new AppError('Unauthorized', 'UNAUTHORIZED', 401);
@@ -133,7 +133,7 @@ export const postSmtpTestHandler: RequestHandler[] = [
  */
 export const getPreferencesHandler: RequestHandler[] = [
   requireAuth,
-  requireRole('admin'),
+  requireRole('super_admin'),
   asyncHandler(async (req, res) => {
     if (req.auth === undefined) {
       throw new AppError('Unauthorized', 'UNAUTHORIZED', 401);
@@ -148,7 +148,7 @@ export const getPreferencesHandler: RequestHandler[] = [
  */
 export const putPreferencesHandler: RequestHandler[] = [
   requireAuth,
-  requireRole('admin'),
+  requireRole('super_admin'),
   asyncHandler(async (req, res) => {
     if (req.auth === undefined) {
       throw new AppError('Unauthorized', 'UNAUTHORIZED', 401);

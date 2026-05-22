@@ -17,7 +17,7 @@ describe('AppHeader', () => {
         userId: 'u1',
         orgId: 'demo-org',
         email: 'admin@usd.dev',
-        roles: ['admin'],
+        roles: ['super_admin'],
       },
     });
     render(

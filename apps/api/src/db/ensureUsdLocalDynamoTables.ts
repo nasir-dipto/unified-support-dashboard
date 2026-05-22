@@ -2,6 +2,7 @@ import {
   CreateTableCommand,
   DescribeTableCommand,
   DynamoDBClient,
+  UpdateTimeToLiveCommand,
   type AttributeDefinition,
   type CreateTableCommandInput,
   type DescribeTableCommandOutput,
@@ -20,6 +21,8 @@ export type UsdDynamoTableNames = {
   notifications: string;
   kb: string;
   reports: string;
+  authTokens: string;
+  wsActivityEvents: string;
 };
 
 /**
@@ -37,6 +40,8 @@ export function resolveUsdDynamoTableNames(): UsdDynamoTableNames {
       notifications: env.SUPPORT_NOTIFICATIONS_TABLE,
       kb: 'support_kb',
       reports: 'support_reports',
+      authTokens: env.SUPPORT_AUTH_TOKENS_TABLE,
+      wsActivityEvents: env.SUPPORT_WS_ACTIVITY_TABLE,
     };
   } catch {
     loadServerEnv();
@@ -120,6 +125,29 @@ export async function ensureDynamoTableIfMissing(
     }
   }
   await waitForTableActive(client, tableName);
+}
+
+/**
+ * Enables TTL on a DynamoDB table (idempotent for local dev).
+ */
+async function enableTableTtlIfNeeded(
+  client: DynamoDBClient,
+  tableName: string,
+  attributeName: string,
+): Promise<void> {
+  try {
+    await client.send(
+      new UpdateTimeToLiveCommand({
+        TableName: tableName,
+        TimeToLiveSpecification: {
+          Enabled: true,
+          AttributeName: attributeName,
+        },
+      }),
+    );
+  } catch {
+    /* TTL may already be enabled */
+  }
 }
 
 /**
@@ -299,4 +327,33 @@ export async function ensureAllUsdLocalDynamoTables(
     ],
     [],
   );
+
+  await ensureDynamoTableIfMissing(
+    client,
+    tableNames.authTokens,
+    [
+      { AttributeName: 'orgId', AttributeType: 'S' },
+      { AttributeName: 'tokenId', AttributeType: 'S' },
+    ],
+    [
+      { AttributeName: 'orgId', KeyType: 'HASH' },
+      { AttributeName: 'tokenId', KeyType: 'RANGE' },
+    ],
+    [],
+  );
+
+  await ensureDynamoTableIfMissing(
+    client,
+    tableNames.wsActivityEvents,
+    [
+      { AttributeName: 'orgId', AttributeType: 'S' },
+      { AttributeName: 'eventId', AttributeType: 'S' },
+    ],
+    [
+      { AttributeName: 'orgId', KeyType: 'HASH' },
+      { AttributeName: 'eventId', KeyType: 'RANGE' },
+    ],
+    [],
+  );
+  await enableTableTtlIfNeeded(client, tableNames.wsActivityEvents, 'expiresAt');
 }

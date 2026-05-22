@@ -2,6 +2,7 @@ import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { config as loadEnvFile } from 'dotenv';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ensureDevJwtKeys } from '../config/ensureDevJwtKeys.js';
 import { loadServerEnv } from '../config/loadEnv.js';
 import { applyKbMigrations } from '../db/applyKbMigrations.js';
 import { ensureAllUsdLocalDynamoTables } from '../db/ensureUsdLocalDynamoTables.js';
@@ -23,6 +24,7 @@ function loadLocalEnvFiles(): void {
  */
 async function main(): Promise<void> {
   loadLocalEnvFiles();
+  ensureDevJwtKeys();
   const region = process.env.AWS_REGION ?? 'us-east-1';
   const endpoint =
     process.env.DYNAMODB_ENDPOINT ?? 'http://localhost:8000';

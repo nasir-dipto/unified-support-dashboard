@@ -14,7 +14,21 @@ import {
 import { TicketStatsRow } from '../components/tickets/TicketStatsRow';
 import { DEFAULT_TICKETS_LIST_LIMIT, useTicketsList } from '../hooks/useTickets';
 import { useAuthStore } from '../store/auth.store';
+import { canWriteTicket } from '../utils/permissions';
+import { isTechnicianOnly } from '../utils/roles';
 import { isTicketAssignedToCurrentUser } from '../utils/ticket-display';
+
+/**
+ * Default ticket list tab: technicians start on My Tickets; others on All.
+ */
+export function getDefaultTicketViewTab(
+  user: AuthUserPublic | null | undefined,
+): TicketViewTab {
+  if (user !== null && user !== undefined && isTechnicianOnly(user.roles)) {
+    return 'mine';
+  }
+  return 'all';
+}
 
 function filterTickets(
   tickets: TicketApiDto[],
@@ -70,7 +84,7 @@ function BellIcon(): ReactElement {
 export function TechnicianTicketsView(): ReactElement {
   const user = useAuthStore((s) => s.user);
   const { data, isLoading, error } = useTicketsList({ limit: DEFAULT_TICKETS_LIST_LIMIT });
-  const [tab, setTab] = useState<TicketViewTab>('all');
+  const [tab, setTab] = useState<TicketViewTab>(() => getDefaultTicketViewTab(user));
   const [priority, setPriority] = useState<PriorityFilter>('all');
   const [search, setSearch] = useState('');
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -78,6 +92,7 @@ export function TechnicianTicketsView(): ReactElement {
   const [activityOpen, setActivityOpen] = useState(false);
 
   const tickets = data?.data ?? [];
+  const technicianOnly = user !== null && isTechnicianOnly(user.roles);
   const counts = useMemo(
     () => ({
       all: tickets.length,
@@ -114,7 +129,7 @@ export function TechnicianTicketsView(): ReactElement {
       <h1 className="text-[22px] font-extrabold text-gray-900">Ticket Queue</h1>
       <p className="mb-3 text-xs text-gray-500">Manage and resolve Jira and ManageEngine tickets.</p>
 
-      <TicketStatsRow tickets={tickets} />
+      <TicketStatsRow tickets={tickets} technicianOnly={technicianOnly} />
 
       <TicketFilters
         tab={tab}
@@ -147,14 +162,19 @@ export function TechnicianTicketsView(): ReactElement {
       </div>
 
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-        {rows.map((t) => (
-          <TicketCard
-            key={t.ticketId}
-            ticket={t}
-            onOpenDetail={() => { setDetailId(t.ticketId); }}
-            onOpenComment={setCommentTicket}
-          />
-        ))}
+        {rows.map((t) => {
+          const canWrite =
+            user !== null &&
+            canWriteTicket(user.roles, t, user.email, user.displayName);
+          return (
+            <TicketCard
+              key={t.ticketId}
+              ticket={t}
+              onOpenDetail={() => { setDetailId(t.ticketId); }}
+              onOpenComment={canWrite ? setCommentTicket : undefined}
+            />
+          );
+        })}
         {rows.length === 0 ? (
           <p className="py-8 text-center text-sm text-gray-400">No tickets match.</p>
         ) : null}

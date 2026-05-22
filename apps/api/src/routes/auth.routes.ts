@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   getMe,
+  postAcceptInvite,
   postForgotPassword,
   postLogin,
   postLogout,
@@ -16,3 +17,4 @@ authRouter.post('/refresh', postRefresh);
 authRouter.post('/logout', ...postLogout);
 authRouter.post('/forgot-password', postForgotPassword);
 authRouter.post('/reset-password', postResetPassword);
+authRouter.post('/accept-invite', postAcceptInvite);

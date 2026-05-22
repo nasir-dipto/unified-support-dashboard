@@ -7,6 +7,8 @@ type NotificationsState = {
   events: WsOutboundEnvelope[];
   /** Prepends an event and trims to the last 50 (newest first). */
   pushEvent: (event: WsOutboundEnvelope) => void;
+  /** Replaces the feed with persisted history (newest first). */
+  seedEvents: (events: WsOutboundEnvelope[]) => void;
   clear: () => void;
 };
 
@@ -19,6 +21,9 @@ export const useNotificationsStore = create<NotificationsState>((set) => ({
     set((state) => ({
       events: [event, ...state.events].slice(0, MAX_EVENTS),
     }));
+  },
+  seedEvents: (events) => {
+    set({ events: events.slice(0, MAX_EVENTS) });
   },
   clear: () => {
     set({ events: [] });

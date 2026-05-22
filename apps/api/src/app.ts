@@ -8,9 +8,12 @@ import { reportsRouter } from './routes/reports.routes.js';
 import { notificationsRouter } from './routes/notifications.routes.js';
 import { settingsRouter } from './routes/settings.routes.js';
 import { authRouter } from './routes/auth.routes.js';
+import { usersRouter } from './routes/users.routes.js';
 import { healthRouter } from './routes/health.routes.js';
 import { ticketsRouter } from './routes/tickets.routes.js';
 import { webhooksRouter } from './routes/webhooks.routes.js';
+import { activityRouter } from './routes/activity.routes.js';
+import { apiRateLimiter } from './middleware/rate-limit.middleware.js';
 import { toApiErrorBody } from './utils/errors.js';
 
 /**
@@ -27,6 +30,7 @@ export function createApp(): express.Application {
   );
   app.use('/api/webhooks', webhooksRouter);
   app.use(express.json());
+  app.use(apiRateLimiter);
 
   app.get('/', (_req, res) => {
     res.type('text').send('Hello World');
@@ -40,6 +44,7 @@ export function createApp(): express.Application {
 
   app.use('/api/health', healthRouter);
   app.use('/api/auth', authRouter);
+  app.use('/api/users', usersRouter);
   app.use('/api/ai', aiRouter);
   app.use('/api/sentiment', sentimentRouter);
   app.use('/api/kb', kbRouter);
@@ -47,6 +52,7 @@ export function createApp(): express.Application {
   app.use('/api/reports', reportsRouter);
   app.use('/api/notifications', notificationsRouter);
   app.use('/api/settings', settingsRouter);
+  app.use('/api/activity', activityRouter);
 
   app.use(
     (err: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
