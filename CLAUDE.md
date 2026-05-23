@@ -327,3 +327,21 @@ Follow jira.service.ts pattern:
 - On WebSocket connect: load last 50 events from DB
 - GET /api/activity/recent?limit=50
 - Seeds Zustand store on connect
+
+## Phase 9 — COMPLETE (PR #14)
+- Permission model: technician/manager/super_admin enforced on all routes
+- User management: invite flow, password reset, accept invite
+- KB navigation tab (/kb) for all roles — browse/search published articles
+- Demo credentials seeded: admin/manager/technician
+- My Tickets default tab for technicians, read-only on unassigned
+- Rate limiting: 100 req/min per IP (skip: health, webhooks)
+- ActivitySidebar history: loads last 50 events from DB on connect
+- Merged incident view: linked Jira+HD tickets show unified DetailModal
+- 352 tests passing
+
+## Current test count: 352 (215 API + 104 web + 24 shared-types + 9 UI)
+
+## Phase 9 — deferred to post-AWS deployment
+- Split view and full UI redesign
+- Attachment proxy for inline images
+- Webhook real-time comment sync
