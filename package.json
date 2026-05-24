@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "turbo dev --filter=@usd/web --filter=@usd/api",
     "build": "turbo build",
-    "test": "turbo test",
+    "test": "turbo test --filter=@usd/api --filter=@usd/web --filter=@usd/shared-types --filter=@usd/ui --filter=@usd/infra",
+    "e2e": "turbo e2e",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck"
   },

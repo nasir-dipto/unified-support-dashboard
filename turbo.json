@@ -37,6 +37,10 @@
         "JIRA_DEFAULT_ORG_ID",
         "HD_DEFAULT_ORG_ID"
       ]
+    },
+    "e2e": {
+      "dependsOn": ["^build"],
+      "cache": false
     }
   }
 }
