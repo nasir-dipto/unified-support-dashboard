@@ -87,3 +87,33 @@
 - pnpm kb:migrate script
 - CI: pgvector service, POSTGRES_URL, kb:migrate before tests
 - 269 tests passing
+
+## Phase 8 — COMPLETE (PR #13)
+- Reports: volume trend, resolution trend, SLA compliance, team performance
+- Redis cache (1hr TTL) + CSV export on all reports
+- SLA policy configurable (Admin → Settings)
+- support_notifications DynamoDB table
+- Notification bell (all roles), unread badge, dropdown
+- WebSocket notifications in AppShell
+- SLA breach + critical ticket + churn risk triggers
+- Email service (nodemailer, Mailhog local, admin-configured SMTP)
+- Admin → SMTP tab + Settings tab
+- Source timestamps fix: Jira/HD original creation dates stored
+- 293 tests passing
+
+## Phase 9 — COMPLETE (PR #14)
+- Permission model: technician/manager/super_admin enforced on all routes
+- User management: invite flow, password reset, accept invite
+- KB navigation tab (/kb) for all roles
+- Demo credentials seeded: admin/manager/technician
+- My Tickets default tab for technicians, read-only on unassigned
+- Rate limiting: 100 req/min per IP
+- ActivitySidebar history: loads lasnts on WS connect
+- Merged incident view: linked Jira+HD tickets unified DetailModal
+- 352 tests passing
+
+## E2E Tests — COMPLETE (PR #15)
+- Playwright E2E, 17 tests, Chromium only
+- Video recording for all tests
+- Run: pnpm e2e (requires pnpm dev)
+- Excluded from CI

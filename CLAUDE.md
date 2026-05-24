@@ -1,7 +1,7 @@
 # Unified Support Dashboard — Claude Code Context
 
 ## Reference
-- See CLAUDE-HISTORY.md for completed phase details (Phases 0-7)
+- See CLAUDE-HISTORY.md for completed phase details (Phases 0-9)
 
 ## What this is
 Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentiment, KB, reports.
@@ -11,8 +11,8 @@ Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentim
 - Backend: Node.js 20, Express 5, TypeScript strict, Zod, AWS SDK v3
 - Monorepo: pnpm workspaces + Turborepo
 - Infra: AWS CDK (TypeScript)
-- Database: DynamoDB (tickets/users/comments), PostgreSQL+pgvector (KB articles)
-- Testing: Vitest + RTL + Playwright E2E
+- Database: DynamoDB (tickets/users/comments/notifications), PostgreSQL+pgvector (KB articles)
+- Testing: Vitest + RTL (unit) + Playwright (E2E)
 
 ## Key conventions
 - IDs: ULID. Never UUID
@@ -21,89 +21,101 @@ Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentim
 - API lists: { data: T[], cursor?, total }
 - All DynamoDB queries MUST include orgId in key condition
 - All AI calls: POST /api/ai/invoke — never call Bedrock from frontend
-- Never commit .env files or secrets
+- Never commit .env fileecrets
 
 ## Running locally
 - docker compose up -d — start all local services
 - pnpm dev — frontend (:5173) + backend (:3001)
 - pnpm lint && pnpm typecheck && pnpm test — before every push
-- pnpm e2e — Playwright E2E (requires `docker compose up -d`, `pnpm dev`, seeded demo-org data)
 - export DYNAMODB_ENDPOINT=http://localhost:8000 && pnpm test — run with integration tests
-- pnpm --filter @usd/api db:setup — create DynamoDB Local tables + KB Postgres schema when POSTGRES_URL is set (first time, or fresh volume)
-- pnpm --filter @usd/api db:seed — seed admin (admin@usd.dev / Admin123!) (first time, or fresh volume)
-- pnpm --filter @usd/api kb:migrate — KB Postgres schema only (also run by db:setup)
+- pnpm e2e — Playwright E2E (requires docker compose up -d + pnpm dev)
+- pnpm --filter @usd/api db:setup — create all tables (DynamoDB + PostgreSQL)
+- pnpm --filter @usd/api db:seed — seed 3 demo users
 - pnpm --filter @usd/api sync:jira — sync Jira tickets + comments
 - pnpm --filter @usd/api sync:hd — sync HD tickets + conversations + sentiment batch
 - pnpm --filter @usd/api sentiment:batch — full sentiment refresh
 
 ## Local services (docker compose up -d)
-- DynamoDB Local: port 8000 — data persisted in Docker volume `dynamodb_data` (survives `docker compose down` / `up`; run db:setup + db:seed + sync once on a new volume)
+- DynamoDB Local: port 8000 (persisted in dynamodb_data volume)
 - Redis: port 6379
-- Mailhog: port 8025 (email UI)
-- PostgreSQL (pgvector): port 5432 — data persisted in Docker volume `postgres_data` (KB articles survive `docker compose down` / `up`)
+- Mailhog: port 8025 (email UI at http://localhost:8025)
+- PostgreSQL (pgvector): port 5432 (persisted in postgres_data volume)
 
 ## Local dev replacements
-- Bedrock → Mock (USE_MOCK_AI=true)
-- SES → Mailhog (:8025)
+- Bedrock → Mock (USE_MOClhog (:8025)
 
 ## Engineering practices
-- Feature branch for every phase — never commit to deests written same session as code — never deferred
+- Feature branch for every phase — never commit to develop or main directly
+- Tests written same session as code — never deferred
 - pnpm lint && pnpm typecheck && pnpm test before every push
 - Small focused commits, conventional messages
-- Update CLAUDE.md after every phase (archive completed details to CLAUDE-HISTORY.md)
+- Update CLAUDE.md after every phase (archive to CLAUDE-HISTORY.md)
 
-## Phase status
-- Phases 0-7: COMPLETE — see CLAUDE-HISTORY.md
-- Phase 8: COMPLETE — reports + notifications (PR #13)
-- Phase 9 Part 1: COMPLETE — permission model, user mgmt, KB nav, invite flow (branch: feature/phase-9-admin)
-- Phase 9 Part 2+: NOT STARTED — merged incident, webhook comments, attachment proxy, AWS deploy
+## Phase status — ALL COMPLETE
+- Phases 0-9: complete — see CLAUDE-HISTORY.md
+- E2E: 17 Playwright tests with video recording
 
-## Current test count: 352 unit/integration (215 API + 104 web + 24 shared-types + 9 UI) | 17 E2E (Playwright, `@usd/e2e`)
+## Current test count
+- Unit/integration: 352 (215 API + 104 web + 24 shared-types + 9 UI)
+- E2E: 17 Playwright tests (pnpm e2e)
 
-### E2E tests (`apps/e2e`)
-- Playwright + TypeScript, Chromium only
-- Base URL: `http://localhost:5173` (API `:3001` checked in global setup)
-- Video: `record: 'on'` → saved under `apps/e2e/test-results/`
-- HTML report: `apps/e2e/playwright-report/`
-- Demo credentials: admin@usd.dev, manager@usd.dev, technician@usd.dev (org `demo-org`)
-- Run: `pnpm e2e` (after `docker compose up -d` + `pnpm dev` + db seed/sync)
-- Local API rate limit applies in production; loopback requests skip the limiter in `NODE_ENV=development` (Playwright E2E)
+## Demo credentials (seeded, shown on login in dev mode)
+- Super Admin: admin@usd.dev / Admin123! / orgId: demo-org
+- Manager:     manager@usd.dev / Mgr123!
+- Technician:  technician@usd.dev / Tech123!
+
+## Permission model
+- technician: assigned tickets full write, others read-only, KB browse
+- manager: all tickets full write, reports, sentiment, AI, list users
+- super_admin: everything + user invite + settiTP + delete
+
+## Navigation by role
+- Technician: Tickets | Knowledge Base
+- Manager: Tickets | Knowledge Base | Manager
+- Super Admin: Tickets | Knowledge Base | Manager | Admin
 
 ## Architecture decisions
-- pgvector (RDS PostgreSQL) for KB search — not OpenSearch (~$15-25/mo)
-- No TTL on tickets — keep all history for KB/sentiment/reports
-- metadata field on tickets for unknown custom Jira/HD fields
-- Incremental sync: last 15 min only (not full sync)
+- pgvector (RDS PostgreSQL) for KB — not OpenSearch (~$15-25/mo)
+- No TTL on tickets — keep all history
+- metadata field for unknown custom Jira/HD fields
+- Incremental sync: last 15 min only
 - HD tickets: ticketId=hd_{display_id}, internalId for API paths
-- WS_MODE=local (ws package) | gateway (API GW stub, Phase 9)
+- WS_MODE=local | gateway (API GW, AWS deployment)
 - Lambda concurrency: 10, DLQ alarms on both queues
 - Sentiment: HD only, dirty flag + batch (never per-comment Bedrock)
-- KB embeddings: computed on publish only (not draft save)
-- JIRA_INCLUDE_PROJECTS: empty = all projects (admin sets in Phase 9)
+- KB embeddings: computed on publish only
+- JIRA_INCLUDE_PROJECTS: empty = all projects
+- Rate limiting: 100 req/min per IP (skip: /api/health, /api/webhooks/*)
+- SLA policy: Critical=2h, High=4h, Medium=8h, Low=24h (configurable in Admin)
 
-## Permission model (enforced — Phase 9 Part 1)
-- technician: assigned tickets full write (assigneeId vs email), others read-only; KB browse + draft on assigned only
-- manager: all tickets full write + reports + sentiment + AI; list users, cannot invite/mutate users
-- super_admin: everything + user invite/password + settings SMTP
-
-## Local dev credentials
-- Super Admin: admin@usd.dev / Admin123! / orgId: demo-org
-- Manager: manager@usd.dev / Mgr123!
-- Technician: technician@usd.dev / Tech123!
+## Local dev Jira/HD
 - Jira: dknasir007.atlassian.net (SCRUM + USD projects)
 - HD: servicedeskplus.uk (display IDs hd_1 to hd_12)
 
-## Jira project tracking
+## Jira projtracking
 - Personal: dknasir007.atlassian.net/jira/software/projects/USD
-  USD-1 Epic — USD-9 Done (Phase 7), USD-10 In Progress (Phase 8)
+  USD-11 In Progress (Phase 9 — AWS deploy pending)
 - Corporate: trialinteractive.atlassian.net/jira/software/projects/TIAI
-  TIAI-2 Epic — TIAI-10 Done (Phase 7), TIAI-11 In Progress (Phase 8)
-- End of each phase: transition current story Done, next In Progress (both Jiras)
+  TIAI-12 In Progress (Phase 9 — AWS deploy pending)
+
+## Next: AWS Deployment
+- Create DEPLOYMENT.md when starting AWS deployment
+- CDK deploy to staging, connect corporate Jira + HD
+- USE_MOCK_AI=false → real Bedrock
+- RDS PostgreSQL, AWS SES, CloudWatch alarms
+- Production after staging verified
+
+## Deferred to post-AWS deployment
+- Split view + full UI redesign (sortable columns, keyboard shortcuts, bulk actions)
+- Attachment proxy for inline images
+- Webhook real-time comment sync
+- Mobile responsive improvements
+- RUNBOOK.md — operational runbook after first deployment
 
 ## Established patterns (always follow these)
 
 ### Adding a new API route
-1. Zod schema in packages/shared-types/src/.ts
+1. Zod schema in packages/shared-types/src/[domain]/schemas.ts
 2. Handler in apps/api/src/routes/[domain].handlers.ts
 3. Route registered in apps/api/src/routes/[domain].routes.ts
 4. Mounted in apps/api/src/app.ts
@@ -124,8 +136,7 @@ Follow jira.service.ts pattern:
 5. RTL test alongside component
 
 ### Adding a new AI feature
-1. Add feature name to AI feature union type in shared-types
-2. Add prompt template in apps/api/src/ai/prompts.ts
+1. Add feature name to AI feature union type in shared-type prompt template in apps/api/src/ai/prompts.ts
 3. Add handler in apps/api/src/ai/[feature].ts
 4. Register in apps/api/src/routes/ai.routes.ts
 5. Add mock response in ai/mockResponses.ts
@@ -140,226 +151,3 @@ Follow jira.service.ts pattern:
 - Every Query MUST have orgId in KeyConditionExpression
 - Every GetItem result MUST verify orgId matches JWT orgId
 - Use upsertTicket for all ticket writes — never raw PutItem in routes
-
-## Deferred items
-- Webhook comment sync (real-time) — Phase 9
-- Merged incident view (Jira+HD unified modal) — Phase 9
-- Customer email reply via HD — Phase 9 (mail server needed)
-- ActivitySidebar history on connect — Phase 9
-- Attachment proxy for inline images — Phase 9
-- Permission model enforcement — Phase 9
-
-## Phase 8 — Reports ### Architecture decisions (to be confirmed before building)
-- Reports: real-time computed on GET vs Redis-cached vs pre-computed nightly
-- Notification triggers: SLA breach (reconciliation check), churn risk (post-sentiment batch), critical ticket (webhook)
-- Email: AWS SES locally via Mailhog (already running)
-- Notification recipients: technician (own SLA), manager (churn/critical/digest), super_admin (everything)
-
-### What to build
-- GET /api/reports/sla — SLA compliance by week/month
-- GET /api/reports/volume — ticket volume by source and period
-- GET /api/reports/resolution — avg resolution time by priority/source
-- GET /api/reports/team — tickets resolved per technician
-- apps/api/src/services/email.service.ts — SES/Mailhog email sender
-- apps/api/src/services/notifications.service.ts — notification rules engine
-- apps/api/src/routes/notifications.routes.ts — GET/POST /api/notifications
-- Update reconciliation: check SLA breach → trigger notification
-- Update sentiment batch: churn risk detected → trigger notification
-- Fill MgrView Reporting tab with real Recharts
-- In-app notification bell in header (WebSocket push)
-- Notification preferences in Admin settings
-
-## Phase 9 — UI/UX full redesign items (DO NOT FORGET)
-- Split view: ticket list left, detail panel right (no modal, inline)
-- Sortable column headers (priority, status, SLA, updated)
-- Keyboard shortcuts (j/k navigate, enter open, c comment)
-- Bulk actions (select multiple tickets, bulk status change)
-- Better empty states and loading skeletons
-- Match design-reference.tsx more closely
-- Mobile responsive improvements
-
-## UI Improvements — COMPLETE (PR #12)
-- Dense single-column ticket list (replaces 2-column grid)
-- Collapsible Activity panel (bell icon toggle)
-- Stats row showing real counts
-- SLA shows — when no due date
-- PostgreSQL + DynamoDB persistent Docker volumes
-- db:setup now runs KB migration automatically
-- 274 tests passing
-
-## Current test count: 274 (179 API + 70 web + 16 shared-types + 9 UI)
-
-## Phase 8 — Reports & Notifications
-### Architecture decisions (confirmed)
-
-#### Reports
-- Ticket volume trend: LineChart, Jira vs HD vs Total, 7/30 days selectable
-- Resolution trend: BarChart opened vs resolved per week
-- SLA compliance: BarChart met vs breached per week
-- Team performance: table (assigned, resolved, avg resolution time, SLA met %)
-- Caching: Redis 1-hour TTL per orgId
-- Export: CSV download on each report
-- Default time period: 7 days
-
-#### SLA policy
-- Configurable in Admin settings (stored in DynamoDB)
-- Defaults: Critical=2h, High=4h, Medium=8h, Low=24h
-- Applied when ticket has no due date from Jira/HD
-
-#### Notifications
-- SLA breach: ticket <25% SLA remaining → notify assigned technician (in-app + email)
-- Critical ticket created: → notify manager (in-app + email)
-- Churn risk: sentiment negative + churnRisk=true → notify manager (in-app only)
-- Bell icon in header for all roles (filtered by relevance)
-- Stored in DynamoDB support_notificats table
-- GET /api/notifications — list unread for current user
-- POST /api/notifications/:id/read — mark as read
-- WebSocket pushes new notifications to connected clients
-
-#### Email
-- Admin configures SMTP in Admin → SMTP tab (host, port, user, password)
-- Settings stored in DynamoDB (Secrets Manager in production)
-- Test connection button in SMTP tab
-- Local dev: Mailhog (port 1025) as default SMTP
-- Simple HTML email templates
-
-#### What to build
-- GET /api/reports/volume — ticket volume trend
-- GET /api/reports/resolution — opened vs resolved trend
-- GET /api/reports/sla — SLA compliance (uses configurable SLA policy)
-- GET /api/reports/team — team performance table
-- All reports: Redis cached (1hr), CSV export endpoint
-- apps/api/src/services/email.service.ts — SMTP sender (nodemailer)
-- apps/api/src/services/notifications.service.ts — notification rules engine
-- apps/api/src/routes/notifications.routes.ts — GET/POST /api/notifications
-- apps/api/src/routes/reports.routes.ts — all report endpoints
-- Update Admin SMTP tab — real form with test connection
-- Add SLA policy config to Admin settings tab
-- Fill MgrView Reporting tab — real Recharts + CSV exn bell in AppHeader — badge count + dropdown
-- Update reconciliation: check SLA breach → trigger notification
-- Update sentiment batch: churn risk → trigger notification
-- Update webhooks: critical ticket → trigger notification
-
-## Phase 8 — COMPLETE (PR #13)
-- Reports: volume trend, resolution trend, SLA compliance, team performance
-- Redis cache (1hr TTL) for all reports
-- CSV export on all reports
-- SLA policy configurable (Admin → Settings), defaults Critical=2h/High=4h/Medium=8h/Low=24h
-- slaDueAt computed server-side on all ticket DTOs
-- support_notifications DynamoDB table
-- Notification bell in header (all roles), unread badge, dropdown
-- WebSocket notifications in AppShell (instant updates on all views)
-- SLA breach + critical ticket + churn risk notification triggers
-- Email service (nodemailer, Mailhog local, admin-configured SMTP)
-- Admin → SMTP tab: real form with test connection
-- Admin → Settings tab: SLA policy editor + notification preferences
-- Source timestamps fix: Jira/HD original creation dates now stored
-- 293 tests passing
-
-## Current test count: 293 (192 API + 76 web + 16 shared-types + 9 UI)
-
-## Phase 9 — Admin, Polish & Hardening
-### Decision: Option B — Permission model + polish first, then AWS deployment
-
-### Permission model (confirmed)
-
-#### Roles
-- technician: assigned tickets full access, others read-only, KB tab, no Manager/Admin tab
-- manager: all tickets full access, Manager tab, KB tab, invite technicians only, no Admin tab
-- super_admin: everything + Admin tab + user management + integrations + delete
-
-#### Navigation by role
-- Technician: Tickets | Knowledge Base
-- Manager: Tickets | Knowledge Base | Manager
-- Super Admin: Tickets | Knowledge Base | Manager | Admin
-
-#### KB access by role
-- All roles: browse/search published articles, read full articles
-- Technician: generate KB draft (own tickets only), save draft
-- Manager/Super Admin: generate KB draft (any ticket), publish, edit
-- Admin Panel KB tab: Manager + Super Admin only
-- KB nav tab: all roles
-
-#### User management
-- Super Admin: invite Technician, Manager, Super Admin
-- Manager: invitchnician only
-- Technician: cannot invite
-- Invitation flow: email with one-time password setup link (24hr expiry)
-- Password reset: self-service via email
-- Email via internal SMTP (configured in Admin → SMTP tab)
-
-#### Demo credentials (always seeded, shown on login page in dev mode)
-- admin@usd.dev / Admin123! (Super Admin)
-- manager@usd.dev / Mgr123! (Manager)
-- technician@usd.dev / Tech123! (Technician)
-
-### What to build in Phase 9
-
-#### Part 1 — Permission model + User management — COMPLETE
-- Enforce JWT role checks on all API routes (currently admin-only or requireAuth)
-- Ticket ownership middleware: technician can only write on assigned tickets
-- Admin → Users tab: real user list from DynamoDB
-- Invite user flow: form + email invitation + one-time token + password setup page
-- Password reset: forgot password flow via email
-- Login page: show 3 demo credential hints in dev mode
-- KB nav tab: new route /kb for all roles
-- KB browsing page: search + list published articles + article reader
-
-#### Part 2 —- Merged incident view: when ticket has linkedTicketId, DetailModal shows both HD + Jira context merged
-- ActivitySidebar history on connect: load last 50 events from DB on WS connect
-- Webhook real-time comment sync: when Jira/HD fires comment webhook, store immediately
-- Attachment proxy: GET /api/tickets/:id/attachments/:attachmentId streams from Jira/HD with auth
-- Rate limiting on API (express-rate-limit)
-- Full UI redesign: split view, sortable columns, keyboard shortcuts, bulk actions
-
-#### Part 3 — AWS Deployment (discuss separately)
-- CDK deploy to staging
-- Real Bedrock, RDS PostgreSQL, SES
-- CloudWatch alarms
-- Production deployment after staging verified
-
-## Phase 9 Part 2 — decisions confirmed
-
-### Merged incident view
-- Option A: both linked tickets open the merged view
-- No unlink button — remove link via cross-link field only
-- Show both Jira + HD context side by side
-- Unified conversation thread (all sources sorted by time)
-- Separate reply options: Add Note (HD), Comment (Jira), Reply to Customer
-- AI uses full merged context from both tickets
-
-### Rate limiting
-- express-rate-limit: 100 requests per minute per IP
-- Applied to all /api routes
-- Returns 429 Too Many Requests when exceeded
-
-### ActivitySidebar history
-- On WebSocket connect: load last 50 events from DB
-- GET /api/activity/recent?limit=50
-- Seeds Zustand store on connect
-
-## Phase 9 — COMPLETE (PR #14)
-- Permission model: technician/manager/super_admin enforced on all routes
-- User management: invite flow, password reset, accept invite
-- KB navigation tab (/kb) for all roles — browse/search published articles
-- Demo credentials seeded: admin/manager/technician
-- My Tickets default tab for technicians, read-only on unassigned
-- Rate limiting: 100 req/min per IP (skip: health, webhooks)
-- ActivitySidebar history: loads last 50 events from DB on connect
-- Merged incident view: linked Jira+HD tickets show unified DetailModal
-- 352 tests passing
-
-## Current test count: 352 (215 API + 104 web + 24 shared-types + 9 UI)
-
-## Phase 9 — deferred to post-AWS deployment
-- Split view and full UI redesign
-- Attachment proxy for inline images
-- Webhook real-time comment sync
-
-## E2E Tests — COMPLETE (PR #15)
-- Playwright E2E tests with video recording
-- 17 tests across 6 spec files (auth, technician, manager, admin, tickets, KB)
-- Videos: apps/e2e/test-results/*/video.webm
-- Run: pnpm e2e (requires pnpm dev running first)
-- Excluded from CI (needs running dev server)
-- Chromium only
