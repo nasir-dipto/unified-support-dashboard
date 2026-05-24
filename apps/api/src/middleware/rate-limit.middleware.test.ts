@@ -1,9 +1,11 @@
 import request from 'supertest';
 import express from 'express';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   createApiRateLimiter,
+  isLoopbackClient,
   rateLimitErrorBody,
+  shouldBypassApiRateLimit,
   shouldSkipApiRateLimit,
 } from './rate-limit.middleware.js';
 
@@ -13,6 +15,14 @@ describe('rate-limit.middleware', () => {
     expect(shouldSkipApiRateLimit('/api/health/detail')).toBe(true);
     expect(shouldSkipApiRateLimit('/api/webhooks/jira')).toBe(true);
     expect(shouldSkipApiRateLimit('/api/tickets')).toBe(false);
+  });
+
+  it('shouldBypassApiRateLimit skips loopback in development', () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    const req = { path: '/api/tickets', ip: '127.0.0.1', socket: { remoteAddress: '127.0.0.1' } };
+    expect(isLoopbackClient(req as never)).toBe(true);
+    expect(shouldBypassApiRateLimit(req as never)).toBe(true);
+    vi.unstubAllEnvs();
   });
 
   it('rateLimitErrorBody matches API contract', () => {

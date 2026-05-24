@@ -12,7 +12,7 @@ Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentim
 - Monorepo: pnpm workspaces + Turborepo
 - Infra: AWS CDK (TypeScript)
 - Database: DynamoDB (tickets/users/comments), PostgreSQL+pgvector (KB articles)
-- Testing: Vitest + RTL
+- Testing: Vitest + RTL + Playwright E2E
 
 ## Key conventions
 - IDs: ULID. Never UUID
@@ -27,6 +27,7 @@ Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentim
 - docker compose up -d — start all local services
 - pnpm dev — frontend (:5173) + backend (:3001)
 - pnpm lint && pnpm typecheck && pnpm test — before every push
+- pnpm e2e — Playwright E2E (requires `docker compose up -d`, `pnpm dev`, seeded demo-org data)
 - export DYNAMODB_ENDPOINT=http://localhost:8000 && pnpm test — run with integration tests
 - pnpm --filter @usd/api db:setup — create DynamoDB Local tables + KB Postgres schema when POSTGRES_URL is set (first time, or fresh volume)
 - pnpm --filter @usd/api db:seed — seed admin (admin@usd.dev / Admin123!) (first time, or fresh volume)
@@ -57,7 +58,16 @@ Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentim
 - Phase 9 Part 1: COMPLETE — permission model, user mgmt, KB nav, invite flow (branch: feature/phase-9-admin)
 - Phase 9 Part 2+: NOT STARTED — merged incident, webhook comments, attachment proxy, AWS deploy
 
-## Current test count: 325 (207 API + 93 web + 16 shared-types + 9 UI)
+## Current test count: 352 unit/integration (215 API + 104 web + 24 shared-types + 9 UI) | 17 E2E (Playwright, `@usd/e2e`)
+
+### E2E tests (`apps/e2e`)
+- Playwright + TypeScript, Chromium only
+- Base URL: `http://localhost:5173` (API `:3001` checked in global setup)
+- Video: `record: 'on'` → saved under `apps/e2e/test-results/`
+- HTML report: `apps/e2e/playwright-report/`
+- Demo credentials: admin@usd.dev, manager@usd.dev, technician@usd.dev (org `demo-org`)
+- Run: `pnpm e2e` (after `docker compose up -d` + `pnpm dev` + db seed/sync)
+- Local API rate limit applies in production; loopback requests skip the limiter in `NODE_ENV=development` (Playwright E2E)
 
 ## Architecture decisions
 - pgvector (RDS PostgreSQL) for KB search — not OpenSearch (~$15-25/mo)
