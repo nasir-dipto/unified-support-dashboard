@@ -355,3 +355,11 @@ Follow jira.service.ts pattern:
 - Split view and full UI redesign
 - Attachment proxy for inline images
 - Webhook real-time comment sync
+
+## E2E Tests — COMPLETE (PR #15)
+- Playwright E2E tests with video recording
+- 17 tests across 6 spec files (auth, technician, manager, admin, tickets, KB)
+- Videos: apps/e2e/test-results/*/video.webm
+- Run: pnpm e2e (requires pnpm dev running first)
+- Excluded from CI (needs running dev server)
+- Chromium only
