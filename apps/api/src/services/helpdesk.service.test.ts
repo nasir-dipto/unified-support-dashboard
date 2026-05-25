@@ -2,6 +2,8 @@ import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadServerEnv, resetServerEnvForTests } from '../config/loadEnv.js';
 import { resetZohoAuthCacheForTests } from './zohoAuth.service.js';
+import { AppError } from '../utils/errors.js';
+import * as helpdeskService from './helpdesk.service.js';
 import {
   buildConversationsListInputData,
   buildNotesListInputData,
@@ -10,6 +12,7 @@ import {
   fetchRequestNotes,
   fetchRequestsPage,
   helpdeskFetch,
+  helpdeskFetchWithBackoff,
   postComment,
   postCustomerEmailReply,
   REQUEST_LIST_FIELDS_REQUIRED,
@@ -169,6 +172,40 @@ describe('helpdesk.service', () => {
       .reply(200, { status: 'ok' });
     await postComment({ externalId: '77', internalId: '4445000000000077' }, 'hello-note');
     expect(nock.isDone()).toBe(true);
+  });
+
+  it('helpdeskFetchWithBackoff retries on 429 then succeeds', async () => {
+    vi.spyOn(helpdeskService, 'sleep').mockResolvedValue(undefined);
+    nock('https://accounts.zoho.uk')
+      .post('/oauth/v2/token')
+      .reply(200, { access_token: 'retry-tok', expires_in: 3600 });
+    nock('https://sdp.example')
+      .get('/api/v3/requests/99')
+      .reply(429, { message: 'rate limited' })
+      .get('/api/v3/requests/99')
+      .reply(200, { request: { id: '99' } });
+    const res = await helpdeskFetchWithBackoff('/requests/99');
+    expect(res.status).toBe(200);
+  });
+
+  it('helpdeskFetchWithBackoff does not retry on 404', async () => {
+    vi.spyOn(helpdeskService, 'sleep').mockResolvedValue(undefined);
+    nock('https://accounts.zoho.uk')
+      .post('/oauth/v2/token')
+      .reply(200, { access_token: '404-tok', expires_in: 3600 });
+    const scope = nock('https://sdp.example').get('/api/v3/requests/missing').reply(404, 'not found');
+    await expect(helpdeskFetchWithBackoff('/requests/missing')).rejects.toBeInstanceOf(AppError);
+    expect(scope.isDone()).toBe(true);
+  });
+
+  it('helpdeskFetchWithBackoff does not retry on 500', async () => {
+    vi.spyOn(helpdeskService, 'sleep').mockResolvedValue(undefined);
+    nock('https://accounts.zoho.uk')
+      .post('/oauth/v2/token')
+      .reply(200, { access_token: '500-tok', expires_in: 3600 });
+    const scope = nock('https://sdp.example').get('/api/v3/requests/broken').reply(500, 'server error');
+    await expect(helpdeskFetchWithBackoff('/requests/broken')).rejects.toBeInstanceOf(AppError);
+    expect(scope.isDone()).toBe(true);
   });
 
   it('postComment falls back to externalId when internalId is absent', async () => {

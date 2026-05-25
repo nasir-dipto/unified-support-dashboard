@@ -15,11 +15,17 @@ export class UsdDatabaseStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
+    // PITR enabled for production data protection
+    const tableProps = {
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true,
+    };
+
     this.supportTicketsTable = new dynamodb.Table(this, 'SupportTickets', {
       tableName: 'support_tickets',
       partitionKey: { name: 'ticketId', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      ...tableProps,
     });
     this.supportTicketsTable.addGlobalSecondaryIndex({
       indexName: 'orgId-createdAt',
@@ -45,8 +51,7 @@ export class UsdDatabaseStack extends cdk.Stack {
       tableName: 'support_ticket_comments',
       partitionKey: { name: 'orgId', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'ticketCommentKey', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      ...tableProps,
     });
     this.tables.push(this.supportTicketCommentsTable);
 
@@ -54,8 +59,7 @@ export class UsdDatabaseStack extends cdk.Stack {
       tableName: 'support_users',
       partitionKey: { name: 'orgId', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      ...tableProps,
     });
     users.addGlobalSecondaryIndex({
       indexName: 'orgId-email',
@@ -69,16 +73,14 @@ export class UsdDatabaseStack extends cdk.Stack {
       tableName: 'support_roles',
       partitionKey: { name: 'orgId', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      ...tableProps,
     });
     this.tables.push(roles);
 
     const kb = new dynamodb.Table(this, 'SupportKb', {
       tableName: 'support_kb',
       partitionKey: { name: 'kbId', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      ...tableProps,
     });
     kb.addGlobalSecondaryIndex({
       indexName: 'orgId-createdAt',
@@ -97,8 +99,7 @@ export class UsdDatabaseStack extends cdk.Stack {
     const reports = new dynamodb.Table(this, 'SupportReports', {
       tableName: 'support_reports',
       partitionKey: { name: 'reportId', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      ...tableProps,
     });
     reports.addGlobalSecondaryIndex({
       indexName: 'orgId-createdAt',
@@ -112,8 +113,7 @@ export class UsdDatabaseStack extends cdk.Stack {
       tableName: 'support_notification_rules',
       partitionKey: { name: 'orgId', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'ruleType', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      ...tableProps,
     });
     this.tables.push(notificationRules);
 
@@ -121,8 +121,7 @@ export class UsdDatabaseStack extends cdk.Stack {
       tableName: 'support_notifications',
       partitionKey: { name: 'orgId', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'notificationId', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      ...tableProps,
     });
     this.tables.push(notifications);
 
@@ -130,8 +129,7 @@ export class UsdDatabaseStack extends cdk.Stack {
       tableName: 'support_auth_tokens',
       partitionKey: { name: 'orgId', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'tokenId', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      ...tableProps,
     });
     this.tables.push(authTokens);
 
@@ -139,9 +137,8 @@ export class UsdDatabaseStack extends cdk.Stack {
       tableName: 'support_ws_activity_events',
       partitionKey: { name: 'orgId', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'eventId', type: dynamodb.AttributeType.STRING },
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
       timeToLiveAttribute: 'expiresAt',
+      ...tableProps,
     });
     this.tables.push(wsActivityEvents);
   }

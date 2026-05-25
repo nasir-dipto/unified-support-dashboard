@@ -4,6 +4,20 @@ import { getServerEnv } from '../config/loadEnv.js';
 let pool: pg.Pool | undefined;
 
 /**
+ * Pool options: SSL enabled in production for RDS; disabled for local Docker.
+ */
+export function buildPostgresPoolConfig(connectionString: string): pg.PoolConfig {
+  const nodeEnv = process.env.NODE_ENV ?? 'development';
+  if (nodeEnv === 'production') {
+    return {
+      connectionString,
+      ssl: { rejectUnauthorized: false },
+    };
+  }
+  return { connectionString };
+}
+
+/**
  * Returns true when POSTGRES_URL is configured.
  */
 export function hasPostgresUrl(): boolean {
@@ -20,7 +34,7 @@ export function getPostgresPool(): pg.Pool | null {
   }
   if (pool === undefined) {
     const env = getServerEnv();
-    pool = new pg.Pool({ connectionString: env.POSTGRES_URL });
+    pool = new pg.Pool(buildPostgresPoolConfig(env.POSTGRES_URL ?? ''));
   }
   return pool;
 }
@@ -41,11 +55,18 @@ export async function queryPostgres<T extends pg.QueryResultRow>(
 }
 
 /**
- * Closes the pool (tests only).
+ * Closes the pool (graceful shutdown and tests).
  */
-export async function resetPostgresPoolForTests(): Promise<void> {
+export async function closePostgresPool(): Promise<void> {
   if (pool !== undefined) {
     await pool.end();
     pool = undefined;
   }
+}
+
+/**
+ * Closes the pool (Vitest teardown alias).
+ */
+export async function resetPostgresPoolForTests(): Promise<void> {
+  await closePostgresPool();
 }

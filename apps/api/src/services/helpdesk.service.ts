@@ -7,6 +7,21 @@ type Json = Record<string, unknown>;
 /** SDP v3 JSON media type (required on requests). */
 const SDP_V3_ACCEPT = 'application/vnd.manageengine.sdp.v3+json';
 
+/** Delay between consecutive Helpdesk API calls (rate limiting). */
+export const HELPDESK_INTER_REQUEST_DELAY_MS = 100;
+
+/** Backoff delays after HTTP 429 (max 3 retries). */
+export const HELPDESK_429_RETRY_DELAYS_MS = [1000, 2000, 4000] as const;
+
+/**
+ * Pauses execution for outbound Helpdesk rate limiting.
+ */
+export async function sleep(ms: number): Promise<void> {
+  await new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 /**
  * Returns trimmed Helpdesk API base URL or throws if unset.
  */
@@ -90,25 +105,63 @@ function stripContentTypeForGet(
 }
 
 /**
- * Performs an authenticated HTTP request against HELPDESK_URL.
+ * Performs one authenticated HTTP request (no retry; throws AppError on non-OK except 429).
  */
-export async function helpdeskFetch(path: string, init?: RequestInit): Promise<Response> {
+async function helpdeskFetchOnce(path: string, init?: RequestInit): Promise<Response> {
   const site = requireHelpdeskBaseUrl();
   const url = `${site}${path.startsWith('/') ? path : `/${path}`}`;
   const headers = await buildHelpdeskHeaders(init);
-  const res = await fetch(url, {
+  return fetch(url, {
     ...withoutRequestHeaders(init),
     headers,
   });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new AppError(
-      `Helpdesk API error ${String(res.status)}: ${text.slice(0, 500)}`,
-      'HELPDESK_API',
-      res.status >= 400 && res.status < 600 ? res.status : 502,
-    );
+}
+
+/**
+ * Authenticated Helpdesk request with exponential backoff on HTTP 429.
+ */
+export async function helpdeskFetchWithBackoff(
+  path: string,
+  init?: RequestInit,
+  options?: { maxRetries?: number; retryDelaysMs?: readonly number[] },
+): Promise<Response> {
+  const maxRetries = options?.maxRetries ?? HELPDESK_429_RETRY_DELAYS_MS.length;
+  const delays = options?.retryDelaysMs ?? HELPDESK_429_RETRY_DELAYS_MS;
+  let lastResponse: Response | undefined;
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    if (attempt > 0) {
+      const delayMs = delays[attempt - 1] ?? delays[delays.length - 1] ?? 4000;
+      await sleep(delayMs);
+    }
+    const res = await helpdeskFetchOnce(path, init);
+    if (res.status === 429 && attempt < maxRetries) {
+      lastResponse = res;
+      continue;
+    }
+    if (!res.ok) {
+      const text = await res.text();
+      throw new AppError(
+        `Helpdesk API error ${String(res.status)}: ${text.slice(0, 500)}`,
+        'HELPDESK_API',
+        res.status >= 400 && res.status < 600 ? res.status : 502,
+      );
+    }
+    return res;
   }
-  return res;
+  const status = lastResponse?.status ?? 429;
+  throw new AppError(
+    `Helpdesk API error ${String(status)}: rate limited after retries`,
+    'HELPDESK_API',
+    429,
+  );
+}
+
+/**
+ * Performs an authenticated HTTP request against HELPDESK_URL (paced + 429 backoff).
+ */
+export async function helpdeskFetch(path: string, init?: RequestInit): Promise<Response> {
+  await sleep(HELPDESK_INTER_REQUEST_DELAY_MS);
+  return helpdeskFetchWithBackoff(path, init);
 }
 
 export type HelpdeskRequestListItem = Json;

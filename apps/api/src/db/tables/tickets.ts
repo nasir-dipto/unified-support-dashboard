@@ -50,19 +50,26 @@ function decodeLastKey(cursor: string, orgId: string): Record<string, unknown> {
 }
 
 /**
- * Inserts or updates a ticket; preserves sentiment fields when the item already exists.
+ * Returns true when an incoming upsert should not overwrite core ticket fields.
  */
-export async function upsertTicket(record: SupportTicketRecord): Promise<SupportTicketRecord> {
-  const parsed = supportTicketRecordSchema.parse(record);
-  const env = getServerEnv();
-  const doc = getDocumentClient();
-  const existing = await doc.send(
-    new GetCommand({
-      TableName: env.SUPPORT_TICKETS_TABLE,
-      Key: { ticketId: parsed.ticketId },
-    }),
-  );
-  const prev = existing.Item as SupportTicketRecord | undefined;
+export function isStaleTicketUpsert(
+  prev: SupportTicketRecord | undefined,
+  incomingUpdatedAt: string,
+): boolean {
+  if (prev?.updatedAt === undefined || prev.updatedAt.length === 0) {
+    return false;
+  }
+  return incomingUpdatedAt <= prev.updatedAt;
+}
+
+/**
+ * Merges preservation and sentiment fields for ticket upsert.
+ */
+export function mergeTicketUpsertFields(
+  prev: SupportTicketRecord | undefined,
+  parsed: SupportTicketRecord,
+  isStale: boolean,
+): SupportTicketRecord {
   const createdAt = parsed.createdAt;
   const linkedTicketId =
     parsed.linkedTicketId !== undefined && parsed.linkedTicketId.length > 0
@@ -88,7 +95,23 @@ export async function upsertTicket(record: SupportTicketRecord): Promise<Support
     parsed.sentimentAt !== undefined && parsed.sentimentAt !== null
       ? parsed.sentimentAt
       : prev?.sentimentAt;
-  const merged = supportTicketRecordSchema.parse({
+
+  if (isStale && prev !== undefined) {
+    return supportTicketRecordSchema.parse({
+      ...prev,
+      createdAt,
+      updatedAt: prev.updatedAt,
+      linkedTicketId,
+      internalId,
+      sentiment,
+      sentimentScore,
+      churnRisk,
+      sentimentStale,
+      sentimentAt,
+    });
+  }
+
+  return supportTicketRecordSchema.parse({
     ...parsed,
     createdAt,
     updatedAt: parsed.updatedAt,
@@ -100,12 +123,72 @@ export async function upsertTicket(record: SupportTicketRecord): Promise<Support
     sentimentStale,
     sentimentAt,
   });
-  await doc.send(
-    new PutCommand({
+}
+
+/**
+ * Returns true when a stale upsert still needs a DynamoDB write (sentiment or preservation fields).
+ */
+export function staleUpsertNeedsWrite(
+  prev: SupportTicketRecord | undefined,
+  merged: SupportTicketRecord,
+): boolean {
+  if (prev === undefined) {
+    return true;
+  }
+  if (merged.linkedTicketId !== prev.linkedTicketId) {
+    return true;
+  }
+  if (merged.internalId !== prev.internalId) {
+    return true;
+  }
+  if (merged.sentiment !== prev.sentiment) {
+    return true;
+  }
+  if (merged.sentimentScore !== prev.sentimentScore) {
+    return true;
+  }
+  if (merged.churnRisk !== prev.churnRisk) {
+    return true;
+  }
+  if (merged.sentimentStale !== prev.sentimentStale) {
+    return true;
+  }
+  if (merged.sentimentAt !== prev.sentimentAt) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Inserts or updates a ticket; preserves sentiment fields when the item already exists.
+ */
+export async function upsertTicket(record: SupportTicketRecord): Promise<SupportTicketRecord> {
+  const parsed = supportTicketRecordSchema.parse(record);
+  const env = getServerEnv();
+  const doc = getDocumentClient();
+  const existing = await doc.send(
+    new GetCommand({
       TableName: env.SUPPORT_TICKETS_TABLE,
-      Item: merged,
+      Key: { ticketId: parsed.ticketId },
     }),
   );
+  const prev = existing.Item as SupportTicketRecord | undefined;
+  const stale = isStaleTicketUpsert(prev, parsed.updatedAt);
+  if (stale) {
+    console.debug(
+      `Skipping stale upsert for ticket ${parsed.ticketId}: incoming ${parsed.updatedAt} <= stored ${prev?.updatedAt ?? ''}`,
+    );
+  }
+  const merged = mergeTicketUpsertFields(prev, parsed, stale);
+  const shouldWrite = !stale || staleUpsertNeedsWrite(prev, merged);
+  if (shouldWrite) {
+    await doc.send(
+      new PutCommand({
+        TableName: env.SUPPORT_TICKETS_TABLE,
+        Item: merged,
+      }),
+    );
+  }
   return merged;
 }
 

@@ -28,6 +28,25 @@ export function resetRedisClientForTests(): void {
 }
 
 /**
+ * Closes the shared Redis connection (graceful shutdown).
+ */
+export async function closeRedisClient(): Promise<void> {
+  if (client === undefined) {
+    return;
+  }
+  const active = client;
+  client = undefined;
+  if (active.status === 'wait') {
+    return;
+  }
+  try {
+    await active.quit();
+  } catch {
+    active.disconnect();
+  }
+}
+
+/**
  * Reads JSON from cache; returns undefined on miss or Redis unavailable.
  */
 export async function cacheGetJson<T>(key: string): Promise<T | undefined> {
