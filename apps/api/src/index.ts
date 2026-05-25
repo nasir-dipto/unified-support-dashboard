@@ -7,6 +7,7 @@ import { createApp } from './app.js';
 import { checkEnvWarnings } from './config/checkEnvWarnings.js';
 import { ensureDevJwtKeys } from './config/ensureDevJwtKeys.js';
 import { getServerEnv, loadServerEnv } from './config/loadEnv.js';
+import { registerGracefulShutdown } from './server/shutdown.js';
 import { registerLocalWsClient } from './services/websocket.service.js';
 import { verifyAccessToken } from './utils/jwt.js';
 
@@ -30,9 +31,10 @@ const app = createApp();
 const env = getServerEnv();
 
 const server = http.createServer(app);
+let wss: WebSocketServer | undefined;
 
 if (env.WS_MODE === 'local') {
-  const wss = new WebSocketServer({ noServer: true });
+  wss = new WebSocketServer({ noServer: true });
   server.on('upgrade', (request, socket, head) => {
     const host = request.headers.host ?? '127.0.0.1';
     let url: URL;
@@ -53,7 +55,7 @@ if (env.WS_MODE === 'local') {
     }
     void verifyAccessToken(token)
       .then((payload) => {
-        wss.handleUpgrade(request, socket, head, (ws) => {
+        wss?.handleUpgrade(request, socket, head, (ws) => {
           registerLocalWsClient(payload.orgId, ws);
         });
       })
@@ -62,6 +64,8 @@ if (env.WS_MODE === 'local') {
       });
   });
 }
+
+registerGracefulShutdown({ server, wss });
 
 server.listen(env.PORT, () => {
   console.log(`API listening on http://localhost:${String(env.PORT)}`);

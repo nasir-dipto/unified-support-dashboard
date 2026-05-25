@@ -33,6 +33,20 @@ export function clearLocalWsClientsForTests(): void {
 }
 
 /**
+ * Closes every open local WebSocket client (graceful shutdown).
+ */
+export function closeAllLocalWsClients(): void {
+  for (const bucket of orgClients.values()) {
+    for (const client of bucket) {
+      if (client.readyState === WebSocket.OPEN || client.readyState === WebSocket.CONNECTING) {
+        client.close();
+      }
+    }
+  }
+  orgClients.clear();
+}
+
+/**
  * Returns the count of open local WebSocket clients across all orgs.
  */
 export function getLocalWsConnectionCount(): number {

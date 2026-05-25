@@ -9,7 +9,12 @@ import { scanSlaBreachesForOrg } from '../services/notifications.service.js';
 import { resetDocumentClientForTests } from '../db/dynamo.client.js';
 import { mapHdRequestToTicket } from '../helpdesk/mapRequestToTicket.js';
 import { syncRequestConversations } from '../helpdesk/syncRequestConversations.js';
+import type { HelpdeskRequestListItem } from '../services/helpdesk.service.js';
 import { fetchRequestsPage } from '../services/helpdesk.service.js';
+import { runWithConcurrencyLimit } from '../utils/concurrency.js';
+
+/** Max parallel Helpdesk ticket reconciles per page. */
+export const HD_RECONCILE_CONCURRENCY = 5;
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -28,6 +33,39 @@ function bootstrapEnv(): void {
 }
 
 /**
+ * Reconciles one page of Helpdesk requests with bounded concurrency.
+ */
+export async function reconcileHelpdeskRequestRows(
+  rows: readonly HelpdeskRequestListItem[],
+  orgId: string,
+): Promise<void> {
+  await runWithConcurrencyLimit(rows, HD_RECONCILE_CONCURRENCY, async (row) => {
+    const rec = mapHdRequestToTicket({
+      request: row,
+      orgId,
+    });
+    const saved = await upsertTicket(rec);
+    await markSentimentStale(orgId, saved.ticketId);
+    const internalId =
+      typeof row.id === 'string'
+        ? row.id
+        : typeof row.id === 'number'
+          ? String(row.id)
+          : saved.internalId;
+    if (internalId !== undefined && internalId.length > 0) {
+      const synced = await syncRequestConversations({
+        orgId,
+        ticketId: saved.ticketId,
+        internalId,
+      });
+      if (synced > 0) {
+        console.info(`  ${saved.ticketId}: synced ${String(synced)} conversation(s)`);
+      }
+    }
+  });
+}
+
+/**
  * Manual Helpdesk → Dynamo reconciliation for local development.
  */
 async function main(): Promise<void> {
@@ -37,30 +75,7 @@ async function main(): Promise<void> {
   let hasMore = true;
   while (hasMore) {
     const page = await fetchRequestsPage({ rowCount: 25, startIndex });
-    for (const row of page.requests) {
-      const rec = mapHdRequestToTicket({
-        request: row,
-        orgId: env.HD_DEFAULT_ORG_ID,
-      });
-      const saved = await upsertTicket(rec);
-      await markSentimentStale(env.HD_DEFAULT_ORG_ID, saved.ticketId);
-      const internalId =
-        typeof row.id === 'string'
-          ? row.id
-          : typeof row.id === 'number'
-            ? String(row.id)
-            : saved.internalId;
-      if (internalId !== undefined && internalId.length > 0) {
-        const synced = await syncRequestConversations({
-          orgId: env.HD_DEFAULT_ORG_ID,
-          ticketId: saved.ticketId,
-          internalId,
-        });
-        if (synced > 0) {
-          console.info(`  ${saved.ticketId}: synced ${String(synced)} conversation(s)`);
-        }
-      }
-    }
+    await reconcileHelpdeskRequestRows(page.requests, env.HD_DEFAULT_ORG_ID);
     if (page.requests.length === 0) {
       hasMore = false;
     } else if (!page.hasMore) {

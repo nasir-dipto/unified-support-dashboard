@@ -40,9 +40,9 @@ Step 12: Production deployment after staging verified
 
 ### RDS PostgreSQL
 - pgvector extension MUST be enabled manually after RDS creation:
-  `CREATE EXTENSION IF NOTSTS vector;` on usd_kb database
-- SSL required: POSTGRES_URL must include ?ssl=true
-- Our postgres.client.ts needs ssl: true config before deployment
+  `CREATE EXTENSION IF NOT EXISTS vector;` on usd_kb database
+- SSL is enabled automatically in `postgres.client.ts` when `NODE_ENV=production` (RDS self-signed cert)
+- `POSTGRES_URL` does not need `?ssl=true` in Secrets Manager — use standard `postgresql://user:pass@host:5432/usd_kb`
 - ECS must be in same VPC as RDS (private subnet)
 
 ### IAM permissions
