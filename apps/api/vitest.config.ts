@@ -1,4 +1,8 @@
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /**
  * Vitest config loads after Turbo passes CI env vars; integration suites gate on DYNAMODB_ENDPOINT.
@@ -11,6 +15,12 @@ export const COVERAGE_TARGET_THRESHOLDS = {
 } as const;
 
 export default defineConfig({
+  /** Workspace packages export from dist/ — build @usd/shared-types before `vitest run --coverage`. */
+  resolve: {
+    alias: {
+      '@usd/shared-types': resolve(__dirname, '../../packages/shared-types/dist/index.js'),
+    },
+  },
   test: {
     environment: 'node',
     passWithNoTests: true,
@@ -26,6 +36,8 @@ export default defineConfig({
         '**/test/**',
         '**/scripts/**',
         '**/migrations/**',
+        '**/node_modules/**',
+        '**/packages/**',
       ],
       thresholds:
         process.env.COVERAGE_ENFORCE_THRESHOLDS === 'true'

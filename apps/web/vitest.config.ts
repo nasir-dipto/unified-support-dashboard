@@ -1,5 +1,9 @@
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /** Target coverage gates (enforced when COVERAGE_ENFORCE_THRESHOLDS=true). */
 export const COVERAGE_TARGET_THRESHOLDS = {
@@ -10,6 +14,13 @@ export const COVERAGE_TARGET_THRESHOLDS = {
 
 export default defineConfig({
   plugins: [react()],
+  /** Workspace packages export from dist/ — build @usd/shared-types and @usd/ui before `vitest run --coverage`. */
+  resolve: {
+    alias: {
+      '@usd/shared-types': resolve(__dirname, '../../packages/shared-types/dist/index.js'),
+      '@usd/ui': resolve(__dirname, '../../packages/ui/dist/index.js'),
+    },
+  },
   test: {
     environment: 'jsdom',
     passWithNoTests: true,
@@ -25,6 +36,8 @@ export default defineConfig({
         '**/test/**',
         '**/scripts/**',
         '**/migrations/**',
+        '**/node_modules/**',
+        '**/packages/**',
       ],
       thresholds:
         process.env.COVERAGE_ENFORCE_THRESHOLDS === 'true'

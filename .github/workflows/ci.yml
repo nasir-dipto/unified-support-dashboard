@@ -143,6 +143,9 @@ jobs:
       - name: KB migrate
         run: pnpm --filter @usd/api kb:migrate
 
+      - name: Build workspace packages (coverage bypasses Turbo ^build)
+        run: pnpm --filter @usd/shared-types --filter @usd/ui build
+
       - name: Test (unit + integration)
         run: |
           pnpm --filter @usd/shared-types --filter @usd/ui --filter @usd/infra test
