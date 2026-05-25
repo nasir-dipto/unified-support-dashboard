@@ -151,3 +151,14 @@ Follow jira.service.ts pattern:
 - Every Query MUST have orgId in KeyConditionExpression
 - Every GetItem result MUST verify orgId matches JWT orgId
 - Use upsertTicket for all ticket writes — never raw PutItem in routes
+
+## Pre-deployment hardening — COMPLETE (PR #16)
+- updatedAt guard on upsertTicket (stale events skip core fields, sentiment always updates)
+- HD outbound rate limiting (100ms sleep, 429 backoff, concurrency limit 5)
+- PostgreSQL SSL (ssl: rejectUnauthorized:false in production)
+- Graceful shutdown (SIGTERM/SIGINT, 10s grace, closes WS/HTTP/PG/Redis)
+- DynamoDB PITR enabled on all 10 tables (removalPolicy: RETAIN)
+- Code coverage reporting (v8, non-blocking baseline: 64% lines, 77% functions)
+- 370 tests passing (233 API + 104 web + 24 shared-types + 9 UI)
+
+## Current test count: 370 (233 API + 104 web + 24 shared-types + 9 UI) + 17 E2E
