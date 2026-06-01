@@ -164,6 +164,17 @@ const JIRA_SEARCH_FIELDS = [
 ] as const;
 
 /**
+ * Builds JQL for listing issues in a project, optionally filtered by assignee.
+ */
+export function buildProjectIssuesJql(projectKey: string, assigneeFilter?: string): string {
+  const trimmed = assigneeFilter?.trim();
+  if (trimmed !== undefined && trimmed.length > 0) {
+    return `project = ${projectKey} AND assignee = "${trimmed}" ORDER BY created DESC`;
+  }
+  return `project = ${projectKey} ORDER BY created DESC`;
+}
+
+/**
  * Lists issues in a project via enhanced JQL search (`POST /rest/api/3/search/jql`).
  * Pagination uses `nextPageToken` from the response (pass it on the next call).
  */
@@ -176,7 +187,8 @@ export async function fetchIssuesByProject(
   nextPageToken?: string;
 }> {
   const maxResults = options?.maxResults ?? 50;
-  const jql = `project = ${projectKey} ORDER BY created DESC`;
+  const env = getServerEnv();
+  const jql = buildProjectIssuesJql(projectKey, env.JIRA_ASSIGNEE_FILTER);
   const requestBody: Record<string, unknown> = {
     jql,
     fields: [...JIRA_SEARCH_FIELDS],

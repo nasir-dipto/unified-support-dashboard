@@ -7,7 +7,7 @@ import { forgotPassword } from '../api/auth.js';
  * Self-service forgot password form.
  */
 export function ForgotPasswordView(): ReactElement {
-  const [orgId, setOrgId] = useState('demo-org');
+  const [orgId, setOrgId] = useState('ti');
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | undefined>();

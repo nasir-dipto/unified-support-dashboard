@@ -27,7 +27,7 @@ if (process.env.JIRA_WEBHOOK_SECRET === undefined) {
   process.env.JIRA_WEBHOOK_SECRET = 'test-webhook-secret';
 }
 if (process.env.JIRA_DEFAULT_ORG_ID === undefined) {
-  process.env.JIRA_DEFAULT_ORG_ID = 'demo-org';
+  process.env.JIRA_DEFAULT_ORG_ID = 'ti';
 }
 if (process.env.HD_WEBHOOK_SECRET === undefined) {
   process.env.HD_WEBHOOK_SECRET = 'test-hd-webhook-secret';
@@ -51,7 +51,7 @@ if (process.env.WEB_APP_URL === undefined) {
   process.env.WEB_APP_URL = 'http://localhost:5173';
 }
 if (process.env.HD_DEFAULT_ORG_ID === undefined) {
-  process.env.HD_DEFAULT_ORG_ID = 'demo-org';
+  process.env.HD_DEFAULT_ORG_ID = 'ti';
 }
 if (process.env.USE_MOCK_AI === undefined) {
   process.env.USE_MOCK_AI = 'true';

@@ -32,6 +32,7 @@ export function loadServerEnv(): ParsedEnv {
     JIRA_WEBHOOK_SECRET: process.env.JIRA_WEBHOOK_SECRET,
     JIRA_DEFAULT_ORG_ID: process.env.JIRA_DEFAULT_ORG_ID,
     JIRA_INCLUDE_PROJECTS: process.env.JIRA_INCLUDE_PROJECTS,
+    JIRA_ASSIGNEE_FILTER: process.env.JIRA_ASSIGNEE_FILTER,
     HELPDESK_URL: process.env.HELPDESK_URL,
     ZOHO_DOMAIN: process.env.ZOHO_DOMAIN,
     HD_CLIENT_ID: process.env.HD_CLIENT_ID,
