@@ -276,6 +276,7 @@ export async function listTickets(params: ListTicketsParams): Promise<ListTicket
     project: params.project,
     q: params.q,
     mine: params.mine,
+    bucket: params.bucket,
   };
   const facets = computeTicketFacets(allDtos, filters, params.user);
   const filtered = filterTickets(allDtos, filters, params.user);

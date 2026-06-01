@@ -1,5 +1,6 @@
 import type {
   TicketApiDto,
+  TicketListBucket,
   TicketListSort,
   TicketPriority,
   TicketStatus,
@@ -28,7 +29,7 @@ const STATUS_RANK: Record<TicketStatus, number> = {
 
 export type TicketListFilterParams = Pick<
   TicketsListQuery,
-  'source' | 'priority' | 'status' | 'project' | 'q' | 'mine'
+  'source' | 'priority' | 'status' | 'project' | 'q' | 'mine' | 'bucket'
 >;
 
 export type TicketListUserContext = {
@@ -66,6 +67,22 @@ export function ticketMatchesSearch(ticket: TicketApiDto, q: string | undefined)
 }
 
 /**
+ * Returns true when a ticket matches the display-only open/closed bucket filter.
+ */
+export function ticketMatchesBucket(
+  ticket: Pick<TicketApiDto, 'status'>,
+  bucket: TicketListBucket | undefined,
+): boolean {
+  if (bucket === undefined || bucket === 'all') {
+    return true;
+  }
+  if (bucket === 'closed') {
+    return ticket.status === 'closed';
+  }
+  return ticket.status !== 'closed';
+}
+
+/**
  * Applies list filters (excluding pagination/sort).
  */
 export function filterTickets(
@@ -81,6 +98,9 @@ export function filterTickets(
       return false;
     }
     if (filters.status !== undefined && t.status !== filters.status) {
+      return false;
+    }
+    if (!ticketMatchesBucket(t, filters.bucket)) {
       return false;
     }
     if (filters.project !== undefined && getTicketProjectKey(t) !== filters.project) {
@@ -153,6 +173,18 @@ function emptyFacets(): TicketsListFacets {
     statuses: { open: 0, in_progress: 0, resolved: 0, closed: 0, pending: 0 },
     mineCount: 0,
     viewCounts: { all: 0, mine: 0, jira: 0, me: 0 },
+    bucketCounts: { all: 0, open: 0, closed: 0 },
+  };
+}
+
+/**
+ * Computes open/closed/all counts before the bucket filter is applied.
+ */
+export function computeBucketCounts(tickets: TicketApiDto[]): TicketsListFacets['bucketCounts'] {
+  return {
+    all: tickets.length,
+    open: tickets.filter((t) => t.status !== 'closed').length,
+    closed: tickets.filter((t) => t.status === 'closed').length,
   };
 }
 
@@ -177,6 +209,7 @@ export function computeTicketFacets(
   }
   const projects: Record<string, number> = {};
   const facets = emptyFacets();
+  facets.bucketCounts = computeBucketCounts(base);
   for (const t of base) {
     const pk = getTicketProjectKey(t);
     projects[pk] = (projects[pk] ?? 0) + 1;

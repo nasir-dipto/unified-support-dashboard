@@ -132,6 +132,12 @@ export const ticketsListFacetsSchema = z.object({
     jira: z.number().int().nonnegative(),
     me: z.number().int().nonnegative(),
   }),
+  /** Open/closed display bucket counts (computed before `bucket` filter is applied). */
+  bucketCounts: z.object({
+    all: z.number().int().nonnegative(),
+    open: z.number().int().nonnegative(),
+    closed: z.number().int().nonnegative(),
+  }),
 });
 
 export type TicketsListFacets = z.infer<typeof ticketsListFacetsSchema>;
@@ -154,6 +160,10 @@ const booleanQuerySchema = z
   .union([z.literal('true'), z.literal('false'), z.boolean()])
   .transform((v) => v === true || v === 'true');
 
+/** Display-only open/closed grouping for the ticket queue list (never mutates ticket status). */
+export const ticketListBucketSchema = z.enum(['all', 'open', 'closed']);
+export type TicketListBucket = z.infer<typeof ticketListBucketSchema>;
+
 export const ticketsListQuerySchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   limit: z.coerce.number().int().min(1).max(100).optional().default(10),
@@ -164,6 +174,7 @@ export const ticketsListQuerySchema = z.object({
   q: z.string().optional(),
   sort: ticketListSortSchema.optional().default('newest'),
   mine: booleanQuerySchema.optional(),
+  bucket: ticketListBucketSchema.optional(),
 });
 
 export type TicketsListQuery = z.infer<typeof ticketsListQuerySchema>;

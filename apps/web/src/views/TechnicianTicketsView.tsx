@@ -92,6 +92,7 @@ export function TechnicianTicketsView(): ReactElement {
   const technicianOnly = user !== null && isTechnicianOnly(user.roles);
 
   const counts = facets?.viewCounts ?? { all: 0, mine: 0, jira: 0, me: 0 };
+  const bucketCounts = facets?.bucketCounts ?? { all: 0, open: 0, closed: 0 };
   const projectCounts = facets?.projects ?? {};
 
   if (isLoading) {
@@ -134,6 +135,8 @@ export function TechnicianTicketsView(): ReactElement {
       <TicketFilters
         tab={params.tab}
         onTabChange={(tab) => { setParams({ tab }); }}
+        bucket={params.bucket}
+        onBucketChange={(bucket) => { setParams({ bucket }); }}
         priority={params.priority}
         onPriorityChange={(priority) => { setParams({ priority }); }}
         search={searchInput}
@@ -143,6 +146,7 @@ export function TechnicianTicketsView(): ReactElement {
         sort={params.sort}
         onSortChange={(sort) => { setParams({ sort }); }}
         counts={counts}
+        bucketCounts={bucketCounts}
         projectCounts={projectCounts}
       />
 

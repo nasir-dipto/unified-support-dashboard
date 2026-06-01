@@ -11,6 +11,7 @@ export function emptyTicketListFacets(overrides: Partial<TicketsListFacets> = {}
     statuses: { open: 0, in_progress: 0, resolved: 0, closed: 0, pending: 0 },
     mineCount: 0,
     viewCounts: { all: 0, mine: 0, jira: 0, me: 0 },
+    bucketCounts: { all: 0, open: 0, closed: 0 },
     ...overrides,
   };
 }

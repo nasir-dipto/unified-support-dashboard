@@ -14,6 +14,13 @@ describe('tickets list schemas', () => {
     expect(q.page).toBe(1);
     expect(q.limit).toBe(10);
     expect(q.sort).toBe('newest');
+    expect(q.bucket).toBeUndefined();
+  });
+
+  it('parses bucket query param', () => {
+    expect(ticketsListQuerySchema.parse({ bucket: 'open' }).bucket).toBe('open');
+    expect(ticketsListQuerySchema.parse({ bucket: 'closed' }).bucket).toBe('closed');
+    expect(ticketsListQuerySchema.parse({ bucket: 'all' }).bucket).toBe('all');
   });
 
   it('parses list response with pagination and facets', () => {
@@ -34,6 +41,7 @@ describe('tickets list schemas', () => {
         statuses: { open: 0, in_progress: 0, resolved: 0, closed: 0, pending: 0 },
         mineCount: 0,
         viewCounts: { all: 0, mine: 0, jira: 0, me: 0 },
+        bucketCounts: { all: 0, open: 0, closed: 0 },
       },
     });
     expect(body.pagination.page).toBe(1);

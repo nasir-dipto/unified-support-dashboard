@@ -1,10 +1,11 @@
 import type { TicketListSort, TicketsListQuery } from '@usd/shared-types';
-import type { PriorityFilter, TicketViewTab } from '../components/tickets/TicketFilters';
+import type { PriorityFilter, TicketBucketFilter, TicketViewTab } from '../components/tickets/TicketFilters';
 
 export type TicketQueueParams = {
   page: number;
   limit: number;
   tab: TicketViewTab;
+  bucket: TicketBucketFilter;
   priority: PriorityFilter;
   project: string;
   q: string;
@@ -12,6 +13,9 @@ export type TicketQueueParams = {
 };
 
 const DEFAULT_LIMIT = 10;
+
+/** Default display bucket when URL has no `bucket` param (technician queue). */
+export const DEFAULT_TICKET_BUCKET: TicketBucketFilter = 'open';
 
 /**
  * Parses ticket queue state from URL search params.
@@ -28,6 +32,12 @@ export function parseTicketQueueParams(searchParams: URLSearchParams): TicketQue
   const tabRaw = searchParams.get('tab');
   const tab: TicketViewTab =
     tabRaw === 'mine' || tabRaw === 'jira' || tabRaw === 'me' || tabRaw === 'all' ? tabRaw : 'all';
+
+  const bucketRaw = searchParams.get('bucket');
+  const bucket: TicketBucketFilter =
+    bucketRaw === 'all' || bucketRaw === 'open' || bucketRaw === 'closed'
+      ? bucketRaw
+      : DEFAULT_TICKET_BUCKET;
 
   const priorityRaw = searchParams.get('priority');
   const priority: PriorityFilter =
@@ -49,6 +59,7 @@ export function parseTicketQueueParams(searchParams: URLSearchParams): TicketQue
     page,
     limit,
     tab,
+    bucket,
     priority,
     project: searchParams.get('project') ?? '',
     q: searchParams.get('q') ?? '',
@@ -59,9 +70,7 @@ export function parseTicketQueueParams(searchParams: URLSearchParams): TicketQue
 /**
  * Maps UI queue params to GET /api/tickets query object.
  */
-export function ticketQueueParamsToApiQuery(
-  params: TicketQueueParams,
-): TicketsListQuery {
+export function ticketQueueParamsToApiQuery(params: TicketQueueParams): TicketsListQuery {
   const query: TicketsListQuery = {
     page: params.page,
     limit: params.limit,
@@ -83,6 +92,9 @@ export function ticketQueueParamsToApiQuery(
   if (params.q.trim().length > 0) {
     query.q = params.q.trim();
   }
+  if (params.bucket !== 'all') {
+    query.bucket = params.bucket;
+  }
   return query;
 }
 
@@ -99,6 +111,11 @@ export function ticketQueueParamsToSearchParams(params: TicketQueueParams): URLS
   }
   if (params.tab !== 'all') {
     sp.set('tab', params.tab);
+  }
+  if (params.bucket === 'closed') {
+    sp.set('bucket', 'closed');
+  } else if (params.bucket === 'all') {
+    sp.set('bucket', 'all');
   }
   if (params.priority !== 'all') {
     sp.set('priority', params.priority);

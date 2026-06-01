@@ -72,6 +72,7 @@ export const getTickets: RequestHandler[] = [
       q: query.q,
       sort: query.sort,
       mine: query.mine,
+      bucket: query.bucket,
       user: {
         email: req.auth.email,
         displayName: req.auth.displayName,

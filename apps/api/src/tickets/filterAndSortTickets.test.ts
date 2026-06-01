@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { TicketApiDto } from '@usd/shared-types';
 import {
+  computeBucketCounts,
   computeTicketFacets,
   filterTickets,
   getTicketProjectKey,
   HELPDESK_PROJECT_KEY,
   paginateTicketSlice,
   sortTickets,
+  ticketMatchesBucket,
   ticketMatchesSearch,
 } from './filterAndSortTickets.js';
 
@@ -68,6 +70,33 @@ describe('filterTickets', () => {
     const out = filterTickets(rows, { mine: true }, { email: 'tech@usd.dev' });
     expect(out).toHaveLength(1);
   });
+
+  it('filters open bucket (status !== closed)', () => {
+    const mixed = [
+      ticket({ status: 'open' }),
+      ticket({ ticketId: 'jira_X-2', externalId: 'X-2', status: 'in_progress' }),
+      ticket({ ticketId: 'jira_X-3', externalId: 'X-3', status: 'closed' }),
+      ticket({ ticketId: 'jira_X-4', externalId: 'X-4', status: 'resolved' }),
+    ];
+    const out = filterTickets(mixed, { bucket: 'open' });
+    expect(out).toHaveLength(3);
+    expect(out.every((t) => t.status !== 'closed')).toBe(true);
+  });
+
+  it('filters closed bucket only', () => {
+    const mixed = [
+      ticket({ status: 'open' }),
+      ticket({ ticketId: 'jira_X-3', externalId: 'X-3', status: 'closed' }),
+    ];
+    expect(filterTickets(mixed, { bucket: 'closed' })).toHaveLength(1);
+    expect(filterTickets(mixed, { bucket: 'all' })).toHaveLength(2);
+    expect(filterTickets(mixed, {})).toHaveLength(2);
+  });
+
+  it('ticketMatchesBucket treats non-closed as open', () => {
+    expect(ticketMatchesBucket(ticket({ status: 'pending' }), 'open')).toBe(true);
+    expect(ticketMatchesBucket(ticket({ status: 'closed' }), 'open')).toBe(false);
+  });
 });
 
 describe('sortTickets', () => {
@@ -97,6 +126,17 @@ describe('paginateTicketSlice', () => {
   });
 });
 
+describe('computeBucketCounts', () => {
+  it('counts all, open, and closed before bucket filter', () => {
+    const rows = [
+      ticket({ status: 'open' }),
+      ticket({ ticketId: 'jira_X-2', externalId: 'X-2', status: 'in_progress' }),
+      ticket({ ticketId: 'jira_X-3', externalId: 'X-3', status: 'closed' }),
+    ];
+    expect(computeBucketCounts(rows)).toEqual({ all: 3, open: 2, closed: 1 });
+  });
+});
+
 describe('computeTicketFacets', () => {
   it('counts projects and mine without mine filter applied', () => {
     const rows = [
@@ -113,5 +153,14 @@ describe('computeTicketFacets', () => {
     expect(facets.mineCount).toBe(1);
     expect(facets.priorities.high).toBe(1);
     expect(facets.viewCounts.all).toBeGreaterThanOrEqual(1);
+  });
+
+  it('includes bucketCounts unaffected by bucket filter param', () => {
+    const rows = [
+      ticket({ status: 'open' }),
+      ticket({ ticketId: 'jira_X-2', externalId: 'X-2', status: 'closed' }),
+    ];
+    const facets = computeTicketFacets(rows, { bucket: 'closed' });
+    expect(facets.bucketCounts).toEqual({ all: 2, open: 1, closed: 1 });
   });
 });

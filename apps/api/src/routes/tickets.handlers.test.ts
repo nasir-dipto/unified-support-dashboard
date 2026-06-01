@@ -13,6 +13,11 @@ describe('ticketsListQuerySchema', () => {
     expect(ticketsListQuerySchema.parse({ mine: 'true' }).mine).toBe(true);
   });
 
+  it('parses bucket filter', () => {
+    expect(ticketsListQuerySchema.parse({ bucket: 'open' }).bucket).toBe('open');
+    expect(ticketsListQuerySchema.parse({ bucket: 'closed' }).bucket).toBe('closed');
+  });
+
   it('rejects page below 1', () => {
     expect(ticketsListQuerySchema.safeParse({ page: 0 }).success).toBe(false);
   });
