@@ -158,3 +158,10 @@ Follow jira.service.ts pattern:
 - Every Query MUST have orgId in KeyConditionExpression
 - Every GetItem result MUST verify orgId matches JWT orgId
 - Use upsertTicket for all ticket writes — never raw PutItem in routes
+
+## Corporate Jira integration — COMPLETE (PR #17)
+- Switched to trialinteractive.atlassian.net
+- Syncing 6 projects: SPROJ, TILMS, TPDI, TRL, STM, TIAI
+- JIRA_ASSIGNEE_FILTER support (optional assignee filter in JQL)
+- orgId renamed from demo-org to ti across all config/production code
+- HD still on personal instance (servicedeskplus.uk) until Phase 10
