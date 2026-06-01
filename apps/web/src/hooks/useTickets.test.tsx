@@ -4,7 +4,8 @@ import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as ticketsApi from '../api/tickets';
 import { useAuthStore } from '../store/auth.store';
-import { DEFAULT_TICKETS_LIST_LIMIT, useTicketsList } from './useTickets';
+import { defaultTicketListPagination, emptyTicketListFacets } from '../test/ticket-list-fixtures';
+import { useTicketsList } from './useTickets';
 
 function wrapper(client: QueryClient) {
   return function W(props: { children: ReactNode }) {
@@ -31,15 +32,17 @@ describe('useTicketsList', () => {
     });
     const spy = vi.spyOn(ticketsApi, 'fetchTicketsList').mockResolvedValue({
       data: [],
-      total: 0,
+      pagination: defaultTicketListPagination(),
+      facets: emptyTicketListFacets(),
     });
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    const { result } = renderHook(() => useTicketsList(), {
+    const params = { page: 1, limit: 10, sort: 'newest' as const };
+    const { result } = renderHook(() => useTicketsList(params), {
       wrapper: wrapper(client),
     });
     await waitFor(() => {
       expect(result.current.isSuccess).toBe(true);
     });
-    expect(spy).toHaveBeenCalledWith({ limit: DEFAULT_TICKETS_LIST_LIMIT, cursor: undefined });
+    expect(spy).toHaveBeenCalledWith(params);
   });
 });

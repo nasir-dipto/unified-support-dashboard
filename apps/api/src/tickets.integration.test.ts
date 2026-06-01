@@ -89,7 +89,7 @@ dynamoDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
     const tokens = loginResponseSchema.parse(login.body as unknown);
 
     const list = await request(app)
-      .get('/api/tickets')
+      .get('/api/tickets?limit=100')
       .set('Authorization', `Bearer ${tokens.accessToken}`);
     expect(list.status).toBe(200);
     const listBody = ticketsListResponseSchema.parse(list.body);
@@ -132,7 +132,7 @@ dynamoDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
     expect(res.status).toBe(401);
   });
 
-  it('rejects invalid tickets cursor', async () => {
+  it('rejects invalid tickets page', async () => {
     const app = createApp();
     const login = await request(app).post('/api/auth/login').send({
       orgId: INT_TEST_ORG,
@@ -141,9 +141,28 @@ dynamoDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
     });
     const tokens = loginResponseSchema.parse(login.body as unknown);
     const res = await request(app)
-      .get('/api/tickets?cursor=not-valid')
+      .get('/api/tickets?page=0')
       .set('Authorization', `Bearer ${tokens.accessToken}`);
     expect(res.status).toBe(400);
+  });
+
+  it('returns pagination and facets', async () => {
+    const app = createApp();
+    const login = await request(app).post('/api/auth/login').send({
+      orgId: INT_TEST_ORG,
+      email: 'tickets-int@example.com',
+      password: 'secret1234',
+    });
+    const tokens = loginResponseSchema.parse(login.body as unknown);
+    const res = await request(app)
+      .get('/api/tickets?page=1&limit=5&sort=newest')
+      .set('Authorization', `Bearer ${tokens.accessToken}`);
+    expect(res.status).toBe(200);
+    const body = ticketsListResponseSchema.parse(res.body);
+    expect(body.pagination.page).toBe(1);
+    expect(body.pagination.limit).toBe(5);
+    expect(body.data.length).toBeLessThanOrEqual(5);
+    expect(body.facets.viewCounts.all).toBeGreaterThanOrEqual(body.data.length);
   });
 
   it('POST Helpdesk webhook upserts ticket and list includes it', async () => {
@@ -173,7 +192,7 @@ dynamoDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
     expect(login.status).toBe(200);
     const tokens = loginResponseSchema.parse(login.body as unknown);
     const list = await request(app)
-      .get('/api/tickets')
+      .get('/api/tickets?limit=100')
       .set('Authorization', `Bearer ${tokens.accessToken}`);
     expect(list.status).toBe(200);
     const listBody = ticketsListResponseSchema.parse(list.body);

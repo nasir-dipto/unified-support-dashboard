@@ -1,5 +1,6 @@
 import {
   type CommentReplyKind,
+  type TicketsListQuery,
   postTicketCommentResponseSchema,
   ticketCommentsListResponseSchema,
   ticketCrossLinkResponseSchema,
@@ -8,10 +9,7 @@ import {
 } from '@usd/shared-types';
 import { apiClient } from './client';
 
-export type TicketsListParams = {
-  limit?: number;
-  cursor?: string;
-};
+export type TicketsListParams = Partial<TicketsListQuery>;
 
 /**
  * Fetches the authenticated org's ticket list from the API.

@@ -60,12 +60,29 @@ export const getTickets: RequestHandler[] = [
     if (req.auth === undefined) {
       throw new AppError('Unauthorized', 'UNAUTHORIZED', 401);
     }
-    const { items, cursor, total } = await listTickets({
+    const query = parsed.data;
+    const result = await listTickets({
       orgId: req.auth.orgId,
-      limit: parsed.data.limit,
-      cursor: parsed.data.cursor,
+      page: query.page,
+      limit: query.limit,
+      source: query.source,
+      priority: query.priority,
+      status: query.status,
+      project: query.project,
+      q: query.q,
+      sort: query.sort,
+      mine: query.mine,
+      bucket: query.bucket,
+      user: {
+        email: req.auth.email,
+        displayName: req.auth.displayName,
+      },
     });
-    const body = ticketsListResponseSchema.parse({ data: items, cursor, total });
+    const body = ticketsListResponseSchema.parse({
+      data: result.items,
+      pagination: result.pagination,
+      facets: result.facets,
+    });
     res.json(body);
   }),
 ];

@@ -180,17 +180,37 @@ export const REQUEST_LIST_FIELDS_REQUIRED = [
   'requester',
 ] as const;
 
+export type BuildRequestsListInputDataOptions = {
+  /** When set, only requests updated after this window are returned. */
+  sinceMinutes?: number;
+  /** Override clock for tests (`Date.now()` default). */
+  nowMs?: number;
+};
+
 /**
  * Builds the SDP v3 `input_data` query value for listing requests (pagination via `list_info`).
  */
-export function buildRequestsListInputData(rowCount: number, startIndex: number): string {
-  const payload = {
-    list_info: {
-      row_count: rowCount,
-      start_index: startIndex,
-      fields_required: [...REQUEST_LIST_FIELDS_REQUIRED],
-    },
+export function buildRequestsListInputData(
+  rowCount: number,
+  startIndex: number,
+  options?: BuildRequestsListInputDataOptions,
+): string {
+  const listInfo: Record<string, unknown> = {
+    row_count: rowCount,
+    start_index: startIndex,
+    fields_required: [...REQUEST_LIST_FIELDS_REQUIRED],
   };
+  const sinceMinutes = options?.sinceMinutes;
+  if (sinceMinutes !== undefined && sinceMinutes > 0) {
+    const nowMs = options?.nowMs ?? Date.now();
+    const sinceMs = nowMs - sinceMinutes * 60 * 1000;
+    listInfo.search_criteria = {
+      field: 'last_updated_time',
+      condition: 'greater than',
+      value: String(sinceMs),
+    };
+  }
+  const payload = { list_info: listInfo };
   return encodeURIComponent(JSON.stringify(payload));
 }
 
@@ -202,10 +222,17 @@ export async function fetchRequestsPage(options?: {
   rowCount?: number;
   /** First row index for this page (maps to `list_info.start_index`, 1-based). */
   startIndex?: number;
+  /** Incremental sync: only requests updated in the last N minutes. */
+  sinceMinutes?: number;
+  /** Override clock for tests. */
+  nowMs?: number;
 }): Promise<{ requests: HelpdeskRequestListItem[]; hasMore: boolean }> {
   const rowCount = options?.rowCount ?? 50;
   const startIndex = options?.startIndex ?? 1;
-  const inputData = buildRequestsListInputData(rowCount, startIndex);
+  const inputData = buildRequestsListInputData(rowCount, startIndex, {
+    sinceMinutes: options?.sinceMinutes,
+    nowMs: options?.nowMs,
+  });
   const res = await helpdeskFetch(`/requests?input_data=${inputData}`);
   const body: unknown = await res.json();
   const root = typeof body === 'object' && body !== null ? (body as Json) : {};

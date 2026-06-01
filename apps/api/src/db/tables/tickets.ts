@@ -7,47 +7,42 @@ import type {
   SentimentAnalysisResult,
   SupportTicketRecord,
   TicketApiDto,
+  TicketsListFacets,
+  TicketsListQuery,
 } from '@usd/shared-types';
 import { supportTicketRecordSchema } from '@usd/shared-types';
 import { getServerEnv } from '../../config/loadEnv.js';
 import { AppError } from '../../utils/errors.js';
 import { toTicketApiDto } from '../../utils/sla.js';
+import {
+  computeTicketFacets,
+  filterTickets,
+  paginateTicketSlice,
+  sortTickets,
+  type TicketListUserContext,
+} from '../../tickets/filterAndSortTickets.js';
 import { getOrgSlaPolicy } from './org-settings.js';
 import { getDocumentClient } from '../dynamo.client.js';
 
 const ORG_CREATED_GSI = 'orgId-createdAt';
 
-export type ListTicketsParams = {
+export type ListTicketsParams = TicketsListQuery & {
   orgId: string;
-  limit: number;
-  cursor?: string;
+  user?: TicketListUserContext;
 };
 
-/**
- * Encodes DynamoDB `LastEvaluatedKey` for pagination cursors.
- */
-function encodeLastKey(key: Record<string, unknown>): string {
-  return Buffer.from(JSON.stringify(key), 'utf8').toString('base64url');
-}
-
-/**
- * Decodes a list cursor into a DynamoDB `ExclusiveStartKey` (must match org).
- */
-function decodeLastKey(cursor: string, orgId: string): Record<string, unknown> {
-  try {
-    const json = Buffer.from(cursor, 'base64url').toString('utf8');
-    const parsed = JSON.parse(json) as Record<string, unknown>;
-    if (parsed.orgId !== orgId) {
-      throw new AppError('Invalid cursor', 'VALIDATION', 400);
-    }
-    return parsed;
-  } catch (e) {
-    if (e instanceof AppError) {
-      throw e;
-    }
-    throw new AppError('Invalid cursor', 'VALIDATION', 400);
-  }
-}
+export type ListTicketsResult = {
+  items: TicketApiDto[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+  facets: TicketsListFacets;
+};
 
 /**
  * Returns true when an incoming upsert should not overwrite core ticket fields.
@@ -268,46 +263,39 @@ export async function listAllTicketsForOrg(orgId: string): Promise<SupportTicket
 }
 
 /**
- * Lists tickets for an org (newest first) using the orgId-createdAt GSI.
+ * Lists tickets for an org with filters, facets, sort, and page-based pagination.
  */
-export async function listTickets(params: ListTicketsParams): Promise<{
-  items: TicketApiDto[];
-  cursor?: string;
-  total: number;
-}> {
-  const env = getServerEnv();
-  const doc = getDocumentClient();
-  const countOut = await doc.send(
-    new QueryCommand({
-      TableName: env.SUPPORT_TICKETS_TABLE,
-      IndexName: ORG_CREATED_GSI,
-      KeyConditionExpression: 'orgId = :o',
-      ExpressionAttributeValues: { ':o': params.orgId },
-      Select: 'COUNT',
-    }),
-  );
-  const total = countOut.Count ?? 0;
-  const exclusiveStartKey =
-    params.cursor !== undefined ? decodeLastKey(params.cursor, params.orgId) : undefined;
-  const out = await doc.send(
-    new QueryCommand({
-      TableName: env.SUPPORT_TICKETS_TABLE,
-      IndexName: ORG_CREATED_GSI,
-      KeyConditionExpression: 'orgId = :o',
-      ExpressionAttributeValues: { ':o': params.orgId },
-      Limit: params.limit,
-      ScanIndexForward: false,
-      ...(exclusiveStartKey !== undefined ? { ExclusiveStartKey: exclusiveStartKey } : {}),
-    }),
-  );
+export async function listTickets(params: ListTicketsParams): Promise<ListTicketsResult> {
+  const records = await listAllTicketsForOrg(params.orgId);
   const policy = await getOrgSlaPolicy(params.orgId);
-  const items = (out.Items ?? [])
-    .map((it) => supportTicketRecordSchema.safeParse(it))
-    .filter((r) => r.success)
-    .map((r) => toTicketApiDto(r.data, policy));
-  const lek = out.LastEvaluatedKey;
-  const cursor = lek !== undefined ? encodeLastKey(lek as Record<string, unknown>) : undefined;
-  return { items, cursor, total };
+  const allDtos = records.map((rec) => toTicketApiDto(rec, policy));
+  const filters = {
+    source: params.source,
+    priority: params.priority,
+    status: params.status,
+    project: params.project,
+    q: params.q,
+    mine: params.mine,
+    bucket: params.bucket,
+  };
+  const facets = computeTicketFacets(allDtos, filters, params.user);
+  const filtered = filterTickets(allDtos, filters, params.user);
+  const sorted = sortTickets(filtered, params.sort);
+  const page = params.page;
+  const limit = params.limit;
+  const slice = paginateTicketSlice(sorted, page, limit);
+  return {
+    items: slice.pageItems,
+    pagination: {
+      page: slice.totalPages === 0 ? 1 : Math.min(page, slice.totalPages),
+      limit,
+      total: slice.total,
+      totalPages: slice.totalPages,
+      hasNext: slice.hasNext,
+      hasPrev: slice.hasPrev,
+    },
+    facets,
+  };
 }
 
 /**
