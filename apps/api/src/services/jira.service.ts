@@ -164,14 +164,22 @@ const JIRA_SEARCH_FIELDS = [
 ] as const;
 
 /**
- * Builds JQL for listing issues in a project, optionally filtered by assignee.
+ * Builds JQL for listing issues in a project, optionally filtered by assignee and updated time.
  */
-export function buildProjectIssuesJql(projectKey: string, assigneeFilter?: string): string {
+export function buildProjectIssuesJql(
+  projectKey: string,
+  assigneeFilter?: string,
+  sinceMinutes?: number,
+): string {
+  const clauses: string[] = [`project = ${projectKey}`];
   const trimmed = assigneeFilter?.trim();
   if (trimmed !== undefined && trimmed.length > 0) {
-    return `project = ${projectKey} AND assignee = "${trimmed}" ORDER BY created DESC`;
+    clauses.push(`assignee = "${trimmed}"`);
   }
-  return `project = ${projectKey} ORDER BY created DESC`;
+  if (sinceMinutes !== undefined && sinceMinutes > 0) {
+    clauses.push(`updated > -${String(sinceMinutes)}m`);
+  }
+  return `${clauses.join(' AND ')} ORDER BY updated DESC`;
 }
 
 /**
@@ -180,7 +188,7 @@ export function buildProjectIssuesJql(projectKey: string, assigneeFilter?: strin
  */
 export async function fetchIssuesByProject(
   projectKey: string,
-  options?: { maxResults?: number; nextPageToken?: string },
+  options?: { maxResults?: number; nextPageToken?: string; sinceMinutes?: number },
 ): Promise<{
   issues: JiraIssueSearchHit[];
   total: number;
@@ -188,7 +196,7 @@ export async function fetchIssuesByProject(
 }> {
   const maxResults = options?.maxResults ?? 50;
   const env = getServerEnv();
-  const jql = buildProjectIssuesJql(projectKey, env.JIRA_ASSIGNEE_FILTER);
+  const jql = buildProjectIssuesJql(projectKey, env.JIRA_ASSIGNEE_FILTER, options?.sinceMinutes);
   const requestBody: Record<string, unknown> = {
     jql,
     fields: [...JIRA_SEARCH_FIELDS],

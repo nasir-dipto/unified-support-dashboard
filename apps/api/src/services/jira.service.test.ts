@@ -50,14 +50,23 @@ describe('jira.service', () => {
   });
 
   it('buildProjectIssuesJql omits assignee when filter unset', () => {
-    expect(buildProjectIssuesJql('TILMS')).toBe('project = TILMS ORDER BY created DESC');
-    expect(buildProjectIssuesJql('TILMS', undefined)).toBe('project = TILMS ORDER BY created DESC');
-    expect(buildProjectIssuesJql('TILMS', '   ')).toBe('project = TILMS ORDER BY created DESC');
+    expect(buildProjectIssuesJql('TILMS')).toBe('project = TILMS ORDER BY updated DESC');
+    expect(buildProjectIssuesJql('TILMS', undefined)).toBe('project = TILMS ORDER BY updated DESC');
+    expect(buildProjectIssuesJql('TILMS', '   ')).toBe('project = TILMS ORDER BY updated DESC');
   });
 
   it('buildProjectIssuesJql adds assignee clause when filter set', () => {
     expect(buildProjectIssuesJql('TILMS', 'nasir.dipto@transperfect.com')).toBe(
-      'project = TILMS AND assignee = "nasir.dipto@transperfect.com" ORDER BY created DESC',
+      'project = TILMS AND assignee = "nasir.dipto@transperfect.com" ORDER BY updated DESC',
+    );
+  });
+
+  it('buildProjectIssuesJql adds updated window for incremental sync', () => {
+    expect(buildProjectIssuesJql('SPROJ', undefined, 15)).toBe(
+      'project = SPROJ AND updated > -15m ORDER BY updated DESC',
+    );
+    expect(buildProjectIssuesJql('SPROJ', 'me@example.com', 15)).toBe(
+      'project = SPROJ AND assignee = "me@example.com" AND updated > -15m ORDER BY updated DESC',
     );
   });
 
@@ -67,7 +76,7 @@ describe('jira.service', () => {
         const parsed =
           typeof body === 'string' ? (JSON.parse(body) as Record<string, unknown>) : (body as Record<string, unknown>);
         return (
-          parsed.jql === 'project = SUP ORDER BY created DESC' &&
+          parsed.jql === 'project = SUP ORDER BY updated DESC' &&
           Array.isArray(parsed.fields) &&
           parsed.maxResults === 50
         );
@@ -91,7 +100,7 @@ describe('jira.service', () => {
           typeof body === 'string' ? (JSON.parse(body) as Record<string, unknown>) : (body as Record<string, unknown>);
         return (
           parsed.jql ===
-          'project = TILMS AND assignee = "nasir.dipto@transperfect.com" ORDER BY created DESC'
+          'project = TILMS AND assignee = "nasir.dipto@transperfect.com" ORDER BY updated DESC'
         );
       })
       .reply(200, {
@@ -101,6 +110,22 @@ describe('jira.service', () => {
     const out = await fetchIssuesByProject('TILMS');
     expect(out.issues).toHaveLength(1);
     expect(out.issues[0]?.key).toBe('TILMS-1');
+  });
+
+  it('fetchIssuesByProject applies sinceMinutes to JQL', async () => {
+    nock(base)
+      .post('/rest/api/3/search/jql', (body: unknown) => {
+        const parsed =
+          typeof body === 'string' ? (JSON.parse(body) as Record<string, unknown>) : (body as Record<string, unknown>);
+        return parsed.jql === 'project = SUP AND updated > -15m ORDER BY updated DESC';
+      })
+      .reply(200, {
+        issues: [{ key: 'SUP-2', fields: { summary: 'Recent' } }],
+        total: 1,
+      });
+    const out = await fetchIssuesByProject('SUP', { sinceMinutes: 15 });
+    expect(out.issues).toHaveLength(1);
+    expect(out.issues[0]?.key).toBe('SUP-2');
   });
 
   it('fetchSingleIssue returns json', async () => {

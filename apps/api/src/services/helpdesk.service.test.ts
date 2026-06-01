@@ -64,6 +64,21 @@ describe('helpdesk.service', () => {
     expect(parsed.list_info.fields_required).toContain('description');
   });
 
+  it('buildRequestsListInputData adds last_updated_time search for incremental sync', () => {
+    const nowMs = 1_700_000_000_000;
+    const decoded = decodeURIComponent(buildRequestsListInputData(50, 1, { sinceMinutes: 15, nowMs }));
+    const parsed = JSON.parse(decoded) as {
+      list_info: {
+        search_criteria?: { field: string; condition: string; value: string };
+      };
+    };
+    expect(parsed.list_info.search_criteria).toEqual({
+      field: 'last_updated_time',
+      condition: 'greater than',
+      value: String(nowMs - 15 * 60 * 1000),
+    });
+  });
+
   it('fetchRequestsPage parses requests array', async () => {
     nock('https://accounts.zoho.uk')
       .post('/oauth/v2/token')
@@ -82,6 +97,23 @@ describe('helpdesk.service', () => {
     expect(out.requests[0]?.subject).toBe('A');
     expect(out.requests[0]?.description).toBe('Details here');
     expect(out.hasMore).toBe(false);
+  });
+
+  it('fetchRequestsPage passes sinceMinutes to input_data', async () => {
+    nock('https://accounts.zoho.uk')
+      .post('/oauth/v2/token')
+      .reply(200, { access_token: 't3', expires_in: 3600 });
+    const nowMs = 1_700_000_000_000;
+    const expectedInput = buildRequestsListInputData(5, 1, { sinceMinutes: 15, nowMs });
+    nock('https://sdp.example')
+      .get(`/api/v3/requests?input_data=${expectedInput}`)
+      .reply(200, {
+        requests: [{ id: '2', subject: 'Recent' }],
+        list_info: { has_more_rows: false },
+      });
+    const out = await fetchRequestsPage({ rowCount: 5, startIndex: 1, sinceMinutes: 15, nowMs });
+    expect(out.requests).toHaveLength(1);
+    expect(out.requests[0]?.subject).toBe('Recent');
   });
 
   it('buildConversationsListInputData requests conversation metadata fields', () => {

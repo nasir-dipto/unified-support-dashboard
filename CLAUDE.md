@@ -32,8 +32,11 @@ Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentim
 - pnpm e2e — Playwright E2E (requires docker compose up -d + pnpm dev)
 - pnpm --filter @usd/api db:setup — create all tables (DynamoDB + PostgreSQL)
 - pnpm --filter @usd/api db:seed — seed 3 demo users
-- pnpm --filter @usd/api sync:jira — sync Jira tickets + comments
-- pnpm --filter @usd/api sync:hd — sync HD tickets + conversations + sentiment batch
+- pnpm --filter @usd/api sync:jira — full Jira sync (all issues per project)
+- pnpm --filter @usd/api sync:jira:incremental — Jira incremental sync (last 15 min, `updated > -15m`)
+- pnpm --filter @usd/api sync:hd — full HD sync + conversations + sentiment batch
+- pnpm --filter @usd/api sync:hd:incremental — HD incremental sync (last 15 min, `last_updated_time`)
+- Custom window: `pnpm --filter @usd/api sync:jira -- --since=30` (or `sync:hd`)
 - pnpm --filter @usd/api sentiment:batch — full sentiment refresh
 
 ## Local services (docker compose up -d)
@@ -79,7 +82,9 @@ Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentim
 - pgvector (RDS PostgreSQL) for KB — not OpenSearch (~$15-25/mo)
 - No TTL on tickets — keep all history
 - metadata field for unknown custom Jira/HD fields
-- Incremental sync: last 15 min only
+- Incremental sync: `--incremental` (15 min) or `--since=N`; full sync is default
+- Jira incremental JQL: `updated > -Nm ORDER BY updated DESC`
+- HD incremental filter: `list_info.search_criteria.last_updated_time > timestamp_ms`
 - HD tickets: ticketId=hd_{display_id}, internalId for API paths
 - WS_MODE=local | gateway (API GW, AWS deployment)
 - Lambda concurrency: 10, DLQ alarms on both queues
