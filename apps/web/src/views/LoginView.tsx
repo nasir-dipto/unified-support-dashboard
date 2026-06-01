@@ -170,7 +170,7 @@ export function LoginView(): ReactElement {
               {defaultOrgId.length > 0 ? (
                 <p className="mt-2 text-gray-400">Org: {defaultOrgId}</p>
               ) : (
-                <p className="mt-2 text-gray-400">Org: demo-org</p>
+                <p className="mt-2 text-gray-400">Org: ti</p>
               )}
             </div>
           ) : null}

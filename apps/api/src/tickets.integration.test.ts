@@ -15,6 +15,8 @@ import { getServerEnv } from './config/loadEnv.js';
 import { ensureSupportTablesExist } from './test/helpers/create-tables.js';
 import { dynamoDescribe } from './test/helpers/dynamo-integration.js';
 
+const INT_TEST_ORG = 'ti';
+
 dynamoDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
   beforeAll(async () => {
     const endpoint = process.env.DYNAMODB_ENDPOINT;
@@ -42,7 +44,7 @@ dynamoDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
       new PutCommand({
         TableName: env.SUPPORT_USERS_TABLE,
         Item: {
-          orgId: 'demo-org',
+          orgId: INT_TEST_ORG,
           userId: '01HZINTTICKUSER',
           email: 'tickets-int@example.com',
           passwordHash: hash,
@@ -54,7 +56,7 @@ dynamoDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
       new PutCommand({
         TableName: env.SUPPORT_ROLES_TABLE,
         Item: {
-          orgId: 'demo-org',
+          orgId: INT_TEST_ORG,
           userId: '01HZINTTICKUSER',
           role: 'technician',
         },
@@ -79,7 +81,7 @@ dynamoDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
     expect(wh.status).toBe(202);
 
     const login = await request(app).post('/api/auth/login').send({
-      orgId: 'demo-org',
+      orgId: INT_TEST_ORG,
       email: 'tickets-int@example.com',
       password: 'secret1234',
     });
@@ -106,7 +108,7 @@ dynamoDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
   it('GET /api/tickets/:id returns ticket', async () => {
     const app = createApp();
     const login = await request(app).post('/api/auth/login').send({
-      orgId: 'demo-org',
+      orgId: INT_TEST_ORG,
       email: 'tickets-int@example.com',
       password: 'secret1234',
     });
@@ -133,7 +135,7 @@ dynamoDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
   it('rejects invalid tickets cursor', async () => {
     const app = createApp();
     const login = await request(app).post('/api/auth/login').send({
-      orgId: 'demo-org',
+      orgId: INT_TEST_ORG,
       email: 'tickets-int@example.com',
       password: 'secret1234',
     });
@@ -164,7 +166,7 @@ dynamoDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
     expect(wh.status).toBe(202);
 
     const login = await request(app).post('/api/auth/login').send({
-      orgId: 'demo-org',
+      orgId: INT_TEST_ORG,
       email: 'tickets-int@example.com',
       password: 'secret1234',
     });
@@ -202,7 +204,7 @@ dynamoDescribe('tickets + webhook HTTP (DynamoDB Local)', () => {
   it('GET /api/tickets/:id/comments returns an empty thread', async () => {
     const app = createApp();
     const login = await request(app).post('/api/auth/login').send({
-      orgId: 'demo-org',
+      orgId: INT_TEST_ORG,
       email: 'tickets-int@example.com',
       password: 'secret1234',
     });

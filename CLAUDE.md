@@ -2,6 +2,7 @@
 
 ## Reference
 - See CLAUDE-HISTORY.md for completed phase details (Phases 0-9)
+- See DEPLOYMENT.md for AWS deployment checklist and failure points
 
 ## What this is
 Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentiment, KB, reports.
@@ -20,8 +21,8 @@ Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentim
 - API errors: { error, code, statusCode }
 - API lists: { data: T[], cursor?, total }
 - All DynamoDB queries MUST include orgId in key condition
-- All AI calls: POST /api/ai/invoke — never call Bedrock from frontend
-- Never commit .env fileecrets
+- All AI calls: POST /api/aioke — never call Bedrock from frontend
+- Never commit .env files or secrets
 
 ## Running locally
 - docker compose up -d — start all local services
@@ -42,32 +43,32 @@ Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentim
 - PostgreSQL (pgvector): port 5432 (persisted in postgres_data volume)
 
 ## Local dev replacements
-- Bedrock → Mock (USE_MOClhog (:8025)
-
-## Engineering practices
+- Bedrock → Mock (USE_MOCK_AI=true)
+- SES → not used (internal SMT# Engineering practices
 - Feature branch for every phase — never commit to develop or main directly
 - Tests written same session as code — never deferred
 - pnpm lint && pnpm typecheck && pnpm test before every push
 - Small focused commits, conventional messages
 - Update CLAUDE.md after every phase (archive to CLAUDE-HISTORY.md)
 
-## Phase status — ALL COMPLETE
-- Phases 0-9: complete — see CLAUDE-HISTORY.md
-- E2E: 17 Playwright tests with video recording
+## Phase status
+- Phases 0-9: ALL COMPLETE — see CLAUDE-HISTORY.md
+- Phase 10: IN PROGRESS — AWS Deployment (waiting for DevOps prerequisites in TPDI)
 
 ## Current test count
-- Unit/integration: 352 (215 API + 104 web + 24 shared-types + 9 UI)
+- Unit/integration: 370 (233 API + 104 web + 24 shared-types + 9 UI)
 - E2E: 17 Playwright tests (pnpm e2e)
+- Coverage baseline: 64% lines, 77% functions, 68% branches (@usd/api)
 
 ## Demo credentials (seeded, shown on login in dev mode)
-- Super Admin: admin@usd.dev / Admin123! / orgId: demo-org
+- Super Admin: admin@usd.dev / Admin123! / orgId: ti
 - Manager:     manager@usd.dev / Mgr123!
 - Technician:  technician@usd.dev / Tech123!
 
 ## Permission model
 - technician: assigned tickets full write, others read-only, KB browse
-- manager: all tickets full write, reports, sentiment, AI, list users
-- super_admin: everything + user invite + settiTP + delete
+- manager: all tickets full write, rsentiment, AI, list users
+- super_admin: everything + user invite + settings + SMTP + delete
 
 ## Navigation by role
 - Technician: Tickets | Knowledge Base
@@ -87,30 +88,36 @@ Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentim
 - JIRA_INCLUDE_PROJECTS: empty = all projects
 - Rate limiting: 100 req/min per IP (skip: /api/health, /api/webhooks/*)
 - SLA policy: Critical=2h, High=4h, Medium=8h, Low=24h (configurable in Admin)
+- updatedAt guard on upsertTicket (stale events skip core fields)
+- HD rate limiting: 100ms sleep, 429 backoff, concurrency 5
+- PostgreSQL SSL: handled in code (ssl: rejectUnauthorized:false in production)
+- Graceful shutdown: SIGTERM/SIGINT with 10s grace period
+- DynamoDB PITR: enabled on all 10 tables (removalPolicy: RETAIN)
 
 ## Local dev Jira/HD
 - Jira: dknasir007.atlassian.net (SCRUM + USD projects)
 - HD: servicedeskplus.uk (display IDs hd_1 to hd_12)
 
-## Jira projtracking
+## Jira project tracking
 - Personal: dknasir007.atlassian.net/jira/software/projects/USD
-  USD-11 In Progress (Phase 9 — AWS deploy pending)
+  USD-11 Done (Phase 9 complete) | USD-12 In Progress (Phase 10 — AWS Deployment)
 - Corporate: trialinteractive.atlassian.net/jira/software/projects/TIAI
-  TIAI-12 In Progress (Phase 9 — AWS deploy pending)
+  TIAI-12 Done (Phase 9 complete) | TIAI-13 In Progress (Phase 10 — AWS Deployment)
+- TPDI: DevOps prerequisites for Phase 10 (11 sub-tasks)
+- End of each phase: transition current story Done, next In Progress (both Jiras)
 
-## Next: AWS Deployment
-- Create DEPLOYMENT.md when starting AWS deployment
-- CDK deploy to staging, connect corporate Jira + HD
-- USE_MOCK_AI=false → real Bedrock
-- RDS PostgreSQL, AWS SES, CloudWatch alarms
-- Production after staging verified
+## Phase 10 — AWS DeploPROGRESS)
+- Waiting for: TPDI DevOps sub-tasks (VPC, SGs, IAM, RDS, Redis, ECR, Secrets, Bedrock, Domain, Jira/HD creds, ALB)
+- See DEPLOYMENT.md for full checklist and known failure points
+- AWS Account: 044789783871, Region: us-east-1
+- No staging/production split — single environment
 
 ## Deferred to post-AWS deployment
 - Split view + full UI redesign (sortable columns, keyboard shortcuts, bulk actions)
 - Attachment proxy for inline images
 - Webhook real-time comment sync
 - Mobile responsive improvements
-- RUNBOOK.md — operational runbook after first deployment
+- RUNBOOK.md — create after first deployment
 
 ## Established patterns (always follow these)
 
@@ -123,8 +130,7 @@ Standalone SaaS — aggregates Jira + ManageEngine HD tickets, AI triage, sentim
 
 ### Adding a new external service
 Follow jira.service.ts pattern:
-- fetchX() methods only, no business logic
-- All HTTP via helperFetch() with AppError on non-OK
+- fetchX() methods only, no business log All HTTP via helperFetch() with AppError on non-OK
 - nock mocks in .test.ts, never real HTTP in tests
 - Credentials from process.env via loadServerEnv()
 
@@ -136,7 +142,8 @@ Follow jira.service.ts pattern:
 5. RTL test alongside component
 
 ### Adding a new AI feature
-1. Add feature name to AI feature union type in shared-type prompt template in apps/api/src/ai/prompts.ts
+1. Add feature name to AI feature union type in shared-types
+2. Add prompt template in apps/api/src/ai/prompts.ts
 3. Add handler in apps/api/src/ai/[feature].ts
 4. Register in apps/api/src/routes/ai.routes.ts
 5. Add mock response in ai/mockResponses.ts
@@ -151,14 +158,3 @@ Follow jira.service.ts pattern:
 - Every Query MUST have orgId in KeyConditionExpression
 - Every GetItem result MUST verify orgId matches JWT orgId
 - Use upsertTicket for all ticket writes — never raw PutItem in routes
-
-## Pre-deployment hardening — COMPLETE (PR #16)
-- updatedAt guard on upsertTicket (stale events skip core fields, sentiment always updates)
-- HD outbound rate limiting (100ms sleep, 429 backoff, concurrency limit 5)
-- PostgreSQL SSL (ssl: rejectUnauthorized:false in production)
-- Graceful shutdown (SIGTERM/SIGINT, 10s grace, closes WS/HTTP/PG/Redis)
-- DynamoDB PITR enabled on all 10 tables (removalPolicy: RETAIN)
-- Code coverage reporting (v8, non-blocking baseline: 64% lines, 77% functions)
-- 370 tests passing (233 API + 104 web + 24 shared-types + 9 UI)
-
-## Current test count: 370 (233 API + 104 web + 24 shared-types + 9 UI) + 17 E2E

@@ -9,7 +9,7 @@ import { resetPassword } from '../api/auth.js';
 export function ResetPasswordView(): ReactElement {
   const [params] = useSearchParams();
   const token = params.get('token') ?? '';
-  const orgId = params.get('orgId') ?? 'demo-org';
+  const orgId = params.get('orgId') ?? 'ti';
   const [password, setPassword] = useState('');
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | undefined>();

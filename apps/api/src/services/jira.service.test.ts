@@ -2,6 +2,7 @@ import nock from 'nock';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadServerEnv, resetServerEnvForTests } from '../config/loadEnv.js';
 import {
+  buildProjectIssuesJql,
   fetchIssueComments,
   fetchIssuesByProject,
   fetchProjects,
@@ -27,6 +28,7 @@ describe('jira.service', () => {
     delete process.env.JIRA_URL;
     delete process.env.JIRA_EMAIL;
     delete process.env.JIRA_API_TOKEN;
+    delete process.env.JIRA_ASSIGNEE_FILTER;
     resetServerEnvForTests();
     loadServerEnv();
   });
@@ -47,6 +49,18 @@ describe('jira.service', () => {
     expect(projects).toEqual([{ id: '2', key: 'X', name: 'Xray' }]);
   });
 
+  it('buildProjectIssuesJql omits assignee when filter unset', () => {
+    expect(buildProjectIssuesJql('TILMS')).toBe('project = TILMS ORDER BY created DESC');
+    expect(buildProjectIssuesJql('TILMS', undefined)).toBe('project = TILMS ORDER BY created DESC');
+    expect(buildProjectIssuesJql('TILMS', '   ')).toBe('project = TILMS ORDER BY created DESC');
+  });
+
+  it('buildProjectIssuesJql adds assignee clause when filter set', () => {
+    expect(buildProjectIssuesJql('TILMS', 'nasir.dipto@transperfect.com')).toBe(
+      'project = TILMS AND assignee = "nasir.dipto@transperfect.com" ORDER BY created DESC',
+    );
+  });
+
   it('fetchIssuesByProject posts to search/jql and returns issues', async () => {
     nock(base)
       .post('/rest/api/3/search/jql', (body: unknown) => {
@@ -65,6 +79,28 @@ describe('jira.service', () => {
     const out = await fetchIssuesByProject('SUP');
     expect(out.issues).toHaveLength(1);
     expect(out.issues[0]?.key).toBe('SUP-1');
+  });
+
+  it('fetchIssuesByProject applies JIRA_ASSIGNEE_FILTER to JQL', async () => {
+    process.env.JIRA_ASSIGNEE_FILTER = 'nasir.dipto@transperfect.com';
+    resetServerEnvForTests();
+    loadServerEnv();
+    nock(base)
+      .post('/rest/api/3/search/jql', (body: unknown) => {
+        const parsed =
+          typeof body === 'string' ? (JSON.parse(body) as Record<string, unknown>) : (body as Record<string, unknown>);
+        return (
+          parsed.jql ===
+          'project = TILMS AND assignee = "nasir.dipto@transperfect.com" ORDER BY created DESC'
+        );
+      })
+      .reply(200, {
+        issues: [{ key: 'TILMS-1', fields: { summary: 'Filtered' } }],
+        total: 1,
+      });
+    const out = await fetchIssuesByProject('TILMS');
+    expect(out.issues).toHaveLength(1);
+    expect(out.issues[0]?.key).toBe('TILMS-1');
   });
 
   it('fetchSingleIssue returns json', async () => {

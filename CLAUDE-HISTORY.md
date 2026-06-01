@@ -117,3 +117,12 @@
 - Video recording for all tests
 - Run: pnpm e2e (requires pnpm dev)
 - Excluded from CI
+
+## Pre-deployment hardening — COMPLETE (PR #16)
+- updatedAt guard on upsertTicket (prevents DLQ ordering bug)
+- HD outbound rate limiting (100ms sleep, 429 backoff, concurrency 5)
+- PostgreSQL SSL (ssl: rejectUnauthorized:false in production)
+- Graceful shutdown (SIGTERM/SIGINT, 10s grace, closes WS/HTTP/PG/Redis)
+- DynamoDB PITR enabled on all 10 tables (removalPolicy: RETAIN)
+- Code coverage reporting (v8, non-blocking: 64% lines, 77% functions)
+- 370 tests passing

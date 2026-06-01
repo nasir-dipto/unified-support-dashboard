@@ -103,8 +103,8 @@ jobs:
       POSTGRES_URL: postgresql://usd:usd@127.0.0.1:5432/usd_kb
       JIRA_WEBHOOK_SECRET: ci-test-secret
       HD_WEBHOOK_SECRET: ci-test-secret
-      JIRA_DEFAULT_ORG_ID: demo-org
-      HD_DEFAULT_ORG_ID: demo-org
+      JIRA_DEFAULT_ORG_ID: ti
+      HD_DEFAULT_ORG_ID: ti
     steps:
       - name: Checkout
         uses: actions/checkout@v4

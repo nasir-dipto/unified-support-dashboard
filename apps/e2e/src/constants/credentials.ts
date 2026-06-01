@@ -1,6 +1,6 @@
 export type DemoRole = 'admin' | 'manager' | 'technician';
 
-export const DEMO_ORG_ID = 'demo-org';
+export const DEMO_ORG_ID = 'ti';
 
 export const DEMO_CREDENTIALS: Record<
   DemoRole,

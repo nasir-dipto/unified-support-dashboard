@@ -23,12 +23,17 @@ export const serverEnvSchema = z.object({
   /** Secret for `x-hub-signature-256` verification on `POST /api/webhooks/jira`. */
   JIRA_WEBHOOK_SECRET: z.string().min(1).optional(),
   /** Org id stamped on tickets ingested from Jira when the payload has no org. */
-  JIRA_DEFAULT_ORG_ID: z.string().min(1).default('demo-org'),
+  JIRA_DEFAULT_ORG_ID: z.string().min(1).default('ti'),
   /**
    * Comma-separated Jira project keys to sync/process (e.g. `SCRUM,TPDI,TRL`).
    * When unset or empty, all accessible projects are included.
    */
   JIRA_INCLUDE_PROJECTS: z.string().optional(),
+  /**
+   * Optional Jira assignee filter for reconcile JQL (email or accountId).
+   * When set, sync only issues assigned to this user.
+   */
+  JIRA_ASSIGNEE_FILTER: z.string().min(1).optional(),
   /**
    * ManageEngine ServiceDesk Plus Cloud API base (e.g. https://servicedeskplus.uk/app/itdesk/api/v3).
    * All HD REST calls use this URL only (not zohoapis host).
@@ -40,7 +45,7 @@ export const serverEnvSchema = z.object({
   HD_CLIENT_SECRET: z.string().min(1).optional(),
   HD_REFRESH_TOKEN: z.string().min(1).optional(),
   /** Org id for Helpdesk-ingested tickets (webhook + reconcile). */
-  HD_DEFAULT_ORG_ID: z.string().min(1).default('demo-org'),
+  HD_DEFAULT_ORG_ID: z.string().min(1).default('ti'),
   /** Shared secret matched against `x-sdp-webhook-secret` on POST /api/webhooks/helpdesk. */
   HD_WEBHOOK_SECRET: z.string().min(1).optional(),
   /**

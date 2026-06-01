@@ -57,6 +57,7 @@ function bootstrapEnv(): void {
 async function main(): Promise<void> {
   bootstrapEnv();
   const env = getServerEnv();
+  /** Seeded tenant; defaults to `ti` via `JIRA_DEFAULT_ORG_ID` in server-env schema. */
   const orgId = env.JIRA_DEFAULT_ORG_ID;
   await seedOrgSettingsDefaults(orgId);
 
