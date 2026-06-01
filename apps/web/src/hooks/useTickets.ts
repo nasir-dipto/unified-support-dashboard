@@ -1,34 +1,34 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { TicketsListQuery } from '@usd/shared-types';
 import {
   fetchTicketComments,
   fetchTicketDetail,
   fetchTicketsList,
   postTicketComment,
   type PostTicketCommentParams,
+  type TicketsListParams,
 } from '../api/tickets';
 import { useAuthStore } from '../store/auth.store';
 
-export type TicketsListParams = {
-  limit?: number;
-  cursor?: string;
-};
+export type { TicketsListParams };
 
-/** Default list page size — show full queue without pagination for now. */
-export const DEFAULT_TICKETS_LIST_LIMIT = 100;
+/** Default page size for the technician ticket queue. */
+export const DEFAULT_TICKETS_PAGE_SIZE = 10;
+
+/** Larger limit for manager dashboard overview (first page only). */
+export const MANAGER_TICKETS_LIST_LIMIT = 100;
 
 /**
- * TanStack Query: paginated ticket list for the signed-in org.
+ * TanStack Query: ticket list for the signed-in org (filters + pagination + facets).
  */
 export function useTicketsList(params?: TicketsListParams) {
   const orgId = useAuthStore((s) => s.user?.orgId);
-  const listParams: TicketsListParams = {
-    limit: params?.limit ?? DEFAULT_TICKETS_LIST_LIMIT,
-    cursor: params?.cursor,
-  };
+  const listParams: TicketsListParams = params ?? {};
   return useQuery({
-    queryKey: ['tickets', orgId, listParams.limit, listParams.cursor],
-    queryFn: async () => fetchTicketsList(listParams),
+    queryKey: ['tickets', orgId, listParams],
+    queryFn: async () => fetchTicketsList(listParams as TicketsListQuery),
     enabled: orgId !== undefined && orgId.length > 0,
+    placeholderData: (prev) => prev,
   });
 }
 

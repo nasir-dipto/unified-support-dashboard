@@ -3,7 +3,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { TicketsView } from '../views/TicketsView';
+import { defaultTicketListPagination, emptyTicketListFacets } from '../test/ticket-list-fixtures';
 
 afterEach(() => {
   cleanup();
@@ -28,9 +30,11 @@ vi.mock('../hooks/useTickets', async (importOriginal) => {
             updatedAt: 't',
           },
         ],
-        total: 1,
+        pagination: defaultTicketListPagination({ total: 1, totalPages: 1 }),
+        facets: emptyTicketListFacets({ viewCounts: { all: 1, mine: 0, jira: 1, me: 0 } }),
       },
       isLoading: false,
+      isFetching: false,
       error: null,
     }),
   };
@@ -42,7 +46,11 @@ vi.mock('../hooks/useWebSocket', () => ({
 
 function renderWithQuery(ui: ReactElement): ReturnType<typeof render> {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
+  return render(
+    <MemoryRouter>
+      <QueryClientProvider client={client}>{ui}</QueryClientProvider>
+    </MemoryRouter>,
+  );
 }
 
 describe('TicketsView', () => {

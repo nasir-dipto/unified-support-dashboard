@@ -1,59 +1,32 @@
 import type { AuthUserPublic, TicketApiDto } from '@usd/shared-types';
 import { StatusDot, usdColors } from '@usd/ui';
 import type { ReactElement } from 'react';
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivitySidebar } from '../components/tickets/ActivitySidebar';
 import { CommentModal } from '../components/tickets/CommentModal';
 import { DetailModal } from '../components/tickets/DetailModal';
 import { TicketCard } from '../components/tickets/TicketCard';
-import {
-  TicketFilters,
-  type PriorityFilter,
-  type TicketViewTab,
-} from '../components/tickets/TicketFilters';
+import { TicketFilters } from '../components/tickets/TicketFilters';
+import { TicketPagination } from '../components/tickets/TicketPagination';
 import { TicketStatsRow } from '../components/tickets/TicketStatsRow';
-import { DEFAULT_TICKETS_LIST_LIMIT, useTicketsList } from '../hooks/useTickets';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { useTicketQueueParams } from '../hooks/useTicketQueueParams';
+import { useTicketsList } from '../hooks/useTickets';
 import { useAuthStore } from '../store/auth.store';
 import { canWriteTicket } from '../utils/permissions';
 import { isTechnicianOnly } from '../utils/roles';
-import { isTicketAssignedToCurrentUser } from '../utils/ticket-display';
+import { ticketQueueParamsToApiQuery } from '../utils/ticket-queue-params';
 
 /**
  * Default ticket list tab: technicians start on My Tickets; others on All.
  */
 export function getDefaultTicketViewTab(
   user: AuthUserPublic | null | undefined,
-): TicketViewTab {
+): 'all' | 'mine' | 'jira' | 'me' {
   if (user !== null && user !== undefined && isTechnicianOnly(user.roles)) {
     return 'mine';
   }
   return 'all';
-}
-
-function filterTickets(
-  tickets: TicketApiDto[],
-  tab: TicketViewTab,
-  priority: PriorityFilter,
-  search: string,
-  user: AuthUserPublic | null | undefined,
-): TicketApiDto[] {
-  let base = tickets;
-  if (tab === 'mine') {
-    base = tickets.filter((t) => isTicketAssignedToCurrentUser(t, user));
-  } else if (tab === 'jira') {
-    base = tickets.filter((t) => t.source === 'jira');
-  } else if (tab === 'me') {
-    base = tickets.filter((t) => t.source === 'helpdesk');
-  }
-  const q = search.trim().toLowerCase();
-  return base.filter(
-    (t) =>
-      (priority === 'all' || t.priority === priority) &&
-      (q.length === 0 ||
-        t.summary.toLowerCase().includes(q) ||
-        t.externalId.toLowerCase().includes(q) ||
-        t.ticketId.toLowerCase().includes(q)),
-  );
 }
 
 /**
@@ -79,30 +52,47 @@ function BellIcon(): ReactElement {
 }
 
 /**
- * Technician ticket queue (TechView) with real API data.
+ * Technician ticket queue (TechView) with server-side filters, facets, and URL state.
  */
 export function TechnicianTicketsView(): ReactElement {
   const user = useAuthStore((s) => s.user);
-  const { data, isLoading, error } = useTicketsList({ limit: DEFAULT_TICKETS_LIST_LIMIT });
-  const [tab, setTab] = useState<TicketViewTab>(() => getDefaultTicketViewTab(user));
-  const [priority, setPriority] = useState<PriorityFilter>('all');
-  const [search, setSearch] = useState('');
+  const { params, setParams } = useTicketQueueParams();
+  const [searchInput, setSearchInput] = useState(params.q);
+  const debouncedQ = useDebouncedValue(searchInput, 300);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [commentTicket, setCommentTicket] = useState<TicketApiDto | null>(null);
   const [activityOpen, setActivityOpen] = useState(false);
 
+  useEffect(() => {
+    setSearchInput(params.q);
+  }, [params.q]);
+
+  useEffect(() => {
+    if (debouncedQ !== params.q) {
+      setParams({ q: debouncedQ });
+    }
+  }, [debouncedQ, params.q, setParams]);
+
+  useEffect(() => {
+    if (user == null) {
+      return;
+    }
+    const sp = new URLSearchParams(window.location.search);
+    if (!sp.has('tab') && isTechnicianOnly(user.roles)) {
+      setParams({ tab: getDefaultTicketViewTab(user) });
+    }
+  }, [user, setParams]);
+
+  const apiQuery = ticketQueueParamsToApiQuery({ ...params, q: debouncedQ });
+  const { data, isLoading, isFetching, error } = useTicketsList(apiQuery);
+
   const tickets = data?.data ?? [];
+  const pagination = data?.pagination;
+  const facets = data?.facets;
   const technicianOnly = user !== null && isTechnicianOnly(user.roles);
-  const counts = useMemo(
-    () => ({
-      all: tickets.length,
-      mine: tickets.filter((t) => isTicketAssignedToCurrentUser(t, user)).length,
-      jira: tickets.filter((t) => t.source === 'jira').length,
-      me: tickets.filter((t) => t.source === 'helpdesk').length,
-    }),
-    [tickets, user],
-  );
-  const rows = filterTickets(tickets, tab, priority, search, user);
+
+  const counts = facets?.viewCounts ?? { all: 0, mine: 0, jira: 0, me: 0 };
+  const projectCounts = facets?.projects ?? {};
 
   if (isLoading) {
     return (
@@ -113,7 +103,7 @@ export function TechnicianTicketsView(): ReactElement {
     );
   }
 
-  if (error !== null) {
+  if (error) {
     return (
       <p className="text-sm text-usd-red" role="alert">
         Failed to load tickets.
@@ -122,29 +112,47 @@ export function TechnicianTicketsView(): ReactElement {
   }
 
   const tabLabel =
-    tab === 'mine' ? 'My tickets' : tab === 'jira' ? 'Jira' : tab === 'me' ? 'ManageEngine' : 'All tickets';
+    params.tab === 'mine'
+      ? 'My tickets'
+      : params.tab === 'jira'
+        ? 'Jira'
+        : params.tab === 'me'
+          ? 'ManageEngine'
+          : 'All tickets';
 
   return (
     <>
       <h1 className="text-[22px] font-extrabold text-gray-900">Ticket Queue</h1>
       <p className="mb-3 text-xs text-gray-500">Manage and resolve Jira and ManageEngine tickets.</p>
 
-      <TicketStatsRow tickets={tickets} technicianOnly={technicianOnly} />
+      <TicketStatsRow
+        facets={facets}
+        total={pagination?.total ?? 0}
+        technicianOnly={technicianOnly}
+      />
 
       <TicketFilters
-        tab={tab}
-        onTabChange={setTab}
-        priority={priority}
-        onPriorityChange={setPriority}
-        search={search}
-        onSearchChange={setSearch}
+        tab={params.tab}
+        onTabChange={(tab) => { setParams({ tab }); }}
+        priority={params.priority}
+        onPriorityChange={(priority) => { setParams({ priority }); }}
+        search={searchInput}
+        onSearchChange={setSearchInput}
+        project={params.project}
+        onProjectChange={(project) => { setParams({ project }); }}
+        sort={params.sort}
+        onSortChange={(sort) => { setParams({ sort }); }}
         counts={counts}
+        projectCounts={projectCounts}
       />
 
       <div className="mb-2 flex items-center gap-2">
         <StatusDot color={usdColors.green} size={8} />
         <span className="text-sm font-bold text-gray-900">{tabLabel}</span>
-        <span className="text-xs text-gray-400">{rows.length} tickets</span>
+        <span className="text-xs text-gray-400">
+          {pagination?.total ?? 0} tickets
+          {isFetching ? ' · Updating…' : ''}
+        </span>
         <button
           type="button"
           onClick={() => { setActivityOpen((open) => !open); }}
@@ -161,8 +169,16 @@ export function TechnicianTicketsView(): ReactElement {
         </button>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-        {rows.map((t) => {
+      <div className="relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+        {isFetching ? (
+          <div
+            className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-white/60"
+            aria-hidden
+          >
+            <div className="h-7 w-7 animate-spin rounded-full border-2 border-gray-200 border-t-usd-indigo" />
+          </div>
+        ) : null}
+        {tickets.map((t) => {
           const canWrite =
             user !== null &&
             canWriteTicket(user.roles, t, user.email, user.displayName);
@@ -175,8 +191,14 @@ export function TechnicianTicketsView(): ReactElement {
             />
           );
         })}
-        {rows.length === 0 ? (
+        {tickets.length === 0 ? (
           <p className="py-8 text-center text-sm text-gray-400">No tickets match.</p>
+        ) : null}
+        {pagination !== undefined ? (
+          <TicketPagination
+            pagination={pagination}
+            onPageChange={(page) => { setParams({ page }); }}
+          />
         ) : null}
       </div>
 

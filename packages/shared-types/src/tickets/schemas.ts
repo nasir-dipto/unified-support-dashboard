@@ -87,10 +87,59 @@ export const ticketApiDtoSchema = supportTicketRecordSchema.pick({
 
 export type TicketApiDto = z.infer<typeof ticketApiDtoSchema>;
 
+/** Sort order for GET /api/tickets. */
+export const ticketListSortSchema = z.enum(['newest', 'oldest', 'priority', 'status']);
+export type TicketListSort = z.infer<typeof ticketListSortSchema>;
+
+export const ticketsListPaginationSchema = z.object({
+  page: z.number().int().positive(),
+  limit: z.number().int().positive(),
+  total: z.number().int().nonnegative(),
+  totalPages: z.number().int().nonnegative(),
+  hasNext: z.boolean(),
+  hasPrev: z.boolean(),
+});
+
+export type TicketsListPagination = z.infer<typeof ticketsListPaginationSchema>;
+
+const facetCountRecordSchema = z.record(z.string(), z.number().int().nonnegative());
+
+export const ticketsListFacetsSchema = z.object({
+  projects: facetCountRecordSchema,
+  sources: z.object({
+    jira: z.number().int().nonnegative(),
+    helpdesk: z.number().int().nonnegative(),
+  }),
+  priorities: z.object({
+    critical: z.number().int().nonnegative(),
+    high: z.number().int().nonnegative(),
+    medium: z.number().int().nonnegative(),
+    low: z.number().int().nonnegative(),
+  }),
+  statuses: z.object({
+    open: z.number().int().nonnegative(),
+    in_progress: z.number().int().nonnegative(),
+    resolved: z.number().int().nonnegative(),
+    closed: z.number().int().nonnegative(),
+    pending: z.number().int().nonnegative(),
+  }),
+  /** Assigned-to-current-user count within active filters (excluding `mine`). */
+  mineCount: z.number().int().nonnegative(),
+  /** View tab counts (priority/project/q/status filters applied; source/mine excluded). */
+  viewCounts: z.object({
+    all: z.number().int().nonnegative(),
+    mine: z.number().int().nonnegative(),
+    jira: z.number().int().nonnegative(),
+    me: z.number().int().nonnegative(),
+  }),
+});
+
+export type TicketsListFacets = z.infer<typeof ticketsListFacetsSchema>;
+
 export const ticketsListResponseSchema = z.object({
   data: z.array(ticketApiDtoSchema),
-  cursor: z.string().optional(),
-  total: z.number().int().nonnegative(),
+  pagination: ticketsListPaginationSchema,
+  facets: ticketsListFacetsSchema,
 });
 
 export type TicketsListResponse = z.infer<typeof ticketsListResponseSchema>;
@@ -101,9 +150,20 @@ export const ticketDetailResponseSchema = z.object({
 
 export type TicketDetailResponse = z.infer<typeof ticketDetailResponseSchema>;
 
+const booleanQuerySchema = z
+  .union([z.literal('true'), z.literal('false'), z.boolean()])
+  .transform((v) => v === true || v === 'true');
+
 export const ticketsListQuerySchema = z.object({
-  limit: z.coerce.number().int().min(1).max(100).optional().default(100),
-  cursor: z.string().min(1).optional(),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(10),
+  source: ticketSourceSchema.optional(),
+  priority: ticketPrioritySchema.optional(),
+  status: ticketStatusSchema.optional(),
+  project: z.string().min(1).optional(),
+  q: z.string().optional(),
+  sort: ticketListSortSchema.optional().default('newest'),
+  mine: booleanQuerySchema.optional(),
 });
 
 export type TicketsListQuery = z.infer<typeof ticketsListQuerySchema>;

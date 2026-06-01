@@ -1,8 +1,18 @@
 import { Pill } from '@usd/ui';
+import type { TicketListSort } from '@usd/shared-types';
 import type { ReactElement } from 'react';
+import { ProjectFilter } from './ProjectFilter';
+import { TicketSortSelect } from './TicketSortSelect';
 
 export type TicketViewTab = 'all' | 'mine' | 'jira' | 'me';
 export type PriorityFilter = 'all' | 'critical' | 'high' | 'medium' | 'low';
+
+export type TicketFilterCounts = {
+  all: number;
+  mine: number;
+  jira: number;
+  me: number;
+};
 
 export type TicketFiltersProps = {
   tab: TicketViewTab;
@@ -11,11 +21,16 @@ export type TicketFiltersProps = {
   onPriorityChange: (p: PriorityFilter) => void;
   search: string;
   onSearchChange: (q: string) => void;
-  counts: { all: number; mine: number; jira: number; me: number };
+  project: string;
+  onProjectChange: (project: string) => void;
+  sort: TicketListSort;
+  onSortChange: (sort: TicketListSort) => void;
+  counts: TicketFilterCounts;
+  projectCounts: Record<string, number>;
 };
 
 /**
- * View / priority pills and search for technician queue.
+ * View / priority pills, project + sort dropdowns, and search for technician queue.
  */
 export function TicketFilters(props: TicketFiltersProps): ReactElement {
   const {
@@ -25,7 +40,12 @@ export function TicketFilters(props: TicketFiltersProps): ReactElement {
     onPriorityChange,
     search,
     onSearchChange,
+    project,
+    onProjectChange,
+    sort,
+    onSortChange,
     counts,
+    projectCounts,
   } = props;
 
   return (
@@ -53,12 +73,16 @@ export function TicketFilters(props: TicketFiltersProps): ReactElement {
             onClick={() => { onPriorityChange(p); }}
           />
         ))}
+        <div className="mx-0.5 h-5 w-px bg-gray-200" />
+        <ProjectFilter value={project} projects={projectCounts} onChange={onProjectChange} />
+        <TicketSortSelect value={sort} onChange={onSortChange} />
         <input
           type="search"
-          placeholder="Search..."
+          placeholder="Search title or ID…"
           value={search}
           onChange={(e) => { onSearchChange(e.target.value); }}
-          className="ml-auto w-36 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1 text-[12px] outline-none focus:border-usd-indigo"
+          className="ml-auto w-40 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1 text-[12px] outline-none focus:border-usd-indigo"
+          aria-label="Search tickets"
         />
       </div>
     </div>

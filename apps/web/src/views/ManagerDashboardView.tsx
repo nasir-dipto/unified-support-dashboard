@@ -3,7 +3,7 @@ import { StatCard, usdColors } from '@usd/ui';
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { DetailModal } from '../components/tickets/DetailModal';
-import { useTicketsList } from '../hooks/useTickets';
+import { MANAGER_TICKETS_LIST_LIMIT, useTicketsList } from '../hooks/useTickets';
 import { averageSlaPercentRemaining } from '../utils/ticket-display';
 import { ManagerInsightsTab } from './manager/ManagerInsightsTab';
 import { ManagerOverviewTab } from './manager/ManagerOverviewTab';
@@ -20,20 +20,25 @@ type MgrTab = 'overview' | 'sentiment' | 'insights' | 'reporting' | 'team' | 'kb
 const openStatuses: TicketApiDto['status'][] = ['open', 'in_progress', 'pending'];
 
 /**
- * Manager dashboard (MgrView) with tabs; metrics from live tickets.
+ * Manager dashboard (MgrView) with tabs; metrics from live tickets + list facets.
  */
 export function ManagerDashboardView(): ReactElement {
-  const { data, isLoading } = useTicketsList();
+  const { data, isLoading } = useTicketsList({ limit: MANAGER_TICKETS_LIST_LIMIT, page: 1 });
   const sentimentQuery = useSentimentSummary();
   const tickets = data?.data ?? [];
+  const facets = data?.facets;
+  const totalTickets = data?.pagination.total ?? tickets.length;
   const negativeSentiment = sentimentQuery.data?.counts.negative ?? 0;
   const [tab, setTab] = useState<MgrTab>('overview');
   const [detailId, setDetailId] = useState<string | null>(null);
   const roles = useAuthStore((s) => s.user?.roles ?? []);
   const showKb = canManageKnowledgeBase(roles);
 
-  const open = tickets.filter((t) => openStatuses.includes(t.status));
-  const critical = tickets.filter((t) => t.priority === 'critical');
+  const open =
+    facets === undefined
+      ? tickets.filter((t) => openStatuses.includes(t.status)).length
+      : openStatuses.reduce((sum, s) => sum + facets.statuses[s], 0);
+  const critical = facets?.priorities.critical ?? tickets.filter((t) => t.priority === 'critical').length;
   const avgSla = averageSlaPercentRemaining(tickets);
 
   const tabs: { id: MgrTab; label: string; badge?: number }[] = [
@@ -59,9 +64,9 @@ export function ManagerDashboardView(): ReactElement {
       <p className="mb-5 text-sm text-gray-500">Overview, sentiment, reporting and AI insights.</p>
 
       <div className="mb-5 grid grid-cols-2 gap-2 lg:grid-cols-6">
-        <StatCard label="Total tickets" value={tickets.length} color={usdColors.indigo} />
-        <StatCard label="Open" value={open.length} color={usdColors.green} />
-        <StatCard label="Critical" value={critical.length} color={usdColors.red} />
+        <StatCard label="Total tickets" value={totalTickets} color={usdColors.indigo} />
+        <StatCard label="Open" value={open} color={usdColors.green} />
+        <StatCard label="Critical" value={critical} color={usdColors.red} />
         <StatCard
           label="Negative sentiment"
           value={sentimentQuery.isLoading ? '…' : negativeSentiment}
