@@ -170,3 +170,20 @@ Follow jira.service.ts pattern:
 - JIRA_ASSIGNEE_FILTER support (optional assignee filter in JQL)
 - orgId renamed from demo-org to ti across all config/production code
 - HD still on personal instance (servicedeskplus.uk) until Phase 10
+
+## Ticket queue improvements — COMPLETE (PR #18)
+- Backend pagination (10 per page default, max 100)
+- Project filter dropdown with counts
+- Functional search bar (title + ticketId, 300ms debounce)
+- Sort dropdown (Newest/Oldest/Priority/Status)
+- Open/Closed/All bucket filter (display-only)
+- URL persistence (all filters/page in URL)
+- Loading overlay during fetches
+- Facets in response (no secondary API call)
+
+## Incremental sync — COMPLETE (PR #18)
+- pnpm sync:jira:incremental — last 15 min only
+- pnpm sync:hd:incremental — last 15 min only
+- CLI flags: --incremental, --since=N
+- Full sync still available as nightly safety net
+- Production strategy: incremental every 5 min + full at 2am
