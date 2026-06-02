@@ -187,3 +187,19 @@ Follow jira.service.ts pattern:
 - CLI flags: --incremental, --since=N
 - Full sync still available as nightly safety net
 - Production strategy: incremental every 5 min + full at 2am
+
+## Corporate ManageEngine HD integration — COMPLETE (PR #19)
+- Connected to transperfect.sdpondemand.manageengine.com (Server-based OAuth)
+- HD_TECHNICIAN_FILTER env var scopes sync by technician name
+- Conversation content hydrated via /notifications/{id} (list returns metadata only)
+- Date fixes: added created/updated fields to both Jira and HD field requests
+- HTML entity decoding utility (htmlText.ts) for &nbsp; etc
+- DetailModal wider (max-w-5xl/6xl) + collapsible conversations
+- Both Jira and HD now show correct historical dates
+- 295 API + 121 web tests passing
+
+## Local corporate credentials (in .env.local, never committed)
+- HELPDESK_URL=https://transperfect.sdpondemand.manageengine.com/app/itdesk/api/v3
+- ZOHO_DOMAIN=zoho.com (US data center)
+- HD_TECHNICIAN_FILTER="Nasir Dipto | Solutions Engineering" (local testing scope)
+- Personal HD backup saved as .env.local.personal.backup (gitignored)
