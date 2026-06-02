@@ -8,7 +8,7 @@ import type {
 } from '@usd/shared-types';
 import { Badge, Overlay, Pill, SlaBar, priorityColors, usdColors } from '@usd/ui';
 import type { ReactElement } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { postTicketComment, postTicketCrossLink } from '../../api/tickets';
 import { KbDraftForm } from '../kb/KbDraftForm';
@@ -66,6 +66,91 @@ export function originalDescriptionLabel(source: TicketApiDto['source']): string
   return source === 'helpdesk' ? 'Original Request' : 'Issue Description';
 }
 
+const THREAD_PREVIEW_MAX_LEN = 80;
+
+/**
+ * Short single-line preview for collapsed conversation rows.
+ */
+export function conversationBodyPreview(body: string, maxLen = THREAD_PREVIEW_MAX_LEN): string {
+  const flat = body.replace(/\s+/g, ' ').trim();
+  if (flat.length <= maxLen) {
+    return flat;
+  }
+  return `${flat.slice(0, maxLen)}…`;
+}
+
+/**
+ * Picks the thread row id (description or comment) with the latest createdAt.
+ */
+export function newestThreadRowId(
+  descriptionEntries: readonly TicketApiDto[],
+  comments: readonly { commentId: string; createdAt: string }[],
+): string | undefined {
+  const rows: { id: string; createdAt: string }[] = [];
+  for (const entry of descriptionEntries) {
+    rows.push({ id: `desc-${entry.ticketId}`, createdAt: entry.createdAt });
+  }
+  for (const comment of comments) {
+    rows.push({ id: comment.commentId, createdAt: comment.createdAt });
+  }
+  if (rows.length === 0) {
+    return undefined;
+  }
+  rows.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  return rows[rows.length - 1]?.id;
+}
+
+type CollapsibleThreadRowProps = {
+  rowId: string;
+  expanded: boolean;
+  onToggle: () => void;
+  header: ReactElement;
+  body: string;
+  className?: string;
+  testId?: string;
+};
+
+/**
+ * Collapsible conversation row with preview header and expandable body.
+ */
+function CollapsibleThreadRow(props: CollapsibleThreadRowProps): ReactElement {
+  const { rowId, expanded, onToggle, header, body, className, testId } = props;
+  const preview = conversationBodyPreview(body);
+  const showPreview = !expanded && preview.length > 0;
+  return (
+    <li
+      data-testid={testId}
+      className={className ?? 'w-full rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm'}
+    >
+      <button
+        type="button"
+        className="flex w-full items-start gap-2 text-left"
+        aria-expanded={expanded}
+        aria-controls={`thread-body-${rowId}`}
+        onClick={onToggle}
+      >
+        <span className="mt-0.5 shrink-0 text-[10px] text-gray-400" aria-hidden>
+          {expanded ? '▼' : '▶'}
+        </span>
+        <div className="min-w-0 flex-1">
+          {header}
+          {showPreview ? (
+            <p className="mt-1 text-xs text-gray-600">{preview}</p>
+          ) : null}
+        </div>
+      </button>
+      {expanded ? (
+        <p
+          id={`thread-body-${rowId}`}
+          className="mt-2 w-full break-words whitespace-pre-wrap pl-5 text-sm text-gray-900"
+        >
+          {body}
+        </p>
+      ) : null}
+    </li>
+  );
+}
+
 /**
  * Formats an ISO timestamp for display in the conversation thread (stable en-US locale).
  */
@@ -118,11 +203,59 @@ export function DetailModal(props: DetailModalProps): ReactElement {
   const [suggestion, setSuggestion] = useState<TriageSuggestResponse | null>(null);
   const [kbResults, setKbResults] = useState<KbSearchResult[]>([]);
   const [kbDraft, setKbDraft] = useState<KbDraftResponse | null>(null);
+  const [expandedThreadIds, setExpandedThreadIds] = useState<Set<string>>(() => new Set());
   const kbDraftExists = useKbDraftExists(activeTicketId, open);
   const draftSaved = kbDraftExists.data === true;
   const kbDraftChecking = kbDraftExists.isLoading;
   const kbSearch = useKbSearch(ticketId ?? undefined);
   const kbDraftMut = useKbDraft();
+
+  const comments =
+    open && ticketId !== null
+      ? mergedPair !== undefined
+        ? mergeThreadComments(
+            commentsQuery.data?.data ?? [],
+            linkedCommentsQuery.data?.data ?? [],
+          )
+        : sortThreadComments(commentsQuery.data?.data ?? [])
+      : [];
+  const descriptionEntries: TicketApiDto[] = [];
+  if (open && ticketId !== null) {
+    if (mergedPair !== undefined) {
+      if (hasDisplayableDescription(mergedPair.jira.description)) {
+        descriptionEntries.push(mergedPair.jira);
+      }
+      if (hasDisplayableDescription(mergedPair.hd.description)) {
+        descriptionEntries.push(mergedPair.hd);
+      }
+    } else if (ticket !== undefined && hasDisplayableDescription(ticket.description)) {
+      descriptionEntries.push(ticket);
+    }
+  }
+  const newestThreadId = newestThreadRowId(descriptionEntries, comments);
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const initial = new Set<string>();
+    if (newestThreadId !== undefined) {
+      initial.add(newestThreadId);
+    }
+    setExpandedThreadIds(initial);
+  }, [open, ticketId, newestThreadId]);
+
+  const toggleThreadRow = (rowId: string): void => {
+    setExpandedThreadIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowId)) {
+        next.delete(rowId);
+      } else {
+        next.add(rowId);
+      }
+      return next;
+    });
+  };
 
   if (!open || ticketId === null) {
     return <></>;
@@ -138,25 +271,7 @@ export function DetailModal(props: DetailModalProps): ReactElement {
     mergedPair !== undefined ? canWriteJiraSide(user, mergedPair.jira) : false;
   const canWriteHd =
     mergedPair !== undefined ? canWriteHdSide(user, mergedPair.hd) : false;
-  const comments =
-    mergedPair !== undefined
-      ? mergeThreadComments(
-          commentsQuery.data?.data ?? [],
-          linkedCommentsQuery.data?.data ?? [],
-        )
-      : sortThreadComments(commentsQuery.data?.data ?? []);
   const emailReplyEnabled = healthQuery.data?.helpdesk.emailReplyEnabled ?? false;
-  const descriptionEntries: TicketApiDto[] = [];
-  if (mergedPair !== undefined) {
-    if (hasDisplayableDescription(mergedPair.jira.description)) {
-      descriptionEntries.push(mergedPair.jira);
-    }
-    if (hasDisplayableDescription(mergedPair.hd.description)) {
-      descriptionEntries.push(mergedPair.hd);
-    }
-  } else if (ticket !== undefined && hasDisplayableDescription(ticket.description)) {
-    descriptionEntries.push(ticket);
-  }
   const showReplyActions =
     mergedPair !== undefined ? canWriteJira || canWriteHd : canWrite;
 
@@ -276,7 +391,8 @@ export function DetailModal(props: DetailModalProps): ReactElement {
       }
       sub={ticket?.summary}
       onClose={close}
-      width={mergedPair !== undefined ? 640 : 520}
+      panelMaxWidthClass={mergedPair !== undefined ? 'max-w-6xl' : 'max-w-5xl'}
+      panelMaxHeightClass="max-h-[85vh]"
     >
       {ticket !== undefined ? (
         <>
@@ -386,44 +502,60 @@ export function DetailModal(props: DetailModalProps): ReactElement {
             </div>
           ) : null}
 
-      <section className="border-t border-gray-100 pt-4">
+      <section className="w-full border-t border-gray-100 pt-4">
         <h3 className="text-sm font-bold text-gray-900">Conversation</h3>
-        <ul className="mt-3 max-h-48 space-y-2 overflow-y-auto">
-          {descriptionEntries.map((entry) => (
-            <li
-              key={`desc-${entry.ticketId}`}
-              data-testid="ticket-original-description"
-              className="rounded-lg border border-gray-200 bg-gray-100 p-3 text-sm"
-            >
-              <div className="flex justify-between text-xs text-gray-500">
-                <span className="font-medium">
-                  {originalDescriptionLabel(entry.source)}
-                  {mergedPair !== undefined ? ` (${entry.externalId})` : ''}
-                </span>
-                <time dateTime={entry.createdAt}>
-                  {formatTicketTimestamp(entry.createdAt)}
-                </time>
-              </div>
-              <p className="mt-2 whitespace-pre-wrap">{entry.description}</p>
-            </li>
-          ))}
+        <ul className="mt-3 max-h-[min(50vh,32rem)] w-full space-y-2 overflow-y-auto">
+          {descriptionEntries.map((entry) => {
+            const rowId = `desc-${entry.ticketId}`;
+            const description = entry.description ?? '';
+            return (
+              <CollapsibleThreadRow
+                key={rowId}
+                rowId={rowId}
+                testId="ticket-original-description"
+                expanded={expandedThreadIds.has(rowId)}
+                onToggle={() => { toggleThreadRow(rowId); }}
+                className="w-full rounded-lg border border-gray-200 bg-gray-100 p-3 text-sm"
+                body={description}
+                header={(
+                  <div className="flex justify-between gap-2 text-xs text-gray-500">
+                    <span className="font-medium">
+                      {originalDescriptionLabel(entry.source)}
+                      {mergedPair !== undefined ? ` (${entry.externalId})` : ''}
+                    </span>
+                    <time dateTime={entry.createdAt}>
+                      {formatTicketTimestamp(entry.createdAt)}
+                    </time>
+                  </div>
+                )}
+              />
+            );
+          })}
           {comments.map((c) => (
-            <li key={c.commentId} className="rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm">
-              <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
-                <Badge
-                  label={commentSourceLabel(c.commentSource)}
-                  color={commentSourceColor(c.commentSource)}
-                  sm
-                />
-                <time dateTime={c.createdAt}>{formatTicketTimestamp(c.createdAt)}</time>
-              </div>
-              {(c.authorDisplayName !== undefined || c.authorEmail !== undefined) ? (
-                <p className="mt-1 text-xs text-gray-500">
-                  {c.authorDisplayName ?? c.authorEmail}
-                </p>
-              ) : null}
-              <p className="mt-2 whitespace-pre-wrap">{c.body}</p>
-            </li>
+            <CollapsibleThreadRow
+              key={c.commentId}
+              rowId={c.commentId}
+              expanded={expandedThreadIds.has(c.commentId)}
+              onToggle={() => { toggleThreadRow(c.commentId); }}
+              body={c.body}
+              header={(
+                <>
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-500">
+                    <Badge
+                      label={commentSourceLabel(c.commentSource)}
+                      color={commentSourceColor(c.commentSource)}
+                      sm
+                    />
+                    <time dateTime={c.createdAt}>{formatTicketTimestamp(c.createdAt)}</time>
+                  </div>
+                  {(c.authorDisplayName !== undefined || c.authorEmail !== undefined) ? (
+                    <p className="mt-1 text-xs text-gray-500">
+                      {c.authorDisplayName ?? c.authorEmail}
+                    </p>
+                  ) : null}
+                </>
+              )}
+            />
           ))}
         </ul>
         {showReplyActions ? (

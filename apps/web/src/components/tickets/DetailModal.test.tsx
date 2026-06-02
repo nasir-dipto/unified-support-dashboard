@@ -1,12 +1,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { TicketApiDto } from '@usd/shared-types';
 import {
+  conversationBodyPreview,
   DetailModal,
   formatTicketTimestamp,
   hasDisplayableDescription,
+  newestThreadRowId,
   originalDescriptionLabel,
 } from './DetailModal';
 
@@ -150,6 +152,20 @@ describe('DetailModal helpers', () => {
   it('formatTicketTimestamp uses en-US medium date and short time', () => {
     expect(formatTicketTimestamp('2026-01-15T12:00:00.000Z')).toMatch(/Jan 15, 2026/);
   });
+
+  it('conversationBodyPreview truncates long text', () => {
+    const long = 'a'.repeat(100);
+    expect(conversationBodyPreview(long)).toHaveLength(81);
+    expect(conversationBodyPreview(long).endsWith('…')).toBe(true);
+  });
+
+  it('newestThreadRowId picks latest comment over description', () => {
+    const id = newestThreadRowId(
+      [{ ...baseTicket, createdAt: '2026-01-15T12:00:00.000Z' }],
+      [{ commentId: 'c1', createdAt: '2026-01-16T10:00:00.000Z' }],
+    );
+    expect(id).toBe('c1');
+  });
 });
 
 describe('DetailModal', () => {
@@ -176,6 +192,15 @@ describe('DetailModal', () => {
     expect(list?.firstElementChild).toBe(bubble);
     expect(screen.getByRole('button', { name: /^comment$/i })).toBeTruthy();
     expect(screen.getByText('Jira comment')).toBeTruthy();
+    expect(bubble.querySelector('#thread-body-desc-jira_X')).toBeNull();
+  });
+
+  it('expands collapsed conversation row on header click', async () => {
+    const user = userEvent.setup();
+    renderModal();
+    const bubble = screen.getByTestId('ticket-original-description');
+    await user.click(within(bubble).getByRole('button'));
+    expect(bubble.querySelector('#thread-body-desc-jira_X')).toBeTruthy();
   });
 
   it('renders Original Request label for Helpdesk', () => {

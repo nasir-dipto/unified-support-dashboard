@@ -45,7 +45,7 @@ describe('mapHdRequestToTicket', () => {
         technician: { name: 'Jane Agent' },
         requester: { email_id: 'user@acme.test' },
         created_time: { value: createdMs },
-        updated_time: { value: updatedMs },
+        last_updated_time: { value: updatedMs },
       },
       nowIso: '2020-01-01T00:00:00.000Z',
     });
@@ -99,6 +99,40 @@ describe('mapHdRequestToTicket', () => {
     expect(rec.reporterId).toBe('Desk User');
     expect(rec.assigneeId).toBeUndefined();
     expect(rec.internalId).toBe('43');
+  });
+
+  it('falls back to created_time when last_updated_time is null', () => {
+    const createdMs = 1_685_721_558_093;
+    const rec = mapHdRequestToTicket({
+      orgId: 'org-1',
+      request: {
+        id: 44,
+        display_id: { value: '44', display_value: '44' },
+        subject: 'No update',
+        status: { name: 'Open' },
+        priority: { name: 'Low' },
+        created_time: { value: String(createdMs) },
+        last_updated_time: null,
+      },
+      nowIso: '2020-01-01T00:00:00.000Z',
+    });
+    expect(rec.updatedAt).toBe(new Date(createdMs).toISOString());
+  });
+
+  it('strips HTML entities from description strings', () => {
+    const rec = mapHdRequestToTicket({
+      orgId: 'org-1',
+      request: {
+        id: 45,
+        display_id: { value: '45', display_value: '45' },
+        subject: 'Entity test',
+        description: 'Printer&nbsp;offline',
+        status: { name: 'Open' },
+        priority: { name: 'Low' },
+      },
+      nowIso: '2020-01-01T00:00:00.000Z',
+    });
+    expect(rec.description).toBe('Printer offline');
   });
 
   it('accepts display_id as a string (REST list shape)', () => {

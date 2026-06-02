@@ -75,9 +75,12 @@ describe('jira.service', () => {
       .post('/rest/api/3/search/jql', (body: unknown) => {
         const parsed =
           typeof body === 'string' ? (JSON.parse(body) as Record<string, unknown>) : (body as Record<string, unknown>);
+        const fields = parsed.fields;
         return (
           parsed.jql === 'project = SUP ORDER BY updated DESC' &&
-          Array.isArray(parsed.fields) &&
+          Array.isArray(fields) &&
+          fields.includes('created') &&
+          fields.includes('updated') &&
           parsed.maxResults === 50
         );
       })

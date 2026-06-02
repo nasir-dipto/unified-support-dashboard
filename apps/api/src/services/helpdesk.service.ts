@@ -1,4 +1,5 @@
 import { getServerEnv } from '../config/loadEnv.js';
+import { runWithConcurrencyLimit } from '../utils/concurrency.js';
 import { AppError } from '../utils/errors.js';
 import { getZohoAccessToken } from './zohoAuth.service.js';
 
@@ -178,14 +179,52 @@ export const REQUEST_LIST_FIELDS_REQUIRED = [
   'priority',
   'technician',
   'requester',
+  'created_time',
+  'last_updated_time',
 ] as const;
 
 export type BuildRequestsListInputDataOptions = {
   /** When set, only requests updated after this window are returned. */
   sinceMinutes?: number;
+  /** When set, only requests assigned to this technician display name are returned. */
+  technicianName?: string;
   /** Override clock for tests (`Date.now()` default). */
   nowMs?: number;
 };
+
+type SdpSearchCriterion = {
+  field: string;
+  condition: string;
+  value: string;
+};
+
+/**
+ * Builds SDP v3 `search_criteria` for request list (single object or array when multiple filters).
+ */
+export function buildRequestsSearchCriteria(
+  options?: BuildRequestsListInputDataOptions,
+): SdpSearchCriterion[] {
+  const criteria: SdpSearchCriterion[] = [];
+  const sinceMinutes = options?.sinceMinutes;
+  if (sinceMinutes !== undefined && sinceMinutes > 0) {
+    const nowMs = options?.nowMs ?? Date.now();
+    const sinceMs = nowMs - sinceMinutes * 60 * 1000;
+    criteria.push({
+      field: 'last_updated_time',
+      condition: 'greater than',
+      value: String(sinceMs),
+    });
+  }
+  const technicianName = options?.technicianName?.trim();
+  if (technicianName !== undefined && technicianName.length > 0) {
+    criteria.push({
+      field: 'technician.name',
+      condition: 'is',
+      value: technicianName,
+    });
+  }
+  return criteria;
+}
 
 /**
  * Builds the SDP v3 `input_data` query value for listing requests (pagination via `list_info`).
@@ -200,15 +239,11 @@ export function buildRequestsListInputData(
     start_index: startIndex,
     fields_required: [...REQUEST_LIST_FIELDS_REQUIRED],
   };
-  const sinceMinutes = options?.sinceMinutes;
-  if (sinceMinutes !== undefined && sinceMinutes > 0) {
-    const nowMs = options?.nowMs ?? Date.now();
-    const sinceMs = nowMs - sinceMinutes * 60 * 1000;
-    listInfo.search_criteria = {
-      field: 'last_updated_time',
-      condition: 'greater than',
-      value: String(sinceMs),
-    };
+  const criteria = buildRequestsSearchCriteria(options);
+  if (criteria.length === 1) {
+    listInfo.search_criteria = criteria[0];
+  } else if (criteria.length > 1) {
+    listInfo.search_criteria = criteria;
   }
   const payload = { list_info: listInfo };
   return encodeURIComponent(JSON.stringify(payload));
@@ -224,6 +259,8 @@ export async function fetchRequestsPage(options?: {
   startIndex?: number;
   /** Incremental sync: only requests updated in the last N minutes. */
   sinceMinutes?: number;
+  /** Filter by technician display name (`technician.name` is). */
+  technicianName?: string;
   /** Override clock for tests. */
   nowMs?: number;
 }): Promise<{ requests: HelpdeskRequestListItem[]; hasMore: boolean }> {
@@ -231,6 +268,7 @@ export async function fetchRequestsPage(options?: {
   const startIndex = options?.startIndex ?? 1;
   const inputData = buildRequestsListInputData(rowCount, startIndex, {
     sinceMinutes: options?.sinceMinutes,
+    technicianName: options?.technicianName,
     nowMs: options?.nowMs,
   });
   const res = await helpdeskFetch(`/requests?input_data=${inputData}`);
@@ -332,12 +370,110 @@ export function buildNotesListInputData(rowCount: number): string {
 
 export type HelpdeskConversationRow = Json;
 
+/** Max parallel notification fetches when hydrating conversation bodies. */
+export const HD_CONVERSATION_HYDRATE_CONCURRENCY = 5;
+
+/**
+ * Coerces unknown SDP JSON scalars to a safe string id.
+ */
+function hdScalarToString(value: unknown): string {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  return '';
+}
+
+/**
+ * Parses a single notification object from an SDP notifications GET response.
+ */
+export function parseHelpdeskNotificationResponse(body: unknown): Json | null {
+  if (typeof body !== 'object' || body === null) {
+    return null;
+  }
+  const root = body as Json;
+  const wrapped = root.notification;
+  if (typeof wrapped === 'object' && wrapped !== null && !Array.isArray(wrapped)) {
+    return wrapped as Json;
+  }
+  return root;
+}
+
+/**
+ * Merges notification fields (description, subject, sender, timestamps) into a conversation list row.
+ */
+export function mergeNotificationIntoConversationRow(row: Json, notification: Json): Json {
+  const merged: Json = { ...row };
+  if (notification.description !== undefined) {
+    merged.description = notification.description;
+  }
+  if (notification.subject !== undefined) {
+    merged.subject = notification.subject;
+  }
+  if (notification.sender !== undefined) {
+    merged.sender = notification.sender;
+  }
+  if (merged.created_time === undefined && notification.created_time !== undefined) {
+    merged.created_time = notification.created_time;
+  }
+  if (merged.type === undefined && notification.type !== undefined) {
+    merged.type = notification.type;
+  }
+  return merged;
+}
+
+/**
+ * Loads one email conversation notification (`GET /requests/{internalId}/notifications/{conversationId}`).
+ * Returns null when the request fails or the response is not a notification object.
+ */
+export async function fetchRequestNotification(
+  internalId: string,
+  conversationId: string,
+): Promise<Json | null> {
+  try {
+    const requestId = encodeURIComponent(internalId);
+    const convId = encodeURIComponent(conversationId);
+    const res = await helpdeskFetch(`/requests/${requestId}/notifications/${convId}`);
+    const body: unknown = await res.json();
+    return parseHelpdeskNotificationResponse(body);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Hydrates all conversation rows with notification details (body, subject, sender, timestamps).
+ */
+async function hydrateConversationRows(
+  internalId: string,
+  conversations: HelpdeskConversationRow[],
+): Promise<HelpdeskConversationRow[]> {
+  await runWithConcurrencyLimit(conversations, HD_CONVERSATION_HYDRATE_CONCURRENCY, async (row) => {
+    const convId = hdScalarToString(row.id);
+    if (convId.length === 0) {
+      return;
+    }
+    const notification = await fetchRequestNotification(internalId, convId);
+    if (notification === null) {
+      return;
+    }
+    const merged = mergeNotificationIntoConversationRow(row, notification);
+    for (const [key, value] of Object.entries(merged)) {
+      row[key] = value;
+    }
+  });
+  return conversations;
+}
+
 /**
  * Lists conversations for a request using internal id (`GET /requests/{internalId}/conversations`).
+ * Rows are hydrated via `/notifications/{id}` because the list endpoint omits bodies for many types.
  */
 export async function fetchRequestConversations(
   internalId: string,
-  options?: { rowCount?: number },
+  options?: { rowCount?: number; hydrate?: boolean },
 ): Promise<{ conversations: HelpdeskConversationRow[] }> {
   const id = encodeURIComponent(internalId);
   const rowCount = options?.rowCount ?? 50;
@@ -347,7 +483,12 @@ export async function fetchRequestConversations(
   const root = typeof body === 'object' && body !== null ? (body as Json) : {};
   const raw = root.conversations;
   const conversations = Array.isArray(raw) ? (raw as HelpdeskConversationRow[]) : [];
-  return { conversations };
+  const shouldHydrate = options?.hydrate !== false;
+  if (!shouldHydrate || conversations.length === 0) {
+    return { conversations };
+  }
+  const hydrated = await hydrateConversationRows(internalId, conversations);
+  return { conversations: hydrated };
 }
 
 export type HelpdeskNoteRow = Json;

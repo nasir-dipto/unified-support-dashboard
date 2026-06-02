@@ -68,6 +68,14 @@ describe('normalizeJiraDescription', () => {
     expect(normalizeJiraDescription('')).toBe('');
     expect(normalizeJiraDescription('   ')).toBe('');
   });
+
+  it('decodes HTML entities in plain text descriptions', () => {
+    expect(normalizeJiraDescription('Printer&nbsp;offline')).toBe('Printer offline');
+  });
+
+  it('does not alter ADF object descriptions', () => {
+    expect(normalizeJiraDescription(sampleAdf)).toBe('Password reset not working');
+  });
 });
 
 describe('mapJiraUserDisplayName', () => {

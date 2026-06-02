@@ -1,6 +1,8 @@
 import type { CommentSource, SupportTicketCommentRecord } from '@usd/shared-types';
 import { supportTicketCommentRecordSchema } from '@usd/shared-types';
 import { buildTicketCommentSortKey } from '../db/tables/comments.js';
+import { normalizeHtmlText } from '../utils/htmlText.js';
+import { hdTimestampToIso } from '../utils/sourceTimestamps.js';
 
 type Json = Record<string, unknown>;
 
@@ -45,9 +47,11 @@ function extractSdpTextField(raw: unknown): string {
   return '';
 }
 
+export { htmlToPlainText } from '../utils/htmlText.js';
+
 /**
  * Resolves comment body text from an HD conversation or note row.
- * Conversations list omits `description`; notes list returns it as a plain string.
+ * Conversations list omits `description` for emails; hydrated notifications supply it.
  */
 export function extractHdConversationBody(row: Json): string {
   const fromDescription = extractSdpTextField(row.description);
@@ -70,6 +74,30 @@ export function extractHdConversationBody(row: Json): string {
     }
   }
   return '';
+}
+
+/**
+ * Builds stored comment body from a conversation row (plain text; email subject prefix when present).
+ */
+export function buildHdConversationCommentBody(row: Json): string {
+  let body = extractHdConversationBody(row);
+  if (body.length > 0) {
+    body = normalizeHtmlText(body);
+  }
+  const typeRaw = hdScalarToString(row.type).toUpperCase();
+  if (typeRaw === 'EMAIL') {
+    const subject = extractSdpTextField(row.subject);
+    if (subject.length > 0) {
+      const prefix = `Subject: ${subject}`;
+      if (body.length === 0) {
+        return prefix;
+      }
+      if (!body.startsWith(prefix)) {
+        return `${prefix}\n\n${body}`;
+      }
+    }
+  }
+  return body;
 }
 
 /**
@@ -125,9 +153,8 @@ export function mapConversationToRecord(params: {
   }
   const commentId = `hd_${sourceId}`;
   const commentSource = mapHdConversationSource(params.conversation);
-  const body = extractHdConversationBody(params.conversation);
-  const created = hdScalarToString(params.conversation.created_time);
-  const createdAt = created.length > 0 ? created : new Date().toISOString();
+  const body = buildHdConversationCommentBody(params.conversation);
+  const createdAt = hdTimestampToIso(params.conversation.created_time, new Date().toISOString());
   const sender = params.conversation.sender ?? params.conversation.created_by ?? params.conversation.performed_by;
   let authorDisplayName: string | undefined;
   let authorEmail: string | undefined;
