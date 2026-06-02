@@ -46,6 +46,11 @@ export const serverEnvSchema = z.object({
   HD_REFRESH_TOKEN: z.string().min(1).optional(),
   /** Org id for Helpdesk-ingested tickets (webhook + reconcile). */
   HD_DEFAULT_ORG_ID: z.string().min(1).default('ti'),
+  /**
+   * Optional Helpdesk technician display name for reconcile list filter (`technician.name` is).
+   * When unset, all technicians are included.
+   */
+  HD_TECHNICIAN_FILTER: z.string().min(1).optional(),
   /** Shared secret matched against `x-sdp-webhook-secret` on POST /api/webhooks/helpdesk. */
   HD_WEBHOOK_SECRET: z.string().min(1).optional(),
   /**

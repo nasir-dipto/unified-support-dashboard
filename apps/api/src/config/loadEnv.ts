@@ -39,6 +39,7 @@ export function loadServerEnv(): ParsedEnv {
     HD_CLIENT_SECRET: process.env.HD_CLIENT_SECRET,
     HD_REFRESH_TOKEN: process.env.HD_REFRESH_TOKEN,
     HD_DEFAULT_ORG_ID: process.env.HD_DEFAULT_ORG_ID,
+    HD_TECHNICIAN_FILTER: process.env.HD_TECHNICIAN_FILTER,
     HD_WEBHOOK_SECRET: process.env.HD_WEBHOOK_SECRET,
     HELPDESK_EMAIL_REPLY_ENABLED: process.env.HELPDESK_EMAIL_REPLY_ENABLED,
     WS_MODE: process.env.WS_MODE,

@@ -96,6 +96,13 @@ async function main(): Promise<void> {
     console.info('HD full sync:');
   }
 
+  const technicianFilter = env.HD_TECHNICIAN_FILTER?.trim();
+  if (technicianFilter !== undefined && technicianFilter.length > 0) {
+    console.info(`  Technician filter: ${technicianFilter}`);
+  } else {
+    console.info('  No technician filter (all technicians)');
+  }
+
   let startIndex = 1;
   let hasMore = true;
   let pageCount = 0;
@@ -110,6 +117,7 @@ async function main(): Promise<void> {
       rowCount: 25,
       startIndex,
       sinceMinutes: cli.sinceMinutes,
+      technicianName: technicianFilter,
     });
     totalFetched += page.requests.length;
     const pageStats = await reconcileHelpdeskRequestRows(page.requests, env.HD_DEFAULT_ORG_ID);

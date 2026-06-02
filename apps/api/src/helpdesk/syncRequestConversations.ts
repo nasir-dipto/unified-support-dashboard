@@ -45,7 +45,7 @@ function indexNotesById(notes: Json[]): Map<string, Json> {
 
 /**
  * Syncs HD request conversations into `support_ticket_comments` for a USD ticket.
- * Conversation list supplies type/metadata; notes list supplies `description` body text.
+ * Notes list supplies technician note bodies; email bodies are hydrated in `fetchRequestConversations`.
  */
 export async function syncRequestConversations(params: {
   orgId: string;

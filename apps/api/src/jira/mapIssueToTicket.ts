@@ -5,6 +5,7 @@ import type {
   TicketStatus,
 } from '@usd/shared-types';
 import { jiraIssueSchema, ticketPrioritySchema, ticketStatusSchema } from '@usd/shared-types';
+import { normalizeHtmlText } from '../utils/htmlText.js';
 import { parseJiraTimestamp } from '../utils/sourceTimestamps.js';
 
 /**
@@ -99,10 +100,10 @@ export function normalizeJiraDescription(raw: unknown): string {
           return adfToPlainText(parsed);
         }
       } catch {
-        return raw;
+        return normalizeHtmlText(raw);
       }
     }
-    return raw;
+    return normalizeHtmlText(trimmed);
   }
   if (isAdfDocument(raw)) {
     return adfToPlainText(raw);

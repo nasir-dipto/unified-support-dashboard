@@ -9,10 +9,13 @@ import {
   buildNotesListInputData,
   buildRequestsListInputData,
   fetchRequestConversations,
+  fetchRequestNotification,
   fetchRequestNotes,
   fetchRequestsPage,
   helpdeskFetch,
   helpdeskFetchWithBackoff,
+  mergeNotificationIntoConversationRow,
+  parseHelpdeskNotificationResponse,
   postComment,
   postCustomerEmailReply,
   REQUEST_LIST_FIELDS_REQUIRED,
@@ -79,6 +82,58 @@ describe('helpdesk.service', () => {
     });
   });
 
+  it('buildRequestsListInputData adds technician.name filter when technicianName set', () => {
+    const decoded = decodeURIComponent(
+      buildRequestsListInputData(10, 1, { technicianName: 'Nasir Dipto' }),
+    );
+    const parsed = JSON.parse(decoded) as {
+      list_info: {
+        search_criteria?: { field: string; condition: string; value: string };
+      };
+    };
+    expect(parsed.list_info.search_criteria).toEqual({
+      field: 'technician.name',
+      condition: 'is',
+      value: 'Nasir Dipto',
+    });
+  });
+
+  it('buildRequestsListInputData uses search_criteria array when sinceMinutes and technicianName set', () => {
+    const nowMs = 1_700_000_000_000;
+    const decoded = decodeURIComponent(
+      buildRequestsListInputData(10, 1, {
+        sinceMinutes: 15,
+        technicianName: 'Nasir Dipto',
+        nowMs,
+      }),
+    );
+    const parsed = JSON.parse(decoded) as {
+      list_info: {
+        search_criteria?: Array<{ field: string; condition: string; value: string }>;
+      };
+    };
+    expect(parsed.list_info.search_criteria).toEqual([
+      {
+        field: 'last_updated_time',
+        condition: 'greater than',
+        value: String(nowMs - 15 * 60 * 1000),
+      },
+      {
+        field: 'technician.name',
+        condition: 'is',
+        value: 'Nasir Dipto',
+      },
+    ]);
+  });
+
+  it('buildRequestsListInputData omits search_criteria without filters', () => {
+    const decoded = decodeURIComponent(buildRequestsListInputData(5, 1));
+    const parsed = JSON.parse(decoded) as {
+      list_info: { search_criteria?: unknown };
+    };
+    expect(parsed.list_info.search_criteria).toBeUndefined();
+  });
+
   it('fetchRequestsPage parses requests array', async () => {
     nock('https://accounts.zoho.uk')
       .post('/oauth/v2/token')
@@ -134,8 +189,104 @@ describe('helpdesk.service', () => {
       .reply(200, {
         conversations: [{ id: '9', type: 'NOTES' }],
       });
+    nock('https://sdp.example')
+      .get('/api/v3/requests/4445000000000077/notifications/9')
+      .reply(404, { message: 'not found' });
     const out = await fetchRequestConversations('4445000000000077');
     expect(out.conversations).toHaveLength(1);
+  });
+
+  it('parseHelpdeskNotificationResponse unwraps notification object', () => {
+    const parsed = parseHelpdeskNotificationResponse({
+      notification: {
+        id: '77',
+        description: '<p>Email body</p>',
+        subject: 'Help',
+        type: 'EMAIL',
+      },
+    });
+    expect(parsed?.description).toBe('<p>Email body</p>');
+    expect(parsed?.subject).toBe('Help');
+  });
+
+  it('mergeNotificationIntoConversationRow copies description and sender', () => {
+    const merged = mergeNotificationIntoConversationRow(
+      { id: '77', type: 'EMAIL' },
+      {
+        description: '<p>Hi</p>',
+        subject: 'Re: issue',
+        sender: { name: 'Customer', email_id: 'c@co.com' },
+        created_time: '2026-03-01T10:00:00Z',
+      },
+    );
+    expect(merged.description).toBe('<p>Hi</p>');
+    expect(merged.subject).toBe('Re: issue');
+    expect(merged.sender).toEqual({ name: 'Customer', email_id: 'c@co.com' });
+    expect(merged.created_time).toBe('2026-03-01T10:00:00Z');
+  });
+
+  it('fetchRequestNotification returns null on API error', async () => {
+    nock('https://accounts.zoho.uk')
+      .post('/oauth/v2/token')
+      .reply(200, { access_token: 'notif-tok', expires_in: 3600 });
+    nock('https://sdp.example')
+      .get('/api/v3/requests/4445000000000077/notifications/missing')
+      .reply(404, { message: 'not found' });
+    const out = await fetchRequestNotification('4445000000000077', 'missing');
+    expect(out).toBeNull();
+  });
+
+  it('fetchRequestConversations hydrates EMAIL rows from notifications API', async () => {
+    nock('https://accounts.zoho.uk')
+      .post('/oauth/v2/token')
+      .times(2)
+      .reply(200, { access_token: 'hydrate-tok', expires_in: 3600 });
+    const inputData = buildConversationsListInputData(50);
+    nock('https://sdp.example')
+      .get(`/api/v3/requests/4445000000000077/conversations?input_data=${inputData}`)
+      .reply(200, {
+        conversations: [{ id: '88', type: 'EMAIL', created_time: '2026-03-01T09:00:00Z' }],
+      });
+    nock('https://sdp.example')
+      .get('/api/v3/requests/4445000000000077/notifications/88')
+      .reply(200, {
+        notification: {
+          id: '88',
+          type: 'EMAIL',
+          subject: 'Printer offline',
+          description: '<p>Please reset the device.</p>',
+          sender: { name: 'Alex', email_id: 'alex@co.com' },
+          created_time: '2026-03-01T09:05:00Z',
+        },
+      });
+    const out = await fetchRequestConversations('4445000000000077');
+    expect(out.conversations[0]?.description).toBe('<p>Please reset the device.</p>');
+    expect(out.conversations[0]?.subject).toBe('Printer offline');
+    expect(out.conversations[0]?.sender).toEqual({ name: 'Alex', email_id: 'alex@co.com' });
+  });
+
+  it('fetchRequestConversations hydrates RequesterAck_E-Mail notification types', async () => {
+    nock('https://accounts.zoho.uk')
+      .post('/oauth/v2/token')
+      .times(2)
+      .reply(200, { access_token: 'ack-tok', expires_in: 3600 });
+    const inputData = buildConversationsListInputData(50);
+    nock('https://sdp.example')
+      .get(`/api/v3/requests/4445000000000077/conversations?input_data=${inputData}`)
+      .reply(200, {
+        conversations: [{ id: '91', type: 'RequesterAck_E-Mail' }],
+      });
+    nock('https://sdp.example')
+      .get('/api/v3/requests/4445000000000077/notifications/91')
+      .reply(200, {
+        notification: {
+          id: '91',
+          type: 'RequesterAck_E-Mail',
+          description: 'Your request has been logged.',
+        },
+      });
+    const out = await fetchRequestConversations('4445000000000077');
+    expect(out.conversations[0]?.description).toBe('Your request has been logged.');
   });
 
   it('fetchRequestNotes parses notes array with description', async () => {

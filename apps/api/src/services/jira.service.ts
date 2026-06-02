@@ -161,6 +161,8 @@ const JIRA_SEARCH_FIELDS = [
   'status',
   'assignee',
   'reporter',
+  'created',
+  'updated',
 ] as const;
 
 /**
