@@ -8,15 +8,8 @@ import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useAuthStore } from '../store/auth.store';
+import { resolveDefaultOrgId } from '../utils/default-org';
 import { getHomePathForRoles } from '../utils/roles';
-
-/**
- * Reads optional org prefill from `VITE_DEFAULT_ORG_ID` (empty when unset).
- */
-function getDefaultOrgIdFromEnv(): string {
-  const raw = import.meta.env.VITE_DEFAULT_ORG_ID;
-  return typeof raw === 'string' && raw.trim().length > 0 ? raw.trim() : '';
-}
 
 /**
  * Sign-in screen matching design reference (real auth API).
@@ -25,7 +18,7 @@ export function LoginView(): ReactElement {
   const navigate = useNavigate();
   const setSession = useAuthStore((s) => s.setSession);
   const [showPass, setShowPass] = useState(false);
-  const defaultOrgId = getDefaultOrgIdFromEnv();
+  const orgId = resolveDefaultOrgId();
   const {
     register,
     handleSubmit,
@@ -33,7 +26,7 @@ export function LoginView(): ReactElement {
     setError: setFormError,
   } = useForm<LoginRequest>({
     resolver: zodResolver(loginRequestSchema),
-    defaultValues: { orgId: defaultOrgId, email: '', password: '' },
+    defaultValues: { orgId, email: '', password: '' },
   });
 
   const onSubmit = handleSubmit(async (values) => {
@@ -81,18 +74,7 @@ export function LoginView(): ReactElement {
           }}
           className="rounded-2xl border border-gray-200 bg-white px-8 py-7 shadow-lg"
         >
-          <div className="mb-4">
-            <label className="mb-1.5 block text-[13px] font-bold text-gray-700" htmlFor="orgId">
-              Organization ID
-            </label>
-            <input
-              id="orgId"
-              className={`w-full rounded-lg border px-3.5 py-2.5 text-sm outline-none focus:border-usd-indigo ${
-                errors.orgId !== undefined ? 'border-usd-red' : 'border-gray-200'
-              }`}
-              {...register('orgId')}
-            />
-          </div>
+          <input type="hidden" {...register('orgId')} />
           <div className="mb-4">
             <label className="mb-1.5 block text-[13px] font-bold text-gray-700" htmlFor="email">
               Email address
@@ -167,11 +149,6 @@ export function LoginView(): ReactElement {
                   <span className="font-semibold">Technician:</span> technician@usd.dev / Tech123!
                 </li>
               </ul>
-              {defaultOrgId.length > 0 ? (
-                <p className="mt-2 text-gray-400">Org: {defaultOrgId}</p>
-              ) : (
-                <p className="mt-2 text-gray-400">Org: ti</p>
-              )}
             </div>
           ) : null}
         </form>

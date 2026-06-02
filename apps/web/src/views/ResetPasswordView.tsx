@@ -2,6 +2,7 @@ import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { resetPassword } from '../api/auth.js';
+import { resolveDefaultOrgId } from '../utils/default-org.js';
 
 /**
  * Password reset form (token from email link).
@@ -9,7 +10,7 @@ import { resetPassword } from '../api/auth.js';
 export function ResetPasswordView(): ReactElement {
   const [params] = useSearchParams();
   const token = params.get('token') ?? '';
-  const orgId = params.get('orgId') ?? 'ti';
+  const orgId = params.get('orgId') ?? resolveDefaultOrgId();
   const [password, setPassword] = useState('');
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | undefined>();

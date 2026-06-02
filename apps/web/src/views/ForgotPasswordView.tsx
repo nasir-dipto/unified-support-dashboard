@@ -2,12 +2,13 @@ import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { forgotPassword } from '../api/auth.js';
+import { resolveDefaultOrgId } from '../utils/default-org.js';
 
 /**
  * Self-service forgot password form.
  */
 export function ForgotPasswordView(): ReactElement {
-  const [orgId, setOrgId] = useState('ti');
+  const orgId = resolveDefaultOrgId();
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | undefined>();
@@ -17,7 +18,7 @@ export function ForgotPasswordView(): ReactElement {
       <div className="w-full max-w-md rounded-xl border border-gray-100 bg-white p-8 shadow-sm">
         <h1 className="text-xl font-extrabold text-gray-900">Forgot password</h1>
         <p className="mt-2 text-sm text-gray-500">
-          Enter your org and email. If an account exists, we will send a reset link.
+          Enter your email. If an account exists, we will send a reset link.
         </p>
         {sent ? (
           <p className="mt-4 text-sm text-green-700">Check your email for a reset link.</p>
@@ -37,16 +38,6 @@ export function ForgotPasswordView(): ReactElement {
               })();
             }}
           >
-            <label className="block text-sm font-semibold text-gray-700">
-              Org ID
-              <input
-                className="mt-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm"
-                value={orgId}
-                onChange={(ev) => {
-                  setOrgId(ev.target.value);
-                }}
-              />
-            </label>
             <label className="block text-sm font-semibold text-gray-700">
               Email
               <input
