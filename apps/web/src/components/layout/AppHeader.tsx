@@ -22,7 +22,7 @@ export function AppHeader(): ReactElement {
   const initials =
     user?.email !== undefined
       ? user.email.slice(0, 2).toUpperCase()
-      : 'US';
+      : 'UD';
   const showManager = canAccessManagerPanel(roles);
   const showAdmin = user !== null && canAccessAdminPanel(roles);
   const showKb = canAccessKbNav();
@@ -34,7 +34,7 @@ export function AppHeader(): ReactElement {
           className="flex h-8 w-8 items-center justify-center rounded-lg text-xs font-extrabold text-white"
           style={{ backgroundColor: usdColors.indigo }}
         >
-          US
+          UD
         </div>
         <div>
           <div className="text-sm font-extrabold tracking-wide text-gray-900">UnifyDesk</div>

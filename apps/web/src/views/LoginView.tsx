@@ -60,7 +60,7 @@ export function LoginView(): ReactElement {
             className="flex h-11 w-11 items-center justify-center rounded-xl text-lg font-extrabold text-white"
             style={{ backgroundColor: usdColors.indigo }}
           >
-            US
+            UD
           </div>
           <div>
             <div className="text-xl font-extrabold text-gray-900">UnifyDesk</div>
