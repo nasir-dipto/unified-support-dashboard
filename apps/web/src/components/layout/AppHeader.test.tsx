@@ -9,7 +9,7 @@ vi.mock('../notifications/NotificationBell', () => ({
 }));
 
 describe('AppHeader', () => {
-  it('shows unified support branding', () => {
+  it('shows UnifyDesk branding', () => {
     useAuthStore.setState({
       accessToken: 't',
       refreshToken: 'r',
@@ -25,7 +25,8 @@ describe('AppHeader', () => {
         <AppHeader />
       </MemoryRouter>,
     );
-    expect(screen.getByText('UNIFIED SUPPORT')).toBeInTheDocument();
+    expect(screen.getByText('UnifyDesk')).toBeInTheDocument();
+    expect(screen.getByText('Unified Support Dashboard')).toBeInTheDocument();
     useAuthStore.getState().clear();
   });
 });

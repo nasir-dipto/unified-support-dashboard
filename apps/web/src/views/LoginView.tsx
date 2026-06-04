@@ -63,7 +63,8 @@ export function LoginView(): ReactElement {
             US
           </div>
           <div>
-            <div className="text-xl font-extrabold text-gray-900">UNIFIED SUPPORT</div>
+            <div className="text-xl font-extrabold text-gray-900">UnifyDesk</div>
+            <div className="text-sm font-medium text-gray-500">Unified Support Dashboard</div>
             <p className="text-sm text-gray-400">Sign in to your account</p>
           </div>
         </div>

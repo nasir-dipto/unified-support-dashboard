@@ -37,7 +37,8 @@ export function AppHeader(): ReactElement {
           US
         </div>
         <div>
-          <div className="text-sm font-extrabold tracking-wide text-gray-900">UNIFIED SUPPORT</div>
+          <div className="text-sm font-extrabold tracking-wide text-gray-900">UnifyDesk</div>
+          <div className="text-xs font-medium text-gray-500 tracking-wide">Unified Support Dashboard</div>
           <div className="text-[11px] text-gray-400">
             Welcome
             {user?.email !== undefined

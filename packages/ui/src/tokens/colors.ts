@@ -1,4 +1,4 @@
-/** USD brand palette — matches docs/design-reference.tsx */
+/** UnifyDesk brand palette */
 export const usdColors = {
   indigo: '#4F46E5',
   blue: '#2563EB',
