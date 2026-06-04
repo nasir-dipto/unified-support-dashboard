@@ -203,3 +203,14 @@ Follow jira.service.ts pattern:
 - ZOHO_DOMAIN=zoho.com (US data center)
 - HD_TECHNICIAN_FILTER="Nasir Dipto | Solutions Engineering" (local testing scope)
 - Personal HD backup saved as .env.local.personal.backup (gitignored)
+
+## HD Customer Email Reply — COMPLETE (PR #23)
+- HELPDESK_EMAIL_REPLY_ENABLED=true in .env.local (env flag gates the feature)
+- Correct SDP v3 notifications endpoint: POST /api/v3/requests/{internalId}/notifications
+- Payload: {notification:{subject, description, in_reply_to:{id:internalId}, type:"CONVERSATION"}}
+- in_reply_to threads the reply into the ME conversation (key to proper attribution)
+- type "CONVERSATION" (not "reply") — matches ManageEngine native behavior
+- No explicit "to" field — ManageEngine auto-addresses the requester via in_reply_to
+- Subject format: "Re: [Request ID :##<displayId>##] : <subject>"
+- Internal notes (hd_note) and Jira comments unchanged
+- Verified identical to ManageEngine native reply behavior
