@@ -177,7 +177,12 @@ export const postTicketComment: RequestHandler[] = [
       authorEmail: req.auth.email,
     });
     const ticketCommentKey = buildTicketCommentSortKey(ticketId, created.commentId);
-    const hdRef = { internalId: ticket.internalId, externalId: ticket.externalId };
+    const hdRef = {
+      internalId: ticket.internalId,
+      externalId: ticket.externalId,
+      customerEmail: ticket.customerEmail,
+      subject: ticket.summary,
+    };
     try {
       if (replyKind === 'jira_comment') {
         await jiraService.postComment(ticket.externalId, parsed.data.body);
