@@ -6,6 +6,7 @@ import { AppError } from '../utils/errors.js';
 import * as helpdeskService from './helpdesk.service.js';
 import {
   buildConversationsListInputData,
+  buildCustomerEmailReplySubject,
   buildNotesListInputData,
   buildRequestsListInputData,
   fetchRequestConversations,
@@ -14,12 +15,32 @@ import {
   fetchRequestsPage,
   helpdeskFetch,
   helpdeskFetchWithBackoff,
+  helpdeskApiV3Base,
   mergeNotificationIntoConversationRow,
   parseHelpdeskNotificationResponse,
   postComment,
   postCustomerEmailReply,
   REQUEST_LIST_FIELDS_REQUIRED,
 } from './helpdesk.service.js';
+
+/**
+ * Reads SDP `input_data` from a nock POST body (form-urlencoded).
+ */
+function parseInputDataFromNockBody(body: unknown): unknown {
+  let rawInput: string | null = null;
+  if (typeof body === 'string') {
+    rawInput = new URLSearchParams(body).get('input_data');
+  } else if (typeof body === 'object' && body !== null && 'input_data' in body) {
+    const v = (body as { input_data?: unknown }).input_data;
+    rawInput = typeof v === 'string' ? v : null;
+  } else if (Buffer.isBuffer(body)) {
+    rawInput = new URLSearchParams(body.toString('utf8')).get('input_data');
+  }
+  if (rawInput === null) {
+    return null;
+  }
+  return JSON.parse(rawInput) as unknown;
+}
 
 describe('helpdesk.service', () => {
   beforeEach(() => {
@@ -308,19 +329,129 @@ describe('helpdesk.service', () => {
     expect(out.notes[0]?.description).toBe('hello-note');
   });
 
-  it('postCustomerEmailReply posts to /reply', async () => {
+  it('buildCustomerEmailReplySubject formats ManageEngine reply subject', () => {
+    expect(buildCustomerEmailReplySubject('187438', 'VPN access issue')).toBe(
+      'Re: [Request ID :##187438##] : VPN access issue',
+    );
+    expect(buildCustomerEmailReplySubject('187438')).toBe('Re: [Request ID :##187438##]');
+  });
+
+  it('helpdeskApiV3Base strips /app/<portal> from HELPDESK_URL', () => {
+    resetServerEnvForTests();
+    process.env.HELPDESK_URL =
+      'https://transperfect.sdpondemand.manageengine.com/app/itdesk/api/v3';
+    loadServerEnv();
+    expect(helpdeskApiV3Base()).toBe(
+      'https://transperfect.sdpondemand.manageengine.com/api/v3',
+    );
+    resetServerEnvForTests();
+    process.env.HELPDESK_URL = 'https://sdp.example/api/v3';
+    loadServerEnv();
+  });
+
+  it('helpdeskApiV3Base leaves bare /api/v3 URL unchanged', () => {
+    expect(helpdeskApiV3Base()).toBe('https://sdp.example/api/v3');
+  });
+
+  it('postCustomerEmailReply posts notification to bare /api/v3 base', async () => {
+    resetServerEnvForTests();
+    process.env.HELPDESK_URL =
+      'https://transperfect.sdpondemand.manageengine.com/app/itdesk/api/v3';
+    loadServerEnv();
+    nock('https://accounts.zoho.uk')
+      .post('/oauth/v2/token')
+      .reply(200, { access_token: 'reply-tok', expires_in: 3600 });
+    nock('https://transperfect.sdpondemand.manageengine.com')
+      .post('/api/v3/requests/4445000000000077/notifications', (body: unknown) => {
+        const parsed = parseInputDataFromNockBody(body) as {
+          notification?: {
+            to?: string[];
+            subject?: string;
+            description?: string;
+            in_reply_to?: { id?: string };
+            type?: string;
+          };
+        };
+        const n = parsed.notification;
+        if (n === undefined) {
+          return false;
+        }
+        return (
+          n.to === undefined &&
+          n.subject === 'Re: [Request ID :##187438##] : VPN access issue' &&
+          n.description === '<p>email body</p>' &&
+          n.in_reply_to?.id === '4445000000000077' &&
+          n.type === 'CONVERSATION'
+        );
+      })
+      .matchHeader('content-type', /application\/x-www-form-urlencoded/)
+      .matchHeader('accept', 'application/vnd.manageengine.sdp.v3+json')
+      .reply(200, {
+        response_status: { status_code: 2000, status: 'success' },
+      });
+    await postCustomerEmailReply(
+      {
+        externalId: '187438',
+        internalId: '4445000000000077',
+        subject: 'VPN access issue',
+      },
+      'email body',
+    );
+    expect(nock.isDone()).toBe(true);
+  });
+
+  it('postCustomerEmailReply throws when internalId is missing', async () => {
+    await expect(
+      postCustomerEmailReply(
+        { externalId: '77', customerEmail: 'customer@example.com' },
+        'body',
+      ),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION',
+      statusCode: 400,
+    });
+  });
+
+  it('postCustomerEmailReply succeeds without customerEmail (in_reply_to addresses requester)', async () => {
     nock('https://accounts.zoho.uk')
       .post('/oauth/v2/token')
       .reply(200, { access_token: 'reply-tok', expires_in: 3600 });
     nock('https://sdp.example')
-      .post('/api/v3/requests/4445000000000077/reply')
-      .matchHeader('content-type', /application\/x-www-form-urlencoded/)
-      .reply(200, { status: 'ok' });
+      .post('/api/v3/requests/4445000000000077/notifications')
+      .reply(200, {
+        response_status: { status_code: 2000, status: 'success' },
+      });
     await postCustomerEmailReply(
-      { externalId: '77', internalId: '4445000000000077' },
-      'email body',
+      { externalId: '187438', internalId: '4445000000000077', subject: 'VPN access issue' },
+      'body',
     );
     expect(nock.isDone()).toBe(true);
+  });
+
+  it('postCustomerEmailReply throws when SDP response_status is not 2000', async () => {
+    nock('https://accounts.zoho.uk')
+      .post('/oauth/v2/token')
+      .reply(200, { access_token: 'reply-tok', expires_in: 3600 });
+    nock('https://sdp.example')
+      .post('/api/v3/requests/4445000000000077/notifications')
+      .reply(200, {
+        response_status: {
+          status_code: 4000,
+          messages: [{ message: 'Invalid recipient' }],
+        },
+      });
+    await expect(
+      postCustomerEmailReply(
+        {
+          externalId: '187438',
+          internalId: '4445000000000077',
+        },
+        'body',
+      ),
+    ).rejects.toMatchObject({
+      code: 'HELPDESK_API',
+      message: 'Invalid recipient',
+    });
   });
 
   it('postComment submits input_data as x-www-form-urlencoded', async () => {

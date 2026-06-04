@@ -36,6 +36,15 @@ function requireHelpdeskBaseUrl(): string {
 }
 
 /**
+ * Bare SDP `/api/v3` root for notifications (strips `/app/<portal>` from HELPDESK_URL when present).
+ * Example: `https://host/app/itdesk/api/v3` → `https://host/api/v3`.
+ */
+export function helpdeskApiV3Base(): string {
+  const site = requireHelpdeskBaseUrl();
+  return site.replace(/\/app\/[^/]+(?=\/api\/v3(?:\/|$))/, '');
+}
+
+/**
  * Drops `headers` from init so fetch does not merge conflicting header objects.
  */
 function withoutRequestHeaders(init?: RequestInit): Omit<RequestInit, 'headers'> {
@@ -105,11 +114,22 @@ function stripContentTypeForGet(
   return next;
 }
 
+type HelpdeskFetchOptions = {
+  maxRetries?: number;
+  retryDelaysMs?: readonly number[];
+  /** Override API root (defaults to HELPDESK_URL). */
+  baseUrl?: string;
+};
+
 /**
  * Performs one authenticated HTTP request (no retry; throws AppError on non-OK except 429).
  */
-async function helpdeskFetchOnce(path: string, init?: RequestInit): Promise<Response> {
-  const site = requireHelpdeskBaseUrl();
+async function helpdeskFetchOnce(
+  path: string,
+  init?: RequestInit,
+  baseUrl?: string,
+): Promise<Response> {
+  const site = (baseUrl ?? requireHelpdeskBaseUrl()).replace(/\/+$/, '');
   const url = `${site}${path.startsWith('/') ? path : `/${path}`}`;
   const headers = await buildHelpdeskHeaders(init);
   return fetch(url, {
@@ -124,17 +144,18 @@ async function helpdeskFetchOnce(path: string, init?: RequestInit): Promise<Resp
 export async function helpdeskFetchWithBackoff(
   path: string,
   init?: RequestInit,
-  options?: { maxRetries?: number; retryDelaysMs?: readonly number[] },
+  options?: HelpdeskFetchOptions,
 ): Promise<Response> {
   const maxRetries = options?.maxRetries ?? HELPDESK_429_RETRY_DELAYS_MS.length;
   const delays = options?.retryDelaysMs ?? HELPDESK_429_RETRY_DELAYS_MS;
+  const baseUrl = options?.baseUrl;
   let lastResponse: Response | undefined;
   for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
     if (attempt > 0) {
       const delayMs = delays[attempt - 1] ?? delays[delays.length - 1] ?? 4000;
       await sleep(delayMs);
     }
-    const res = await helpdeskFetchOnce(path, init);
+    const res = await helpdeskFetchOnce(path, init, baseUrl);
     if (res.status === 429 && attempt < maxRetries) {
       lastResponse = res;
       continue;
@@ -160,9 +181,23 @@ export async function helpdeskFetchWithBackoff(
 /**
  * Performs an authenticated HTTP request against HELPDESK_URL (paced + 429 backoff).
  */
-export async function helpdeskFetch(path: string, init?: RequestInit): Promise<Response> {
+export async function helpdeskFetch(
+  path: string,
+  init?: RequestInit,
+  options?: HelpdeskFetchOptions,
+): Promise<Response> {
   await sleep(HELPDESK_INTER_REQUEST_DELAY_MS);
-  return helpdeskFetchWithBackoff(path, init);
+  return helpdeskFetchWithBackoff(path, init, options);
+}
+
+/**
+ * Helpdesk fetch against bare `/api/v3` (notifications POST), not the `/app/<portal>/api/v3` base.
+ */
+export async function helpdeskFetchOnApiV3Base(
+  path: string,
+  init?: RequestInit,
+): Promise<Response> {
+  return helpdeskFetch(path, init, { baseUrl: helpdeskApiV3Base() });
 }
 
 export type HelpdeskRequestListItem = Json;
@@ -315,7 +350,12 @@ export async function fetchSingleRequest(requestId: string): Promise<Json> {
  */
 export type HelpdeskCommentTicketRef = {
   internalId?: string | undefined;
+  /** HD display id (`display_id.value`, e.g. `187438`) for reply subject threading. */
   externalId: string;
+  /** Requester email (optional; SDP addresses via `in_reply_to`). */
+  customerEmail?: string | undefined;
+  /** Ticket subject line (`summary`) for notification reply subject. */
+  subject?: string | undefined;
 };
 
 /**
@@ -512,28 +552,127 @@ export async function fetchRequestNotes(
 }
 
 /**
- * Posts a customer-visible email reply (`POST /requests/{internalId}/reply`).
+ * Builds SDP notification subject for threaded customer email replies.
+ * Format: `Re: [Request ID :##<displayId>##] : <subject>` or without suffix when subject omitted.
+ */
+export function buildCustomerEmailReplySubject(displayId: string, subject?: string): string {
+  const id = displayId.trim();
+  const prefix = `Re: [Request ID :##${id}##]`;
+  const trimmedSubject = subject?.trim();
+  if (trimmedSubject !== undefined && trimmedSubject.length > 0) {
+    return `${prefix} : ${trimmedSubject}`;
+  }
+  return prefix;
+}
+
+/**
+ * Escapes plain text for minimal HTML email bodies.
+ */
+function escapeHtmlForEmail(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * Wraps plain-text reply bodies in a single paragraph when not already HTML.
+ */
+export function wrapEmailReplyDescription(bodyText: string): string {
+  const trimmed = bodyText.trim();
+  if (trimmed.length === 0) {
+    return '<p></p>';
+  }
+  if (/<[a-z][\s\S]*>/i.test(trimmed)) {
+    return trimmed;
+  }
+  return `<p>${escapeHtmlForEmail(trimmed).replace(/\n/g, '<br/>')}</p>`;
+}
+
+/**
+ * Parses SDP `response_status` from a JSON body.
+ */
+export function parseHelpdeskResponseStatus(body: unknown): {
+  statusCode: number;
+  message: string;
+} {
+  if (typeof body !== 'object' || body === null) {
+    return { statusCode: -1, message: 'Invalid Helpdesk response' };
+  }
+  const root = body as Json;
+  const rs = root.response_status;
+  if (typeof rs !== 'object' || rs === null || Array.isArray(rs)) {
+    return { statusCode: -1, message: 'Missing response_status in Helpdesk response' };
+  }
+  const statusObj = rs as Json;
+  const rawCode = statusObj.status_code;
+  const statusCode =
+    typeof rawCode === 'number'
+      ? rawCode
+      : typeof rawCode === 'string'
+        ? Number.parseInt(rawCode, 10)
+        : -1;
+  let message = 'Helpdesk notification request failed';
+  const messages = statusObj.messages;
+  if (Array.isArray(messages) && messages.length > 0) {
+    const first: unknown = messages[0];
+    if (typeof first === 'object' && first !== null && 'message' in first) {
+      const m = (first as Json).message;
+      if (typeof m === 'string' && m.length > 0) {
+        message = m;
+      }
+    }
+  }
+  return {
+    statusCode: Number.isFinite(statusCode) ? statusCode : -1,
+    message,
+  };
+}
+
+/**
+ * Asserts SDP success (`response_status.status_code` 2000) or throws AppError.
+ */
+export function assertHelpdeskSdpSuccess(body: unknown): void {
+  const { statusCode, message } = parseHelpdeskResponseStatus(body);
+  if (statusCode !== 2000) {
+    throw new AppError(message, 'HELPDESK_API', 502);
+  }
+}
+
+/**
+ * Posts a customer-visible email reply (`POST /api/v3/requests/{internalId}/notifications`).
  */
 export async function postCustomerEmailReply(
   ticket: HelpdeskCommentTicketRef,
   bodyText: string,
 ): Promise<void> {
-  const requestId = ticket.internalId ?? ticket.externalId;
-  const id = encodeURIComponent(requestId);
+  const internalId = ticket.internalId?.trim();
+  if (internalId === undefined || internalId.length === 0) {
+    throw new AppError(
+      'Helpdesk internal request id is required for customer email reply',
+      'VALIDATION',
+      400,
+    );
+  }
+  const id = encodeURIComponent(internalId);
   const inputDataJson = JSON.stringify({
-    reply: {
-      description: bodyText,
+    notification: {
+      subject: buildCustomerEmailReplySubject(ticket.externalId, ticket.subject),
+      description: wrapEmailReplyDescription(bodyText),
+      in_reply_to: { id: internalId },
+      type: 'CONVERSATION',
     },
   });
   const formBody = new URLSearchParams({ input_data: inputDataJson }).toString();
-  const res = await helpdeskFetch(`/requests/${id}/reply`, {
+  const res = await helpdeskFetchOnApiV3Base(`/requests/${id}/notifications`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: formBody,
   });
-  void res;
+  const body: unknown = await res.json();
+  assertHelpdeskSdpSuccess(body);
 }
 
 export async function postComment(ticket: HelpdeskCommentTicketRef, bodyText: string): Promise<void> {
