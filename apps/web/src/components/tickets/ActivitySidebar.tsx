@@ -6,6 +6,8 @@ import { filterUrgentWsEvents, useNotificationsStore } from '../../store/notific
 export type ActivitySidebarProps = {
   /** When set, renders as a slide-out overlay (use with `open` / `onClose`) */
   panel?: boolean;
+  /** Fixed left-column layout (full-height scroll, lg+ queue sidebar) */
+  sidebar?: boolean;
   open?: boolean;
   onClose?: () => void;
 };
@@ -29,7 +31,7 @@ function summarizeEvent(ev: WsOutboundEnvelope): string {
  * Live activity feed (last 50 WS events) plus urgent critical-priority alerts.
  */
 export function ActivitySidebar(props: ActivitySidebarProps): ReactElement | null {
-  const { panel = false, open = true, onClose } = props;
+  const { panel = false, sidebar = false, open = true, onClose } = props;
   const events = useNotificationsStore((s) => s.events);
   const urgent = filterUrgentWsEvents(events);
 
@@ -112,6 +114,17 @@ export function ActivitySidebar(props: ActivitySidebarProps): ReactElement | nul
           {content}
         </aside>
       </>
+    );
+  }
+
+  if (sidebar) {
+    return (
+      <aside
+        className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
+        aria-label="Live activity"
+      >
+        {content}
+      </aside>
     );
   }
 

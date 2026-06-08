@@ -263,6 +263,20 @@ export async function listAllTicketsForOrg(orgId: string): Promise<SupportTicket
 }
 
 /**
+ * Returns ticket IDs assigned to the signed-in user (same rules as the list `mine` filter).
+ */
+export async function listAssignedTicketIds(
+  orgId: string,
+  user: TicketListUserContext,
+): Promise<Set<string>> {
+  const records = await listAllTicketsForOrg(orgId);
+  const policy = await getOrgSlaPolicy(orgId);
+  const allDtos = records.map((rec) => toTicketApiDto(rec, policy));
+  const mine = filterTickets(allDtos, { mine: true }, user);
+  return new Set(mine.map((ticket) => ticket.ticketId));
+}
+
+/**
  * Lists tickets for an org with filters, facets, sort, and page-based pagination.
  */
 export async function listTickets(params: ListTicketsParams): Promise<ListTicketsResult> {
