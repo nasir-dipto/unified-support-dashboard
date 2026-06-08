@@ -23,6 +23,8 @@ const baseProps = {
   counts: { all: 31, mine: 2, jira: 7, me: 3 },
   bucketCounts: { all: 31, open: 25, closed: 6 },
   projectCounts: { TILMS: 5 },
+  viewMode: 'list' as const,
+  onViewModeChange: vi.fn(),
 };
 
 describe('TicketFilters', () => {

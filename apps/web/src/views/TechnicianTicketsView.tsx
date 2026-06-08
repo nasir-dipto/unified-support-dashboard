@@ -11,6 +11,7 @@ import { TicketPagination } from '../components/tickets/TicketPagination';
 import { TicketStatsRow } from '../components/tickets/TicketStatsRow';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useTicketQueueParams } from '../hooks/useTicketQueueParams';
+import { useViewMode } from '../hooks/useViewMode';
 import { useTicketsList } from '../hooks/useTickets';
 import { useAuthStore } from '../store/auth.store';
 import { canWriteTicket } from '../utils/permissions';
@@ -57,6 +58,7 @@ function BellIcon(): ReactElement {
 export function TechnicianTicketsView(): ReactElement {
   const user = useAuthStore((s) => s.user);
   const { params, setParams } = useTicketQueueParams();
+  const { viewMode, setViewMode } = useViewMode();
   const [searchInput, setSearchInput] = useState(params.q);
   const debouncedQ = useDebouncedValue(searchInput, 300);
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -148,6 +150,8 @@ export function TechnicianTicketsView(): ReactElement {
         counts={counts}
         bucketCounts={bucketCounts}
         projectCounts={projectCounts}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
       />
 
       <div className="mb-2 flex items-center gap-2">
@@ -173,7 +177,11 @@ export function TechnicianTicketsView(): ReactElement {
         </button>
       </div>
 
-      <div className="relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+      <div
+        className={`relative overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm ${
+          viewMode === 'grid' ? 'p-3' : ''
+        }`}
+      >
         {isFetching ? (
           <div
             className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center bg-white/60"
@@ -182,19 +190,28 @@ export function TechnicianTicketsView(): ReactElement {
             <div className="h-7 w-7 animate-spin rounded-full border-2 border-gray-200 border-t-usd-indigo" />
           </div>
         ) : null}
-        {tickets.map((t) => {
-          const canWrite =
-            user !== null &&
-            canWriteTicket(user.roles, t, user.email, user.displayName);
-          return (
-            <TicketCard
-              key={t.ticketId}
-              ticket={t}
-              onOpenDetail={() => { setDetailId(t.ticketId); }}
-              onOpenComment={canWrite ? setCommentTicket : undefined}
-            />
-          );
-        })}
+        <div
+          className={
+            viewMode === 'grid'
+              ? 'grid grid-cols-1 gap-3 md:grid-cols-2'
+              : undefined
+          }
+        >
+          {tickets.map((t) => {
+            const canWrite =
+              user !== null &&
+              canWriteTicket(user.roles, t, user.email, user.displayName);
+            return (
+              <TicketCard
+                key={t.ticketId}
+                ticket={t}
+                layout={viewMode}
+                onOpenDetail={() => { setDetailId(t.ticketId); }}
+                onOpenComment={canWrite ? setCommentTicket : undefined}
+              />
+            );
+          })}
+        </div>
         {tickets.length === 0 ? (
           <p className="py-8 text-center text-sm text-gray-400">No tickets match.</p>
         ) : null}
