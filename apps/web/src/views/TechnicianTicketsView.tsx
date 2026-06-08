@@ -14,7 +14,8 @@ import { useTicketQueueParams } from '../hooks/useTicketQueueParams';
 import { useViewMode } from '../hooks/useViewMode';
 import { useTicketsList } from '../hooks/useTickets';
 import { useAuthStore } from '../store/auth.store';
-import { filterUrgentWsEvents, useNotificationsStore } from '../store/notifications.store';
+import { useNotificationsStore } from '../store/notifications.store';
+import { countActionRequired } from '../utils/activity-feed';
 import { canWriteTicket } from '../utils/permissions';
 import { isTechnicianOnly } from '../utils/roles';
 import { ticketQueueParamsToApiQuery } from '../utils/ticket-queue-params';
@@ -44,7 +45,7 @@ export function TechnicianTicketsView(): ReactElement {
   const [commentTicket, setCommentTicket] = useState<TicketApiDto | null>(null);
   const [activityOpen, setActivityOpen] = useState(false);
   const activityEvents = useNotificationsStore((s) => s.events);
-  const urgentCount = filterUrgentWsEvents(activityEvents).length;
+  const urgentCount = countActionRequired(activityEvents);
 
   useEffect(() => {
     setSearchInput(params.q);

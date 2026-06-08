@@ -1,7 +1,24 @@
 import type { WsOutboundEnvelope } from '@usd/shared-types';
-import { StatusDot, usdColors } from '@usd/ui';
+import { Badge, Pill, StatusDot, usdColors } from '@usd/ui';
 import type { ReactElement } from 'react';
-import { filterUrgentWsEvents, useNotificationsStore } from '../../store/notifications.store';
+import { useMemo, useState } from 'react';
+import { useAuthStore } from '../../store/auth.store';
+import { useNotificationsStore } from '../../store/notifications.store';
+import {
+  countActionRequired,
+  filterActivityEventsBySource,
+  formatActivityTicketDisplayId,
+  formatTimeAgo,
+  getActivityEventAttribution,
+  getActivityEventSource,
+  getActivityEventSummary,
+  getActivityEventTimestamp,
+  isActionRequired,
+  parseActivityTicketSnapshot,
+  type ActivitySourceFilter,
+} from '../../utils/activity-feed';
+import { formatStatusLabel } from '../../utils/ticket-display';
+import { isTechnicianOnly } from '../../utils/roles';
 
 export type ActivitySidebarProps = {
   /** When set, renders as a slide-out overlay (use with `open` / `onClose`) */
@@ -12,39 +29,92 @@ export type ActivitySidebarProps = {
   onClose?: () => void;
 };
 
-function summarizeEvent(ev: WsOutboundEnvelope): string {
-  const ticket = ev.payload['ticket'];
-  if (ticket !== undefined && typeof ticket === 'object' && ticket !== null && 'summary' in ticket) {
-    const s = (ticket as { summary?: unknown }).summary;
-    if (typeof s === 'string' && s.length > 0) {
-      return s;
-    }
-  }
-  if (ev.type === 'comment_added') {
-    const body = ev.payload['body'];
-    return typeof body === 'string' ? body.slice(0, 120) : 'New comment';
-  }
-  return ev.type.replace(/_/g, ' ');
+/**
+ * Renders one rich activity feed entry.
+ */
+function ActivityFeedEntry(props: { event: WsOutboundEnvelope }): ReactElement {
+  const { event } = props;
+  const ticket = parseActivityTicketSnapshot(event);
+  const source = getActivityEventSource(event);
+  const sourceLabel = source === 'jira' ? 'Jira' : source === 'helpdesk' ? 'ME' : null;
+  const sourceColor = source === 'jira' ? usdColors.blue : usdColors.purple;
+  const displayId = formatActivityTicketDisplayId(event, ticket);
+  const timestamp = getActivityEventTimestamp(event);
+  const timeAgo = timestamp !== undefined ? formatTimeAgo(timestamp) : '';
+  const summary = getActivityEventSummary(event);
+  const attribution = getActivityEventAttribution(event);
+  const actionRequired = isActionRequired(event);
+  const status = ticket?.status;
+
+  return (
+    <li
+      className={`rounded-md border px-2 py-1.5 text-[11px] ${
+        actionRequired ? 'border-red-200 bg-red-50/40' : 'border-gray-100'
+      }`}
+    >
+      <div className="mb-1 flex flex-wrap items-center gap-1">
+        {sourceLabel !== null ? <Badge label={sourceLabel} color={sourceColor} sm /> : null}
+        <span className="font-mono text-[10px] font-bold text-gray-600">{displayId}</span>
+        {timeAgo.length > 0 ? (
+          <span className="text-[10px] text-gray-400">{timeAgo}</span>
+        ) : null}
+        {actionRequired ? (
+          <span className="rounded bg-usd-red px-1 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+            Action required
+          </span>
+        ) : null}
+      </div>
+      <p className="font-medium leading-snug text-gray-900">{summary}</p>
+      {status !== undefined ? (
+        <p className="mt-0.5 text-[10px] text-gray-500">
+          Status: <span className="capitalize">{formatStatusLabel(status)}</span>
+        </p>
+      ) : null}
+      {attribution !== null ? (
+        <p className="mt-0.5 text-[10px] text-gray-500">{attribution}</p>
+      ) : null}
+    </li>
+  );
 }
 
+type ActivityFeedBodyProps = {
+  events: WsOutboundEnvelope[];
+  technicianScoped: boolean;
+  onClose?: () => void;
+  panel?: boolean;
+};
+
 /**
- * Live activity feed (last 50 WS events) plus urgent critical-priority alerts.
+ * Shared feed header, filters, and entry list for sidebar and panel modes.
  */
-export function ActivitySidebar(props: ActivitySidebarProps): ReactElement | null {
-  const { panel = false, sidebar = false, open = true, onClose } = props;
-  const events = useNotificationsStore((s) => s.events);
-  const urgent = filterUrgentWsEvents(events);
+function ActivityFeedBody(props: ActivityFeedBodyProps): ReactElement {
+  const { events, technicianScoped, onClose, panel = false } = props;
+  const [sourceFilter, setSourceFilter] = useState<ActivitySourceFilter>('all');
 
-  if (panel && !open) {
-    return null;
-  }
+  const filteredEvents = useMemo(
+    () => filterActivityEventsBySource(events, sourceFilter),
+    [events, sourceFilter],
+  );
+  const urgentCount = useMemo(() => countActionRequired(events), [events]);
 
-  const content = (
+  const subtitle = technicianScoped
+    ? 'Updates on your tickets'
+    : 'Recent updates across tickets';
+  const emptyMessage = technicianScoped
+    ? 'No recent updates on your tickets'
+    : 'No recent updates';
+
+  return (
     <>
       <div className="flex items-center justify-between gap-2 border-b border-gray-100 px-3 py-2">
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <StatusDot color={usdColors.teal} size={8} />
-          <h2 className="text-sm font-bold text-gray-900">Live activity</h2>
+          <h2 className="text-sm font-bold text-gray-900">Recent updates</h2>
+          {urgentCount > 0 ? (
+            <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-usd-red">
+              {String(urgentCount)} urgent
+            </span>
+          ) : null}
         </div>
         {panel && onClose !== undefined ? (
           <button
@@ -57,44 +127,61 @@ export function ActivitySidebar(props: ActivitySidebarProps): ReactElement | nul
           </button>
         ) : null}
       </div>
-      <p className="border-b border-gray-100 px-3 py-1.5 text-[11px] text-gray-500">
-        Last 50 realtime events (newest first).
-      </p>
+      <p className="border-b border-gray-100 px-3 py-1.5 text-[11px] text-gray-500">{subtitle}</p>
 
-      {urgent.length > 0 ? (
-        <section className="border-b border-red-100 px-3 py-2">
-          <h3 className="text-[10px] font-bold uppercase tracking-wide text-usd-red">Urgent alerts</h3>
-          <ul className="mt-1.5 space-y-1.5">
-            {urgent.map((ev, idx) => (
-              <li
-                key={`${ev.ticketId}-${ev.type}-${String(idx)}`}
-                className="rounded-md border border-red-100 bg-red-50 px-2 py-1 text-[11px] text-red-900"
-              >
-                <span className="font-mono font-bold">{ev.ticketId}</span> · {summarizeEvent(ev)}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      <div className="flex flex-wrap gap-1 border-b border-gray-100 px-3 py-2">
+        <Pill
+          compact
+          label="All"
+          active={sourceFilter === 'all'}
+          onClick={() => { setSourceFilter('all'); }}
+        />
+        <Pill
+          compact
+          label="Jira"
+          active={sourceFilter === 'jira'}
+          onClick={() => { setSourceFilter('jira'); }}
+        />
+        <Pill
+          compact
+          label="ME"
+          active={sourceFilter === 'me'}
+          onClick={() => { setSourceFilter('me'); }}
+        />
+      </div>
 
       <ul className="flex-1 space-y-1.5 overflow-y-auto px-3 py-2">
-        {events.map((ev, idx) => (
-          <li
-            key={`${ev.type}-${ev.ticketId}-${String(idx)}`}
-            className="rounded-md border border-gray-100 px-2 py-1.5 text-[11px]"
-          >
-            <div className="flex flex-wrap gap-1">
-              <span className="rounded bg-gray-100 px-1 font-semibold text-gray-700">{ev.type}</span>
-              <span className="font-mono text-gray-500">{ev.ticketId}</span>
-            </div>
-            <p className="mt-0.5 text-gray-700">{summarizeEvent(ev)}</p>
-          </li>
+        {filteredEvents.map((event, idx) => (
+          <ActivityFeedEntry key={`${event.type}-${event.ticketId}-${String(idx)}`} event={event} />
         ))}
       </ul>
-      {events.length === 0 ? (
-        <p className="px-3 py-2 text-[11px] text-gray-400">Waiting for websocket events…</p>
+      {filteredEvents.length === 0 ? (
+        <p className="px-3 py-4 text-center text-[11px] text-gray-400">{emptyMessage}</p>
       ) : null}
     </>
+  );
+}
+
+/**
+ * Recent updates feed (last 50 WS events) with source filters and action-required badges.
+ */
+export function ActivitySidebar(props: ActivitySidebarProps): ReactElement | null {
+  const { panel = false, sidebar = false, open = true, onClose } = props;
+  const events = useNotificationsStore((s) => s.events);
+  const user = useAuthStore((s) => s.user);
+  const technicianScoped = user !== null && isTechnicianOnly(user.roles);
+
+  if (panel && !open) {
+    return null;
+  }
+
+  const feed = (
+    <ActivityFeedBody
+      events={events}
+      technicianScoped={technicianScoped}
+      onClose={onClose}
+      panel={panel}
+    />
   );
 
   if (panel && onClose !== undefined) {
@@ -109,9 +196,9 @@ export function ActivitySidebar(props: ActivitySidebarProps): ReactElement | nul
         <aside
           id="activity-panel"
           className="fixed bottom-0 right-0 top-[52px] z-[160] flex w-[min(100%,20rem)] flex-col border-l border-gray-200 bg-white shadow-xl"
-          aria-label="Live activity"
+          aria-label="Recent updates"
         >
-          {content}
+          {feed}
         </aside>
       </>
     );
@@ -121,57 +208,19 @@ export function ActivitySidebar(props: ActivitySidebarProps): ReactElement | nul
     return (
       <aside
         className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
-        aria-label="Live activity"
+        aria-label="Recent updates"
       >
-        {content}
+        {feed}
       </aside>
     );
   }
 
   return (
     <aside
-      className="rounded-xl border border-gray-200 bg-white p-4"
-      aria-label="Live activity"
+      className="flex max-h-[520px] min-h-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
+      aria-label="Recent updates"
     >
-      <div className="flex items-center gap-2">
-        <StatusDot color={usdColors.teal} size={10} />
-        <h2 className="text-sm font-bold text-gray-900">Live activity</h2>
-      </div>
-      <p className="mt-1 text-xs text-gray-500">Last 50 realtime events (newest first).</p>
-
-      {urgent.length > 0 ? (
-        <section className="mt-4 border-b border-red-100 pb-4">
-          <h3 className="text-xs font-bold uppercase tracking-wide text-usd-red">Urgent alerts</h3>
-          <ul className="mt-2 space-y-2">
-            {urgent.map((ev, idx) => (
-              <li
-                key={`${ev.ticketId}-${ev.type}-${String(idx)}`}
-                className="rounded-lg border border-red-100 bg-red-50 px-2 py-1.5 text-xs text-red-900"
-              >
-                <span className="font-mono font-bold">{ev.ticketId}</span> · {summarizeEvent(ev)}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      <ul className="mt-4 max-h-[480px] space-y-2 overflow-y-auto">
-        {events.map((ev, idx) => (
-          <li
-            key={`${ev.type}-${ev.ticketId}-${String(idx)}`}
-            className="rounded-lg border border-gray-100 px-2 py-2 text-xs"
-          >
-            <div className="flex flex-wrap gap-1">
-              <span className="rounded bg-gray-100 px-1.5 font-semibold text-gray-700">{ev.type}</span>
-              <span className="font-mono text-gray-500">{ev.ticketId}</span>
-            </div>
-            <p className="mt-1 text-gray-700">{summarizeEvent(ev)}</p>
-          </li>
-        ))}
-      </ul>
-      {events.length === 0 ? (
-        <p className="mt-4 text-xs text-gray-400">Waiting for websocket events…</p>
-      ) : null}
+      {feed}
     </aside>
   );
 }

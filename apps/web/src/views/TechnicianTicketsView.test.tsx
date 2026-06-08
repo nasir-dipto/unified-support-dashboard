@@ -143,7 +143,7 @@ describe('TechnicianTicketsView', () => {
 
   it('renders live activity sidebar and mobile recent updates control', () => {
     renderQueue(<TechnicianTicketsView />);
-    expect(screen.getByRole('complementary', { name: /live activity/i })).toBeInTheDocument();
+    expect(screen.getByRole('complementary', { name: /recent updates/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /recent updates/i })).toBeInTheDocument();
   });
 });
