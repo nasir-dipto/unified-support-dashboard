@@ -1,5 +1,6 @@
 import type { WsOutboundEnvelope } from '@usd/shared-types';
 import { create } from 'zustand';
+import { isActionRequired } from '../utils/activity-feed.js';
 
 const MAX_EVENTS = 50;
 
@@ -31,15 +32,8 @@ export const useNotificationsStore = create<NotificationsState>((set) => ({
 }));
 
 /**
- * Returns urgent feed entries where the embedded ticket snapshot has critical priority.
+ * Returns feed entries that require technician action (see `isActionRequired`).
  */
 export function filterUrgentWsEvents(events: WsOutboundEnvelope[]): WsOutboundEnvelope[] {
-  return events.filter((ev) => {
-    const ticket = ev.payload['ticket'];
-    if (ticket === undefined || typeof ticket !== 'object' || ticket === null) {
-      return false;
-    }
-    const row = ticket as { priority?: unknown };
-    return row.priority === 'critical';
-  });
+  return events.filter(isActionRequired);
 }
