@@ -140,4 +140,10 @@ describe('TechnicianTicketsView', () => {
     expect(screen.getByText('Hello ticket')).toBeInTheDocument();
     expect(screen.getByText('HD sample')).toBeInTheDocument();
   });
+
+  it('renders live activity sidebar and mobile recent updates control', () => {
+    renderQueue(<TechnicianTicketsView />);
+    expect(screen.getByRole('complementary', { name: /live activity/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /recent updates/i })).toBeInTheDocument();
+  });
 });

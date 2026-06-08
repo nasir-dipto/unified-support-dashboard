@@ -60,11 +60,11 @@ describe('TicketsView', () => {
     expect(screen.getByText('Ticket Queue')).toBeInTheDocument();
   });
 
-  it('opens activity panel when Activity toggle is clicked', async () => {
+  it('opens mobile activity overlay when Recent updates is clicked', async () => {
     const user = userEvent.setup();
     renderWithQuery(<TicketsView />);
-    expect(screen.queryByRole('complementary', { name: /live activity/i })).toBeNull();
-    await user.click(screen.getByRole('button', { name: /activity/i }));
-    expect(screen.getByRole('complementary', { name: /live activity/i })).toBeTruthy();
+    expect(document.getElementById('activity-panel')).toBeNull();
+    await user.click(screen.getByRole('button', { name: /recent updates/i }));
+    expect(document.getElementById('activity-panel')).toBeTruthy();
   });
 });

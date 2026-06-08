@@ -1,7 +1,13 @@
 import type { NextFunction, Request, RequestHandler, Response } from 'express';
 import { activityRecentQuerySchema, activityRecentResponseSchema } from '@usd/shared-types';
+import {
+  ACTIVITY_RAW_FETCH_LIMIT,
+  scopeActivityEventsForRole,
+} from '../activity/scopeActivityEvents.js';
+import { listAssignedTicketIds } from '../db/tables/tickets.js';
 import { listRecentWsActivityEvents } from '../db/tables/ws-activity-events.js';
 import { AppError } from '../utils/errors.js';
+import { isTechnician } from '../utils/role-helpers.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
 
 type AsyncRequestHandler = (
@@ -29,7 +35,22 @@ export const getRecentActivity: RequestHandler[] = [
     if (!parsed.success) {
       throw new AppError('Invalid query', 'VALIDATION', 400);
     }
-    const items = await listRecentWsActivityEvents(req.auth.orgId, parsed.data.limit);
+    const rawItems = await listRecentWsActivityEvents(req.auth.orgId, ACTIVITY_RAW_FETCH_LIMIT);
+
+    let assignedTicketIds = new Set<string>();
+    if (isTechnician(req.auth.roles)) {
+      assignedTicketIds = await listAssignedTicketIds(req.auth.orgId, {
+        email: req.auth.email,
+        displayName: req.auth.displayName,
+      });
+    }
+
+    const items = scopeActivityEventsForRole(
+      rawItems,
+      req.auth.roles,
+      assignedTicketIds,
+      parsed.data.limit,
+    );
     res.json(
       activityRecentResponseSchema.parse({
         data: items,
