@@ -42,6 +42,31 @@ describe('sentiment.service', () => {
     expect(res?.sentiment).toBe('negative');
   });
 
+  it('upgrades mock positive to negative when SLA is breached', async () => {
+    vi.spyOn(bedrock, 'isMockAiEnabled').mockReturnValue(true);
+    vi.spyOn(buildCtx, 'buildAiTicketContext').mockResolvedValue({
+      ticket: {
+        ...hdTicket,
+        ticketId: 'hd_187438',
+        summary: 'Dummy Ticket for Nasir Dipto',
+        priority: 'medium',
+        slaDueAt: '2026-06-03T19:36:40.801Z',
+      },
+      comments: [
+        { commentId: 'c', ticketId: 'hd_187438', body: 'thanks', commentSource: 'hd_email', createdAt: 't' },
+      ],
+      linked: undefined,
+    });
+    const res = await analyzeHdTicketSentiment('demo-org', {
+      ...hdTicket,
+      ticketId: 'hd_187438',
+      summary: 'Dummy Ticket for Nasir Dipto',
+      priority: 'medium',
+    });
+    expect(res?.sentiment).toBe('negative');
+    expect(res?.churnRisk).toBe(true);
+  });
+
   it('returns null when within hourly interval', async () => {
     const recent = {
       ...hdTicket,

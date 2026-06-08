@@ -6,6 +6,7 @@ import {
 import { buildAiTicketContext } from '../ai/buildTicketContext.js';
 import { mockSentimentAnalysis } from '../ai/mockResponses.js';
 import { buildSentimentAnalysisPrompt } from '../ai/prompts.js';
+import { applySlaBreachSentiment } from '../sentiment/applySlaBreachSentiment.js';
 import { isEligibleForSentimentAnalysis } from '../sentiment/eligibility.js';
 import { invokeBedrockJson, isMockAiEnabled } from './bedrock.service.js';
 import { AppError } from '../utils/errors.js';
@@ -39,14 +40,16 @@ export async function analyzeHdTicketSentiment(
 
   const ctx = await buildAiTicketContext(orgId, ticket.ticketId);
 
+  let result: SentimentAnalysisResult;
   if (isMockAiEnabled()) {
-    return mockSentimentAnalysis({
+    result = mockSentimentAnalysis({
       ticket: ctx.ticket,
       commentCount: ctx.comments.length,
     });
+  } else {
+    const prompt = buildSentimentAnalysisPrompt(ctx);
+    const raw = await invokeBedrockJson(prompt);
+    result = sentimentAnalysisResultSchema.parse(raw);
   }
-
-  const prompt = buildSentimentAnalysisPrompt(ctx);
-  const raw = await invokeBedrockJson(prompt);
-  return sentimentAnalysisResultSchema.parse(raw);
+  return applySlaBreachSentiment(ctx.ticket, result);
 }

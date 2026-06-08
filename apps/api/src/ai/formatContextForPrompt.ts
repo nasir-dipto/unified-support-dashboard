@@ -18,6 +18,9 @@ function formatTicketBlock(ticket: TicketApiDto, label: string): string {
     `createdAt: ${ticket.createdAt}`,
     `updatedAt: ${ticket.updatedAt}`,
   ];
+  if (ticket.slaDueAt !== undefined && ticket.slaDueAt.trim().length > 0) {
+    lines.push(`slaDueAt: ${ticket.slaDueAt}`);
+  }
   if (ticket.description !== undefined && ticket.description.trim().length > 0) {
     lines.push(`description: ${ticket.description.trim()}`);
   }

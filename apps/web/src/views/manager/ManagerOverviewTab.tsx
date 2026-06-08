@@ -29,7 +29,7 @@ export function ManagerOverviewTab(props: ManagerOverviewTabProps): ReactElement
     if (t.priority === 'critical') {
       return true;
     }
-    const sla = estimateSlaPercentRemaining(t.createdAt, t.updatedAt);
+    const sla = estimateSlaPercentRemaining(t.createdAt, t.updatedAt, { dueAt: t.slaDueAt });
     return sla !== null && sla < 70;
   });
 
@@ -122,7 +122,11 @@ export function ManagerOverviewTab(props: ManagerOverviewTabProps): ReactElement
             <span className="min-w-[80px] font-bold text-usd-blue">{t.externalId}</span>
             <span className="flex-1 truncate">{t.summary}</span>
             <div className="w-20">
-              <SlaBar value={estimateSlaPercentRemaining(t.createdAt, t.updatedAt)} />
+              <SlaBar
+                value={estimateSlaPercentRemaining(t.createdAt, t.updatedAt, {
+                  dueAt: t.slaDueAt,
+                })}
+              />
             </div>
           </button>
         ))}
