@@ -2,7 +2,18 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
 import { AdminKbTab } from './AdminKbTab';
+
+const navigateMock = vi.fn();
+
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return {
+    ...actual,
+    useNavigate: () => navigateMock,
+  };
+});
 
 const mockArticles = [
   {
@@ -52,25 +63,21 @@ vi.mock('../../hooks/useKb', () => ({
   }),
 }));
 
-vi.mock('../../components/tickets/DetailModal', () => ({
-  DetailModal: (props: { ticketId: string | null; open: boolean }) =>
-    props.open && props.ticketId !== null ? (
-      <div data-testid="detail-modal">Ticket {props.ticketId}</div>
-    ) : null,
-}));
-
 function renderTab(): ReturnType<typeof render> {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <QueryClientProvider client={client}>
-      <AdminKbTab />
-    </QueryClientProvider>,
+    <MemoryRouter>
+      <QueryClientProvider client={client}>
+        <AdminKbTab />
+      </QueryClientProvider>
+    </MemoryRouter>,
   );
 }
 
 describe('AdminKbTab', () => {
   afterEach(() => {
     cleanup();
+    navigateMock.mockReset();
   });
 
   it('shows source ticket IDs below article title', () => {
@@ -87,10 +94,10 @@ describe('AdminKbTab', () => {
     expect(allSources).toHaveLength(1);
   });
 
-  it('opens DetailModal when a source ticket id is clicked', async () => {
+  it('navigates to ticket detail when a source ticket id is clicked', async () => {
     const user = userEvent.setup();
     renderTab();
     await user.click(screen.getByRole('button', { name: 'hd_4' }));
-    expect(screen.getByTestId('detail-modal')).toHaveTextContent('Ticket hd_4');
+    expect(navigateMock).toHaveBeenCalledWith('/tickets/hd_4');
   });
 });

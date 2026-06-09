@@ -6,7 +6,7 @@ import type {
   TicketApiDto,
   TriageSuggestResponse,
 } from '@usd/shared-types';
-import { Badge, Overlay, Pill, SlaBar, priorityColors, usdColors } from '@usd/ui';
+import { Badge, Pill, SlaBar, priorityColors, usdColors } from '@usd/ui';
 import type { ReactElement } from 'react';
 import { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -47,58 +47,13 @@ import {
   statusColor,
   ticketExternalUrl,
 } from '../../utils/ticket-display';
-
-/**
- * Returns true when the ticket description should appear in the conversation thread.
- */
-export function hasDisplayableDescription(description: string | undefined): boolean {
-  if (description === undefined) {
-    return false;
-  }
-  const trimmed = description.trim();
-  return trimmed.length > 0 && trimmed !== '—';
-}
-
-/**
- * Thread label for the ticket's original description by source system.
- */
-export function originalDescriptionLabel(source: TicketApiDto['source']): string {
-  return source === 'helpdesk' ? 'Original Request' : 'Issue Description';
-}
-
-const THREAD_PREVIEW_MAX_LEN = 80;
-
-/**
- * Short single-line preview for collapsed conversation rows.
- */
-export function conversationBodyPreview(body: string, maxLen = THREAD_PREVIEW_MAX_LEN): string {
-  const flat = body.replace(/\s+/g, ' ').trim();
-  if (flat.length <= maxLen) {
-    return flat;
-  }
-  return `${flat.slice(0, maxLen)}…`;
-}
-
-/**
- * Picks the thread row id (description or comment) with the latest createdAt.
- */
-export function newestThreadRowId(
-  descriptionEntries: readonly TicketApiDto[],
-  comments: readonly { commentId: string; createdAt: string }[],
-): string | undefined {
-  const rows: { id: string; createdAt: string }[] = [];
-  for (const entry of descriptionEntries) {
-    rows.push({ id: `desc-${entry.ticketId}`, createdAt: entry.createdAt });
-  }
-  for (const comment of comments) {
-    rows.push({ id: comment.commentId, createdAt: comment.createdAt });
-  }
-  if (rows.length === 0) {
-    return undefined;
-  }
-  rows.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  return rows[rows.length - 1]?.id;
-}
+import {
+  conversationBodyPreview,
+  formatTicketTimestamp,
+  hasDisplayableDescription,
+  newestThreadRowId,
+  originalDescriptionLabel,
+} from './ticket-detail-helpers';
 
 type CollapsibleThreadRowProps = {
   rowId: string;
@@ -151,36 +106,20 @@ function CollapsibleThreadRow(props: CollapsibleThreadRowProps): ReactElement {
   );
 }
 
-/**
- * Formats an ISO timestamp for display in the conversation thread (stable en-US locale).
- */
-export function formatTicketTimestamp(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) {
-    return iso;
-  }
-  return date.toLocaleString('en-US', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
-}
-
-export type DetailModalProps = {
-  ticketId: string | null;
-  open: boolean;
-  onClose: () => void;
+export type TicketDetailContentProps = {
+  ticketId: string;
 };
 
 /**
- * Full ticket inspector with AI triage, comments, and cross-link.
+ * Full ticket detail body — conversation, AI, KB, and cross-link (used by TicketDetailView).
  */
-export function DetailModal(props: DetailModalProps): ReactElement {
-  const { ticketId, open, onClose } = props;
-  const activeTicketId = open && ticketId !== null ? ticketId : undefined;
+export function TicketDetailContent(props: TicketDetailContentProps): ReactElement {
+  const { ticketId } = props;
+  const activeTicketId = ticketId;
   const detailQuery = useTicketDetail(activeTicketId);
   const ticket = detailQuery.data?.data;
   const linkedTicketId = ticket?.linkedTicketId;
-  const linkedQuery = useLinkedTicketDetail(linkedTicketId, open && linkedTicketId !== undefined);
+  const linkedQuery = useLinkedTicketDetail(linkedTicketId, linkedTicketId !== undefined);
   const linkedTicket = linkedQuery.data?.data;
   const mergedPair =
     ticket !== undefined ? resolveJiraAndHdTickets(ticket, linkedTicket) : undefined;
@@ -190,7 +129,7 @@ export function DetailModal(props: DetailModalProps): ReactElement {
     mergedPair !== undefined ? linkedTicket?.ticketId : undefined,
   );
   const postComment = usePostTicketComment(activeTicketId);
-  const healthQuery = useHealthDetail(open);
+  const healthQuery = useHealthDetail();
   const ai = useAiInvoke();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
@@ -204,46 +143,39 @@ export function DetailModal(props: DetailModalProps): ReactElement {
   const [kbResults, setKbResults] = useState<KbSearchResult[]>([]);
   const [kbDraft, setKbDraft] = useState<KbDraftResponse | null>(null);
   const [expandedThreadIds, setExpandedThreadIds] = useState<Set<string>>(() => new Set());
-  const kbDraftExists = useKbDraftExists(activeTicketId, open);
+  const kbDraftExists = useKbDraftExists(activeTicketId, true);
   const draftSaved = kbDraftExists.data === true;
   const kbDraftChecking = kbDraftExists.isLoading;
-  const kbSearch = useKbSearch(ticketId ?? undefined);
+  const kbSearch = useKbSearch(ticketId);
   const kbDraftMut = useKbDraft();
 
   const comments =
-    open && ticketId !== null
-      ? mergedPair !== undefined
-        ? mergeThreadComments(
-            commentsQuery.data?.data ?? [],
-            linkedCommentsQuery.data?.data ?? [],
-          )
-        : sortThreadComments(commentsQuery.data?.data ?? [])
-      : [];
+    mergedPair !== undefined
+      ? mergeThreadComments(
+          commentsQuery.data?.data ?? [],
+          linkedCommentsQuery.data?.data ?? [],
+        )
+      : sortThreadComments(commentsQuery.data?.data ?? []);
   const descriptionEntries: TicketApiDto[] = [];
-  if (open && ticketId !== null) {
-    if (mergedPair !== undefined) {
-      if (hasDisplayableDescription(mergedPair.jira.description)) {
-        descriptionEntries.push(mergedPair.jira);
-      }
-      if (hasDisplayableDescription(mergedPair.hd.description)) {
-        descriptionEntries.push(mergedPair.hd);
-      }
-    } else if (ticket !== undefined && hasDisplayableDescription(ticket.description)) {
-      descriptionEntries.push(ticket);
+  if (mergedPair !== undefined) {
+    if (hasDisplayableDescription(mergedPair.jira.description)) {
+      descriptionEntries.push(mergedPair.jira);
     }
+    if (hasDisplayableDescription(mergedPair.hd.description)) {
+      descriptionEntries.push(mergedPair.hd);
+    }
+  } else if (ticket !== undefined && hasDisplayableDescription(ticket.description)) {
+    descriptionEntries.push(ticket);
   }
   const newestThreadId = newestThreadRowId(descriptionEntries, comments);
 
   useEffect(() => {
-    if (!open) {
-      return;
-    }
     const initial = new Set<string>();
     if (newestThreadId !== undefined) {
       initial.add(newestThreadId);
     }
     setExpandedThreadIds(initial);
-  }, [open, ticketId, newestThreadId]);
+  }, [ticketId, newestThreadId]);
 
   const toggleThreadRow = (rowId: string): void => {
     setExpandedThreadIds((prev) => {
@@ -256,10 +188,6 @@ export function DetailModal(props: DetailModalProps): ReactElement {
       return next;
     });
   };
-
-  if (!open || ticketId === null) {
-    return <></>;
-  }
 
   const canWrite =
     ticket !== undefined &&
@@ -351,16 +279,6 @@ export function DetailModal(props: DetailModalProps): ReactElement {
       });
   };
 
-  const close = (): void => {
-    onClose();
-    setCommentDraft('');
-    setLinkDraft('');
-    setLinkErr(null);
-    setSuggestion(null);
-    setKbResults([]);
-    setKbDraft(null);
-  };
-
   const submitReply = (targetTicketId: string, replyKind: CommentReplyKind): void => {
     const body = commentDraft.trim();
     if (body.length === 0) {
@@ -384,21 +302,28 @@ export function DetailModal(props: DetailModalProps): ReactElement {
     });
   };
 
+  if (detailQuery.isLoading) {
+    return <p className="text-sm text-gray-500">Loading ticket…</p>;
+  }
+
+  if (ticket === undefined) {
+    return <></>;
+  }
+
+  const pageTitle =
+    mergedPair !== undefined
+      ? `${mergedPair.jira.externalId} ↔ ${mergedPair.hd.externalId}`
+      : ticket.externalId;
+
   return (
-    <Overlay
-      title={
-        mergedPair !== undefined
-          ? `${mergedPair.jira.externalId} ↔ ${mergedPair.hd.externalId}`
-          : (ticket?.externalId ?? ticketId)
-      }
-      sub={ticket?.summary}
-      onClose={close}
-      panelMaxWidthClass={mergedPair !== undefined ? 'max-w-6xl' : 'max-w-5xl'}
-      panelMaxHeightClass="max-h-[85vh]"
-    >
-      {ticket !== undefined ? (
-        <>
-          {mergedPair !== undefined ? (
+    <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm sm:p-6">
+      <header className="mb-6 border-b border-gray-100 pb-4">
+        <h1 className="text-xl font-extrabold text-gray-900 sm:text-2xl">{pageTitle}</h1>
+        {ticket.summary.length > 0 ? (
+          <p className="mt-1 text-sm text-gray-600">{ticket.summary}</p>
+        ) : null}
+      </header>
+      {mergedPair !== undefined ? (
             <>
               <p className="mb-2 text-xs font-semibold text-usd-blue">Merged incident (Jira + Helpdesk)</p>
               <MergedTicketPanels pair={mergedPair} />
@@ -506,7 +431,7 @@ export function DetailModal(props: DetailModalProps): ReactElement {
 
       <section className="w-full border-t border-gray-100 pt-4">
         <h3 className="text-sm font-bold text-gray-900">Conversation</h3>
-        <ul className="mt-3 max-h-[min(50vh,32rem)] w-full space-y-2 overflow-y-auto">
+        <ul className="mt-3 w-full space-y-2">
           {descriptionEntries.map((entry) => {
             const rowId = `desc-${entry.ticketId}`;
             const description = entry.description ?? '';
@@ -764,10 +689,6 @@ export function DetailModal(props: DetailModalProps): ReactElement {
         ) : null}
       </section>
       ) : null}
-        </>
-      ) : (
-        <p className="text-sm text-gray-500">Loading ticket…</p>
-      )}
-    </Overlay>
+    </div>
   );
 }

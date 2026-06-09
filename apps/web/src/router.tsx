@@ -12,6 +12,7 @@ import { LoginView } from './views/LoginView';
 import { ManagerDashboardView } from './views/ManagerDashboardView';
 import { ResetPasswordView } from './views/ResetPasswordView';
 import { TechnicianTicketsView } from './views/TechnicianTicketsView';
+import { TicketDetailView } from './views/TicketDetailView';
 
 function Forbidden(): ReactElement {
   return (
@@ -41,6 +42,14 @@ export function AppRouter(): ReactElement {
               element={
                 <RoleGuard allow={['technician', 'manager', 'super_admin']}>
                   <TechnicianTicketsView />
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/tickets/:ticketId"
+              element={
+                <RoleGuard allow={['technician', 'manager', 'super_admin']}>
+                  <TicketDetailView />
                 </RoleGuard>
               }
             />

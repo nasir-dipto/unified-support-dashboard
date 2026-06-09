@@ -2,7 +2,7 @@ import type { KbArticle } from '@usd/shared-types';
 import { Badge, usdColors } from '@usd/ui';
 import type { ReactElement } from 'react';
 import { useState } from 'react';
-import { DetailModal } from '../../components/tickets/DetailModal';
+import { useNavigate } from 'react-router-dom';
 import {
   useDeleteKbArticle,
   useKbArticles,
@@ -44,7 +44,7 @@ function KbSourceTickets(props: {
  */
 export function AdminKbTab(): ReactElement {
   const [filter, setFilter] = useState<'all' | 'draft' | 'published'>('all');
-  const [detailId, setDetailId] = useState<string | null>(null);
+  const navigate = useNavigate();
   const status = filter === 'all' ? undefined : filter;
   const { data, isLoading, isError } = useKbArticles(status);
   const publish = usePublishKbArticle();
@@ -103,7 +103,7 @@ export function AdminKbTab(): ReactElement {
                     <h3 className="font-bold text-gray-900">{a.title}</h3>
                     <KbSourceTickets
                       sourceTicketIds={a.sourceTicketIds}
-                      onSelectTicket={(id) => { setDetailId(id); }}
+                      onSelectTicket={(id) => { navigate(`/tickets/${id}`); }}
                     />
                     <p className="mt-1 line-clamp-2 text-sm text-gray-600">{a.problem}</p>
                   </div>
@@ -139,11 +139,6 @@ export function AdminKbTab(): ReactElement {
           </ul>
         )}
       </div>
-      <DetailModal
-        ticketId={detailId}
-        open={detailId !== null}
-        onClose={() => { setDetailId(null); }}
-      />
     </>
   );
 }
