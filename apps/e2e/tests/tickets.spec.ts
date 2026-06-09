@@ -10,9 +10,8 @@ test.describe('Ticket interactions', () => {
     await tickets.waitForLoaded();
     await tickets.openTicketDetailsByIndex(0);
     const modal = new DetailModalPage(page);
-    await expect(modal.dialog).toBeVisible();
     await modal.waitForLoaded();
-    await expect(modal.dialog.getByRole('heading', { name: 'Conversation' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Conversation' })).toBeVisible();
   });
 
   test('can search KB from DetailModal', async ({ page }) => {
@@ -24,9 +23,9 @@ test.describe('Ticket interactions', () => {
     await modal.waitForLoaded();
     await modal.searchKb();
     await expect(
-      modal.dialog
+      page
         .getByText(/searching knowledge base/i)
-        .or(modal.dialog.getByText(/no matching published articles/i)),
+        .or(page.getByText(/no matching published articles/i)),
     ).toBeVisible({ timeout: 15_000 });
   });
 });

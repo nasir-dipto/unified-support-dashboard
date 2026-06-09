@@ -3,14 +3,14 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { TicketApiDto } from '@usd/shared-types';
+import { TicketDetailContent } from './TicketDetailContent';
 import {
   conversationBodyPreview,
-  DetailModal,
   formatTicketTimestamp,
   hasDisplayableDescription,
   newestThreadRowId,
   originalDescriptionLabel,
-} from './DetailModal';
+} from './ticket-detail-helpers';
 
 const baseTicket: TicketApiDto = {
   ticketId: 'jira_X',
@@ -126,16 +126,16 @@ vi.mock('../../hooks/useTickets', () => ({
   }),
 }));
 
-function renderModal(): ReturnType<typeof render> {
+function renderContent(): ReturnType<typeof render> {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>
-      <DetailModal ticketId="jira_X" open onClose={() => {}} />
+      <TicketDetailContent ticketId="jira_X" />
     </QueryClientProvider>,
   );
 }
 
-describe('DetailModal helpers', () => {
+describe('ticket-detail-helpers', () => {
   it('hasDisplayableDescription rejects empty and em dash', () => {
     expect(hasDisplayableDescription(undefined)).toBe(false);
     expect(hasDisplayableDescription('')).toBe(false);
@@ -168,7 +168,7 @@ describe('DetailModal helpers', () => {
   });
 });
 
-describe('DetailModal', () => {
+describe('TicketDetailContent', () => {
   afterEach(() => {
     cleanup();
     ticketDetail = { ...baseTicket };
@@ -182,7 +182,7 @@ describe('DetailModal', () => {
   });
 
   it('renders original description as first conversation item for Jira', () => {
-    renderModal();
+    renderContent();
     const bubble = screen.getByTestId('ticket-original-description');
     expect(screen.getByText('Issue Description')).toBeTruthy();
     expect(screen.getByText('Body text')).toBeTruthy();
@@ -197,7 +197,7 @@ describe('DetailModal', () => {
 
   it('expands collapsed conversation row on header click', async () => {
     const user = userEvent.setup();
-    renderModal();
+    renderContent();
     const bubble = screen.getByTestId('ticket-original-description');
     await user.click(within(bubble).getByRole('button'));
     expect(bubble.querySelector('#thread-body-desc-jira_X')).toBeTruthy();
@@ -211,14 +211,14 @@ describe('DetailModal', () => {
       externalId: '1',
       description: 'Printer offline',
     };
-    renderModal();
+    renderContent();
     expect(screen.getByText('Original Request')).toBeTruthy();
     expect(screen.getByText('Printer offline')).toBeTruthy();
   });
 
   it('hides original description when empty or em dash', () => {
     ticketDetail = { ...baseTicket, description: '—' };
-    renderModal();
+    renderContent();
     expect(screen.queryByTestId('ticket-original-description')).toBeNull();
     expect(screen.queryByText('Issue Description')).toBeNull();
   });
@@ -230,7 +230,7 @@ describe('DetailModal', () => {
       riskLevel: 'HIGH',
       suggestedAssignee: 'bob',
     });
-    renderModal();
+    renderContent();
     await user.click(screen.getByRole('button', { name: /ai: suggest action/i }));
     await waitFor(() => {
       expect(mutateAsyncMock).toHaveBeenCalledWith({
@@ -246,7 +246,7 @@ describe('DetailModal', () => {
   it('drafts comment with selected tone', async () => {
     const user = userEvent.setup();
     mutateAsyncMock.mockResolvedValue({ draft: 'Draft body', tone: 'technical' });
-    renderModal();
+    renderContent();
     await user.click(screen.getByRole('button', { name: /^technical$/i }));
     await user.click(screen.getByRole('button', { name: /ai: draft comment/i }));
     await waitFor(() => {
@@ -262,7 +262,7 @@ describe('DetailModal', () => {
   it('shows KB search note for open tickets', async () => {
     const user = userEvent.setup();
     kbSearchMock.mockResolvedValue([]);
-    renderModal();
+    renderContent();
     expect(screen.getByText(/best results on resolved tickets/i)).toBeTruthy();
     await user.click(screen.getByRole('button', { name: /search kb/i }));
     await waitFor(() => {
@@ -280,7 +280,7 @@ describe('DetailModal', () => {
       tags: ['vpn'],
       sourceTicketIds: ['jira_X'],
     });
-    renderModal();
+    renderContent();
     await user.click(screen.getByRole('button', { name: /generate kb draft/i }));
     await waitFor(() => {
       expect(kbDraftMock).toHaveBeenCalledWith('jira_X');
@@ -290,7 +290,7 @@ describe('DetailModal', () => {
 
   it('disables generate on open when draft already exists for ticket', () => {
     kbDraftExistsData = true;
-    renderModal();
+    renderContent();
     expect(screen.getByText(/draft saved — review in admin → knowledge base/i)).toBeTruthy();
     const generateBtn = screen.getByRole('button', { name: /generate kb draft/i });
     expect(generateBtn).toBeDisabled();
@@ -302,7 +302,7 @@ describe('DetailModal', () => {
 
   it('shows loading state while checking for existing draft', () => {
     kbDraftExistsLoading = true;
-    renderModal();
+    renderContent();
     expect(screen.getByText(/checking for existing kb draft/i)).toBeTruthy();
     expect(screen.getByRole('button', { name: /generate kb draft/i })).toBeDisabled();
   });
@@ -325,7 +325,7 @@ describe('DetailModal', () => {
       updatedAt: 'u2',
       linkedTicketId: 'jira_X',
     };
-    renderModal();
+    renderContent();
     expect(screen.getByText(/merged incident/i)).toBeTruthy();
     expect(screen.getByRole('button', { name: /comment \(jira\)/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /add note/i })).toBeTruthy();
@@ -343,7 +343,7 @@ describe('DetailModal', () => {
       sourceTicketIds: ['jira_X'],
     });
     createKbMock.mockResolvedValue({ kbId: '01HZKB', title: 'Fix VPN' });
-    renderModal();
+    renderContent();
     await user.click(screen.getByRole('button', { name: /generate kb draft/i }));
     await waitFor(() => {
       expect(screen.getByDisplayValue('Fix VPN')).toBeTruthy();

@@ -2,9 +2,9 @@ import type { AuthUserPublic, TicketApiDto } from '@usd/shared-types';
 import { StatusDot, usdColors } from '@usd/ui';
 import type { ReactElement } from 'react';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ActivitySidebar } from '../components/tickets/ActivitySidebar';
 import { CommentModal } from '../components/tickets/CommentModal';
-import { DetailModal } from '../components/tickets/DetailModal';
 import { TicketCard } from '../components/tickets/TicketCard';
 import { TicketFilters } from '../components/tickets/TicketFilters';
 import { TicketPagination } from '../components/tickets/TicketPagination';
@@ -36,12 +36,12 @@ export function getDefaultTicketViewTab(
  * Technician ticket queue (TechView) with server-side filters, facets, and URL state.
  */
 export function TechnicianTicketsView(): ReactElement {
+  const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const { params, setParams } = useTicketQueueParams();
   const { viewMode, setViewMode } = useViewMode();
   const [searchInput, setSearchInput] = useState(params.q);
   const debouncedQ = useDebouncedValue(searchInput, 300);
-  const [detailId, setDetailId] = useState<string | null>(null);
   const [commentTicket, setCommentTicket] = useState<TicketApiDto | null>(null);
   const [activityOpen, setActivityOpen] = useState(false);
   const activityEvents = useNotificationsStore((s) => s.events);
@@ -196,7 +196,7 @@ export function TechnicianTicketsView(): ReactElement {
                     key={t.ticketId}
                     ticket={t}
                     layout={viewMode}
-                    onOpenDetail={() => { setDetailId(t.ticketId); }}
+                    onOpenDetail={() => { navigate(`/tickets/${t.ticketId}`); }}
                     onOpenComment={canWrite ? setCommentTicket : undefined}
                   />
                 );
@@ -221,7 +221,6 @@ export function TechnicianTicketsView(): ReactElement {
         onClose={() => { setActivityOpen(false); }}
       />
 
-      <DetailModal ticketId={detailId} open={detailId !== null} onClose={() => { setDetailId(null); }} />
       <CommentModal ticket={commentTicket} onClose={() => { setCommentTicket(null); }} />
     </>
   );

@@ -2,7 +2,7 @@ import type { TicketApiDto } from '@usd/shared-types';
 import { StatCard, usdColors } from '@usd/ui';
 import type { ReactElement } from 'react';
 import { useState } from 'react';
-import { DetailModal } from '../components/tickets/DetailModal';
+import { useNavigate } from 'react-router-dom';
 import { MANAGER_TICKETS_LIST_LIMIT, useTicketsList } from '../hooks/useTickets';
 import { averageSlaPercentRemaining } from '../utils/ticket-display';
 import { ManagerInsightsTab } from './manager/ManagerInsightsTab';
@@ -30,7 +30,7 @@ export function ManagerDashboardView(): ReactElement {
   const totalTickets = data?.pagination.total ?? tickets.length;
   const negativeSentiment = sentimentQuery.data?.counts.negative ?? 0;
   const [tab, setTab] = useState<MgrTab>('overview');
-  const [detailId, setDetailId] = useState<string | null>(null);
+  const navigate = useNavigate();
   const roles = useAuthStore((s) => s.user?.roles ?? []);
   const showKb = canManageKnowledgeBase(roles);
 
@@ -107,11 +107,11 @@ export function ManagerDashboardView(): ReactElement {
         {tab === 'overview' ? (
           <ManagerOverviewTab
             tickets={tickets}
-            onSelectTicket={(t) => { setDetailId(t.ticketId); }}
+            onSelectTicket={(t) => { navigate(`/tickets/${t.ticketId}`); }}
           />
         ) : null}
         {tab === 'sentiment' ? (
-          <ManagerSentimentTab onSelectTicket={(id) => { setDetailId(id); }} />
+          <ManagerSentimentTab onSelectTicket={(id) => { navigate(`/tickets/${id}`); }} />
         ) : null}
         {tab === 'insights' ? <ManagerInsightsTab /> : null}
         {tab === 'reporting' ? <ManagerReportingTab /> : null}
@@ -119,7 +119,6 @@ export function ManagerDashboardView(): ReactElement {
         {tab === 'kb' ? <AdminKbTab /> : null}
       </div>
 
-      <DetailModal ticketId={detailId} open={detailId !== null} onClose={() => { setDetailId(null); }} />
     </>
   );
 }

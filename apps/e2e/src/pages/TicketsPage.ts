@@ -45,11 +45,11 @@ export class TicketsPage {
   }
 
   /**
-   * Opens the detail modal for the ticket at the given index.
+   * Opens the ticket detail page for the ticket at the given index.
    */
   async openTicketDetailsByIndex(index: number): Promise<void> {
     await this.detailsButtons.nth(index).click();
-    await this.page.getByRole('dialog').waitFor({ state: 'visible' });
+    await this.page.waitForURL(/\/tickets\/[^/]+$/);
   }
 
   /**
