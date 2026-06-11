@@ -8,12 +8,19 @@
     "test": "turbo test --filter=@usd/api --filter=@usd/web --filter=@usd/shared-types --filter=@usd/ui --filter=@usd/infra",
     "e2e": "turbo e2e",
     "lint": "turbo lint",
-    "typecheck": "turbo typecheck"
+    "typecheck": "turbo typecheck",
+    "demo:global": "bash scripts/demo-global.sh"
+  },
+  "pnpm": {
+    "overrides": {
+      "vite": "^6.4.2",
+      "qs": ">=6.15.2"
+    }
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
     "eslint": "^9.17.0",
-    "turbo": "^2.3.3",
+    "turbo": "^2.9.14",
     "typescript": "^5.7.2",
     "typescript-eslint": "^8.18.2"
   }
