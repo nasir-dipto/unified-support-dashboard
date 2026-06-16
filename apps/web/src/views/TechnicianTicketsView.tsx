@@ -110,15 +110,19 @@ export function TechnicianTicketsView(): ReactElement {
 
   return (
     <>
-      <h1 className="text-[22px] font-extrabold text-gray-900">Ticket Queue</h1>
-      <p className="mb-3 text-xs text-gray-500">Manage and resolve Jira and ManageEngine tickets.</p>
-
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-        <div className="hidden w-[300px] shrink-0 lg:block lg:sticky lg:top-4 lg:self-start lg:max-h-[calc(100vh-6rem)]">
+      <div className="flex flex-col gap-2 lg:grid lg:grid-cols-[300px_minmax(0,1fr)] lg:items-stretch lg:gap-x-4">
+        <div className="hidden lg:flex lg:min-h-[calc(100vh-8rem)] lg:flex-col lg:sticky lg:top-4 lg:self-stretch">
           <ActivitySidebar sidebar />
         </div>
 
-        <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 flex-col gap-2">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <h1 className="text-[22px] font-extrabold leading-tight text-gray-900">Ticket Queue</h1>
+            <span className="text-xs text-gray-500">
+              Manage and resolve Jira and ManageEngine tickets.
+            </span>
+          </div>
+
           <TicketStatsRow
             facets={facets}
             total={pagination?.total ?? 0}
@@ -145,7 +149,7 @@ export function TechnicianTicketsView(): ReactElement {
             onViewModeChange={setViewMode}
           />
 
-          <div className="mb-2 flex items-center gap-2">
+          <div className="mb-1 flex items-center gap-2">
             <StatusDot color={usdColors.green} size={8} />
             <span className="text-sm font-bold text-gray-900">{tabLabel}</span>
             <span className="text-xs text-gray-400">

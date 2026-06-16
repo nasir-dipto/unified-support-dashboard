@@ -105,8 +105,8 @@ function ActivityFeedBody(props: ActivityFeedBodyProps): ReactElement {
     : 'No recent updates';
 
   return (
-    <>
-      <div className="flex items-center justify-between gap-2 border-b border-gray-100 px-3 py-2">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-3 py-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <StatusDot color={usdColors.teal} size={8} />
           <h2 className="text-sm font-bold text-gray-900">Recent updates</h2>
@@ -127,9 +127,9 @@ function ActivityFeedBody(props: ActivityFeedBodyProps): ReactElement {
           </button>
         ) : null}
       </div>
-      <p className="border-b border-gray-100 px-3 py-1.5 text-[11px] text-gray-500">{subtitle}</p>
+      <p className="shrink-0 border-b border-gray-100 px-3 py-1.5 text-[11px] text-gray-500">{subtitle}</p>
 
-      <div className="flex flex-wrap gap-1 border-b border-gray-100 px-3 py-2">
+      <div className="flex shrink-0 flex-wrap gap-1 border-b border-gray-100 px-3 py-2">
         <Pill
           compact
           label="All"
@@ -150,15 +150,15 @@ function ActivityFeedBody(props: ActivityFeedBodyProps): ReactElement {
         />
       </div>
 
-      <ul className="flex-1 space-y-1.5 overflow-y-auto px-3 py-2">
+      <ul className="min-h-0 flex-1 space-y-1.5 overflow-y-auto px-3 py-2">
         {filteredEvents.map((event, idx) => (
           <ActivityFeedEntry key={`${event.type}-${event.ticketId}-${String(idx)}`} event={event} />
         ))}
+        {filteredEvents.length === 0 ? (
+          <li className="py-4 text-center text-[11px] text-gray-400">{emptyMessage}</li>
+        ) : null}
       </ul>
-      {filteredEvents.length === 0 ? (
-        <p className="px-3 py-4 text-center text-[11px] text-gray-400">{emptyMessage}</p>
-      ) : null}
-    </>
+    </div>
   );
 }
 
@@ -207,7 +207,7 @@ export function ActivitySidebar(props: ActivitySidebarProps): ReactElement | nul
   if (sidebar) {
     return (
       <aside
-        className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
+        className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm"
         aria-label="Recent updates"
       >
         {feed}

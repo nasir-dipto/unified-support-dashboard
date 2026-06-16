@@ -5,19 +5,23 @@ export type StatCardProps = {
   value: ReactNode;
   color: string;
   sub?: string;
+  /** Denser padding and typography for space-constrained dashboards. */
+  compact?: boolean;
 };
 
 /**
  * Metric tile with coloured top accent border.
  */
 export function StatCard(props: StatCardProps): ReactElement {
-  const { label, value, color, sub } = props;
+  const { label, value, color, sub, compact = false } = props;
   return (
     <div
-      className="min-w-0 rounded-[10px] border border-gray-200 bg-white px-4 py-3.5"
+      className={`min-w-0 rounded-[10px] border border-gray-200 bg-white ${
+        compact ? 'px-3 py-2' : 'px-4 py-3.5'
+      }`}
       style={{ borderTopWidth: 3, borderTopColor: color }}
     >
-      <div className="text-2xl font-extrabold" style={{ color }}>
+      <div className={`font-extrabold ${compact ? 'text-xl' : 'text-2xl'}`} style={{ color }}>
         {value}
       </div>
       <div className="mt-0.5 text-[11px] font-bold uppercase tracking-wider text-gray-400">

@@ -1,6 +1,6 @@
 import { Pill } from '@usd/ui';
 import type { TicketListSort } from '@usd/shared-types';
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import type { TicketViewMode } from '../../hooks/useViewMode';
 import { ProjectFilter } from './ProjectFilter';
 import { TicketSortSelect } from './TicketSortSelect';
@@ -43,6 +43,24 @@ export type TicketFiltersProps = {
   onViewModeChange: (mode: TicketViewMode) => void;
 };
 
+type FilterGroupProps = {
+  label: string;
+  children: ReactNode;
+};
+
+/**
+ * Labeled pill group for the ticket filter card.
+ */
+function FilterGroup(props: FilterGroupProps): ReactElement {
+  const { label, children } = props;
+  return (
+    <div className="min-w-0 flex-1">
+      <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">{label}</p>
+      <div className="flex flex-wrap gap-1.5">{children}</div>
+    </div>
+  );
+}
+
 /**
  * View / bucket / priority pills, project + sort dropdowns, and search for technician queue.
  */
@@ -68,65 +86,75 @@ export function TicketFilters(props: TicketFiltersProps): ReactElement {
   } = props;
 
   return (
-    <div className="mb-3 rounded-lg border border-gray-200 bg-white px-3 py-2">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">View</span>
-        <Pill compact label="All" active={tab === 'all'} count={counts.all} onClick={() => { onTabChange('all'); }} />
-        <Pill
-          compact
-          label="My tickets"
-          active={tab === 'mine'}
-          count={counts.mine}
-          onClick={() => { onTabChange('mine'); }}
-        />
-        <Pill compact label="Jira" active={tab === 'jira'} count={counts.jira} onClick={() => { onTabChange('jira'); }} />
-        <Pill compact label="ManageEngine" active={tab === 'me'} count={counts.me} onClick={() => { onTabChange('me'); }} />
-        <div className="mx-0.5 h-5 w-px bg-gray-200" />
-        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Status</span>
-        <Pill
-          compact
-          label="All"
-          active={bucket === 'all'}
-          count={bucketCounts.all}
-          onClick={() => { onBucketChange('all'); }}
-        />
-        <Pill
-          compact
-          label="Open"
-          active={bucket === 'open'}
-          count={bucketCounts.open}
-          onClick={() => { onBucketChange('open'); }}
-        />
-        <Pill
-          compact
-          label="Closed"
-          active={bucket === 'closed'}
-          count={bucketCounts.closed}
-          onClick={() => { onBucketChange('closed'); }}
-        />
-        <div className="mx-0.5 h-5 w-px bg-gray-200" />
-        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Priority</span>
-        {(['all', 'critical', 'high', 'medium', 'low'] as const).map((p) => (
+    <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+      <div className="flex flex-col gap-3 xl:flex-row xl:gap-5">
+        <FilterGroup label="View">
+          <Pill compact label="All" active={tab === 'all'} count={counts.all} onClick={() => { onTabChange('all'); }} />
           <Pill
             compact
-            key={p}
-            label={p === 'all' ? 'All' : p}
-            active={priority === p}
-            onClick={() => { onPriorityChange(p); }}
+            label="My tickets"
+            active={tab === 'mine'}
+            count={counts.mine}
+            onClick={() => { onTabChange('mine'); }}
           />
-        ))}
-        <div className="mx-0.5 h-5 w-px bg-gray-200" />
-        <ProjectFilter value={project} projects={projectCounts} onChange={onProjectChange} />
-        <TicketSortSelect value={sort} onChange={onSortChange} />
-        <ViewModeToggle value={viewMode} onChange={onViewModeChange} />
+          <Pill compact label="Jira" active={tab === 'jira'} count={counts.jira} onClick={() => { onTabChange('jira'); }} />
+          <Pill compact label="ManageEngine" active={tab === 'me'} count={counts.me} onClick={() => { onTabChange('me'); }} />
+        </FilterGroup>
+
+        <FilterGroup label="Status">
+          <Pill
+            compact
+            label="All"
+            active={bucket === 'all'}
+            count={bucketCounts.all}
+            onClick={() => { onBucketChange('all'); }}
+          />
+          <Pill
+            compact
+            label="Open"
+            active={bucket === 'open'}
+            count={bucketCounts.open}
+            onClick={() => { onBucketChange('open'); }}
+          />
+          <Pill
+            compact
+            label="Closed"
+            active={bucket === 'closed'}
+            count={bucketCounts.closed}
+            onClick={() => { onBucketChange('closed'); }}
+          />
+        </FilterGroup>
+
+        <FilterGroup label="Priority">
+          {(['all', 'critical', 'high', 'medium', 'low'] as const).map((p) => (
+            <Pill
+              compact
+              key={p}
+              label={p === 'all' ? 'All' : p}
+              active={priority === p}
+              onClick={() => { onPriorityChange(p); }}
+            />
+          ))}
+        </FilterGroup>
+      </div>
+
+      <div className="mt-2.5 flex flex-col gap-2 lg:flex-row lg:items-end lg:gap-3">
+        <div className="flex flex-wrap items-end gap-4">
+          <ProjectFilter value={project} projects={projectCounts} onChange={onProjectChange} />
+          <TicketSortSelect value={sort} onChange={onSortChange} />
+        </div>
         <input
           type="search"
           placeholder="Search title or ID…"
           value={search}
           onChange={(e) => { onSearchChange(e.target.value); }}
-          className="ml-auto w-40 rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1 text-[12px] outline-none focus:border-usd-indigo"
+          className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-[13px] outline-none focus:border-usd-indigo"
           aria-label="Search tickets"
         />
+        <div className="shrink-0">
+          <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-gray-400">List</p>
+          <ViewModeToggle value={viewMode} onChange={onViewModeChange} />
+        </div>
       </div>
     </div>
   );
