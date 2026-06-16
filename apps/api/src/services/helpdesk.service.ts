@@ -1,3 +1,4 @@
+import sanitizeHtml from 'sanitize-html';
 import { getServerEnv } from '../config/loadEnv.js';
 import { runWithConcurrencyLimit } from '../utils/concurrency.js';
 import { AppError } from '../utils/errors.js';
@@ -575,6 +576,23 @@ function escapeHtmlForEmail(text: string): string {
     .replace(/>/g, '&gt;');
 }
 
+/** Safe HTML allowlist for customer email reply bodies sent to ManageEngine. */
+const EMAIL_REPLY_SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
+  allowedTags: ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'a', 'blockquote'],
+  allowedAttributes: {
+    a: ['href'],
+  },
+  allowedSchemes: ['http', 'https', 'mailto'],
+  disallowedTagsMode: 'discard',
+};
+
+/**
+ * Strips unsafe tags/attributes from HTML email reply bodies.
+ */
+function sanitizeEmailReplyHtml(html: string): string {
+  return sanitizeHtml(html, EMAIL_REPLY_SANITIZE_OPTIONS);
+}
+
 /**
  * Wraps plain-text reply bodies in a single paragraph when not already HTML.
  */
@@ -584,7 +602,7 @@ export function wrapEmailReplyDescription(bodyText: string): string {
     return '<p></p>';
   }
   if (/<[a-z][\s\S]*>/i.test(trimmed)) {
-    return trimmed;
+    return sanitizeEmailReplyHtml(trimmed);
   }
   return `<p>${escapeHtmlForEmail(trimmed).replace(/\n/g, '<br/>')}</p>`;
 }

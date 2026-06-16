@@ -136,6 +136,7 @@ export function TicketDetailContent(props: TicketDetailContentProps): ReactEleme
   const orgId = user?.orgId;
 
   const [commentDraft, setCommentDraft] = useState('');
+  const [replyError, setReplyError] = useState<string | null>(null);
   const [draftTone, setDraftTone] = useState<CommentDraftTone>('professional');
   const [linkDraft, setLinkDraft] = useState('');
   const [linkErr, setLinkErr] = useState<string | null>(null);
@@ -284,6 +285,7 @@ export function TicketDetailContent(props: TicketDetailContentProps): ReactEleme
     if (body.length === 0) {
       return;
     }
+    setReplyError(null);
     const post =
       targetTicketId === activeTicketId
         ? postComment.mutateAsync({ body, replyKind })
@@ -299,6 +301,8 @@ export function TicketDetailContent(props: TicketDetailContentProps): ReactEleme
           queryKey: ['ticket-comments', orgId, linkedTicket?.ticketId],
         });
       }
+    }).catch(() => {
+      setReplyError('Failed to send — please try again.');
     });
   };
 
@@ -603,6 +607,11 @@ export function TicketDetailContent(props: TicketDetailContentProps): ReactEleme
               </>
             )}
           </div>
+          {replyError !== null ? (
+            <p className="mt-2 text-xs text-usd-red" role="alert">
+              {replyError}
+            </p>
+          ) : null}
         </div>
         ) : null}
       </section>

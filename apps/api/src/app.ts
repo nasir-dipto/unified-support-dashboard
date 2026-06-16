@@ -14,7 +14,7 @@ import { ticketsRouter } from './routes/tickets.routes.js';
 import { webhooksRouter } from './routes/webhooks.routes.js';
 import { activityRouter } from './routes/activity.routes.js';
 import { apiRateLimiter } from './middleware/rate-limit.middleware.js';
-import { toApiErrorBody } from './utils/errors.js';
+import { logApiError, toApiErrorBody } from './utils/errors.js';
 
 /**
  * Creates the Express application (shared by runtime and tests).
@@ -57,6 +57,7 @@ export function createApp(): express.Application {
   app.use(
     (err: unknown, _req: express.Request, res: express.Response, next: express.NextFunction) => {
       void next;
+      logApiError(err);
       const body = toApiErrorBody(err);
       res.status(body.statusCode).json(body);
     },

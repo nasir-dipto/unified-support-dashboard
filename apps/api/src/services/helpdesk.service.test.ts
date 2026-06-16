@@ -7,6 +7,7 @@ import * as helpdeskService from './helpdesk.service.js';
 import {
   buildConversationsListInputData,
   buildCustomerEmailReplySubject,
+  wrapEmailReplyDescription,
   buildNotesListInputData,
   buildRequestsListInputData,
   fetchRequestConversations,
@@ -334,6 +335,26 @@ describe('helpdesk.service', () => {
       'Re: [Request ID :##187438##] : VPN access issue',
     );
     expect(buildCustomerEmailReplySubject('187438')).toBe('Re: [Request ID :##187438##]');
+  });
+
+  it('wrapEmailReplyDescription wraps plain text in a paragraph', () => {
+    expect(wrapEmailReplyDescription('Hello customer')).toBe('<p>Hello customer</p>');
+    expect(wrapEmailReplyDescription('line one\nline two')).toBe(
+      '<p>line one<br/>line two</p>',
+    );
+  });
+
+  it('wrapEmailReplyDescription preserves safe HTML and strips dangerous content', () => {
+    const safe = '<p>Hi <strong>there</strong></p><ul><li>one</li></ul>';
+    expect(wrapEmailReplyDescription(safe)).toBe(safe);
+
+    const dangerous =
+      '<p onclick="alert(1)">Hi</p><script>alert("xss")</script><a href="javascript:alert(1)">bad</a>';
+    const sanitized = wrapEmailReplyDescription(dangerous);
+    expect(sanitized).not.toContain('<script');
+    expect(sanitized).not.toContain('onclick');
+    expect(sanitized).not.toContain('javascript:');
+    expect(sanitized).toContain('<p>Hi</p>');
   });
 
   it('helpdeskApiV3Base strips /app/<portal> from HELPDESK_URL', () => {

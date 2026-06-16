@@ -18,7 +18,13 @@ export function TicketDetailView(): ReactElement {
   const backControl = (
     <button
       type="button"
-      onClick={() => { navigate(-1); }}
+      onClick={() => {
+        if (window.history.length > 1) {
+          navigate(-1);
+        } else {
+          navigate('/tickets');
+        }
+      }}
       className="mb-4 text-sm font-semibold text-usd-indigo hover:underline"
     >
       ← Back to tickets
