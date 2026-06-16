@@ -28,12 +28,12 @@ export function TicketStatsRow(props: TicketStatsRowProps): ReactElement {
   const me = facets?.sources.helpdesk ?? 0;
 
   return (
-    <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-      <StatCard label={firstLabel} value={mine} color={usdColors.blue} />
-      <StatCard label="Open" value={open} color={usdColors.green} />
-      <StatCard label="Critical" value={critical} color={usdColors.red} />
-      <StatCard label="Jira tickets" value={jira} color={usdColors.purple} />
-      <StatCard label="ME tickets" value={me} color={usdColors.teal} />
+    <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-5">
+      <StatCard compact label={firstLabel} value={mine} color={usdColors.blue} />
+      <StatCard compact label="Open" value={open} color={usdColors.green} />
+      <StatCard compact label="Critical" value={critical} color={usdColors.red} />
+      <StatCard compact label="Jira tickets" value={jira} color={usdColors.purple} />
+      <StatCard compact label="ME tickets" value={me} color={usdColors.teal} />
     </div>
   );
 }
