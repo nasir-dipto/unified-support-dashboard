@@ -1,14 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginRequestSchema, type LoginRequest, type LoginResponse } from '@usd/shared-types';
 import { usdColors } from '@usd/ui';
-import axios from 'axios';
 import type { ReactElement } from 'react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/client';
 import { useAuthStore } from '../store/auth.store';
+import { shouldShowDemoHints } from '../utils/demo-hints';
 import { resolveDefaultOrgId } from '../utils/default-org';
+import { resolveLoginErrorMessage } from '../utils/login-error';
 import { getHomePathForRoles } from '../utils/roles';
 
 /**
@@ -35,20 +36,7 @@ export function LoginView(): ReactElement {
       setSession(data.accessToken, data.refreshToken, data.user);
       navigate(getHomePathForRoles(), { replace: true });
     } catch (e: unknown) {
-      let msg = 'Invalid email or password.';
-      if (
-        axios.isAxiosError(e) &&
-        e.response?.data !== undefined &&
-        typeof e.response.data === 'object' &&
-        e.response.data !== null &&
-        'error' in e.response.data
-      ) {
-        const body = e.response.data as { error?: unknown };
-        if (typeof body.error === 'string') {
-          msg = body.error;
-        }
-      }
-      setFormError('root', { message: msg });
+      setFormError('root', { message: resolveLoginErrorMessage(e) });
     }
   });
 
@@ -136,9 +124,9 @@ export function LoginView(): ReactElement {
               Forgot password?
             </Link>
           </p>
-          {import.meta.env.DEV ? (
+          {shouldShowDemoHints() ? (
             <div className="mt-5 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-3 text-xs text-gray-600">
-              <p className="mb-2 font-bold text-gray-700">Demo credentials (dev)</p>
+              <p className="mb-2 font-bold text-gray-700">Demo credentials</p>
               <ul className="space-y-1 text-left">
                 <li>
                   <span className="font-semibold">Super Admin:</span> admin@usd.dev / Admin123!
