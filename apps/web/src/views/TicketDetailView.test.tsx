@@ -92,11 +92,34 @@ describe('TicketDetailView', () => {
     expect(screen.getByText('Page ticket')).toBeInTheDocument();
   });
 
-  it('navigates back when back control is clicked', async () => {
+  it('navigates back when history exists', async () => {
     const user = userEvent.setup();
+    const historyDescriptor = Object.getOwnPropertyDescriptor(window, 'history');
+    Object.defineProperty(window, 'history', {
+      configurable: true,
+      value: { length: 2 },
+    });
     renderPage();
     await user.click(screen.getByRole('button', { name: /back to tickets/i }));
     expect(navigateMock).toHaveBeenCalledWith(-1);
+    if (historyDescriptor !== undefined) {
+      Object.defineProperty(window, 'history', historyDescriptor);
+    }
+  });
+
+  it('navigates to /tickets when there is no history', async () => {
+    const user = userEvent.setup();
+    const historyDescriptor = Object.getOwnPropertyDescriptor(window, 'history');
+    Object.defineProperty(window, 'history', {
+      configurable: true,
+      value: { length: 1 },
+    });
+    renderPage();
+    await user.click(screen.getByRole('button', { name: /back to tickets/i }));
+    expect(navigateMock).toHaveBeenCalledWith('/tickets');
+    if (historyDescriptor !== undefined) {
+      Object.defineProperty(window, 'history', historyDescriptor);
+    }
   });
 
   it('shows loading state', () => {

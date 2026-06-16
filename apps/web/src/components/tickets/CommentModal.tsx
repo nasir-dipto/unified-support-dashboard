@@ -23,6 +23,7 @@ export function CommentModal(props: CommentModalProps): ReactElement {
   const { ticket, onClose } = props;
   const [text, setText] = useState('');
   const [draftTone, setDraftTone] = useState<CommentDraftTone>('professional');
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const postComment = usePostTicketComment(ticket?.ticketId);
   const ai = useAiInvoke();
 
@@ -49,10 +50,13 @@ export function CommentModal(props: CommentModalProps): ReactElement {
     if (body.length === 0) {
       return;
     }
+    setSubmitError(null);
     const replyKind = isJira ? 'jira_comment' : 'hd_note';
     void postComment.mutateAsync({ body, replyKind }).then(() => {
       setText('');
       onClose();
+    }).catch(() => {
+      setSubmitError('Failed to send — please try again.');
     });
   };
 
@@ -116,6 +120,11 @@ export function CommentModal(props: CommentModalProps): ReactElement {
       {ai.isError ? (
         <p className="mt-1 text-xs text-usd-red" role="alert">
           AI draft unavailable. Enter your comment manually.
+        </p>
+      ) : null}
+      {submitError !== null ? (
+        <p className="mt-1 text-xs text-usd-red" role="alert">
+          {submitError}
         </p>
       ) : null}
       <div className="mt-3 flex justify-end gap-2">

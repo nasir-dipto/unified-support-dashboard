@@ -1,8 +1,21 @@
+import type { ReactElement } from 'react';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ActivitySidebar } from './ActivitySidebar';
 import { useNotificationsStore } from '../../store/notifications.store';
+
+function renderSidebar(ui: ReactElement): ReturnType<typeof render> {
+  return render(
+    <MemoryRouter initialEntries={['/tickets']}>
+      <Routes>
+        <Route path="/tickets" element={ui} />
+        <Route path="/tickets/:ticketId" element={<p>Ticket detail page</p>} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
 
 afterEach(() => {
   cleanup();
@@ -11,7 +24,7 @@ afterEach(() => {
 
 describe('ActivitySidebar', () => {
   it('renders sidebar with empty state', () => {
-    render(<ActivitySidebar sidebar />);
+    renderSidebar(<ActivitySidebar sidebar />);
     expect(screen.getByRole('complementary', { name: /recent updates/i })).toBeInTheDocument();
     expect(screen.getByText(/recent updates across tickets/i)).toBeInTheDocument();
     expect(screen.getByText(/no recent updates/i)).toBeInTheDocument();
@@ -34,8 +47,8 @@ describe('ActivitySidebar', () => {
         },
       },
     });
-    render(<ActivitySidebar sidebar />);
-    const entry = screen.getByRole('listitem');
+    renderSidebar(<ActivitySidebar sidebar />);
+    const entry = screen.getByRole('button', { name: /HD-501/i });
     expect(entry.textContent).toContain('ME');
     expect(entry.textContent).toContain('HD-501');
     expect(entry.textContent).toContain('VPN not connecting');
@@ -59,9 +72,9 @@ describe('ActivitySidebar', () => {
         },
       },
     });
-    render(<ActivitySidebar sidebar />);
+    renderSidebar(<ActivitySidebar sidebar />);
     expect(screen.getByText(/1 urgent/i)).toBeInTheDocument();
-    const entry = screen.getByRole('listitem');
+    const entry = screen.getByRole('button', { name: /SUP-99/i });
     expect(entry.textContent).toMatch(/action required/i);
     expect(entry.textContent).toContain('Jira');
     expect(entry.textContent).toContain('SUP-99');
@@ -87,11 +100,26 @@ describe('ActivitySidebar', () => {
         },
       },
     ]);
-    render(<ActivitySidebar sidebar />);
+    renderSidebar(<ActivitySidebar sidebar />);
     expect(screen.getByText('Jira one')).toBeInTheDocument();
     expect(screen.getByText('HD two')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /^Jira$/i }));
     expect(screen.getByText('Jira one')).toBeInTheDocument();
     expect(screen.queryByText('HD two')).toBeNull();
+  });
+
+  it('navigates to ticket detail when an activity entry is clicked', async () => {
+    const user = userEvent.setup();
+    useNotificationsStore.getState().pushEvent({
+      type: 'ticket_updated',
+      ticketId: 'jira_A-1',
+      orgId: 'ti',
+      payload: {
+        ticket: { source: 'jira', externalId: 'A-1', summary: 'Jira one', updatedAt: '2026-06-08T12:00:00.000Z' },
+      },
+    });
+    renderSidebar(<ActivitySidebar sidebar />);
+    await user.click(screen.getByRole('button', { name: /Jira one/i }));
+    expect(screen.getByText('Ticket detail page')).toBeInTheDocument();
   });
 });

@@ -27,6 +27,7 @@ const baseTicket: TicketApiDto = {
 
 let ticketDetail: TicketApiDto = { ...baseTicket };
 const mutateAsyncMock = vi.fn();
+const postCommentMock = vi.fn();
 
 vi.mock('../../hooks/useAI', () => ({
   useAiInvoke: () => ({
@@ -121,7 +122,7 @@ vi.mock('../../hooks/useTickets', () => ({
     isLoading: false,
   }),
   usePostTicketComment: () => ({
-    mutateAsync: vi.fn(),
+    mutateAsync: postCommentMock,
     isPending: false,
   }),
 }));
@@ -174,11 +175,21 @@ describe('TicketDetailContent', () => {
     ticketDetail = { ...baseTicket };
     linkedTicketDetail = undefined;
     mutateAsyncMock.mockReset();
+    postCommentMock.mockReset();
     kbSearchMock.mockReset();
     kbDraftMock.mockReset();
     createKbMock.mockReset();
     kbDraftExistsData = false;
     kbDraftExistsLoading = false;
+  });
+
+  it('shows an error when posting a reply fails', async () => {
+    const user = userEvent.setup();
+    postCommentMock.mockRejectedValueOnce(new Error('network'));
+    renderContent();
+    await user.type(screen.getByPlaceholderText(/add an internal comment/i), 'Hello');
+    await user.click(screen.getByRole('button', { name: /^comment$/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Failed to send — please try again.');
   });
 
   it('renders original description as first conversation item for Jira', () => {

@@ -2,6 +2,7 @@ import type { WsOutboundEnvelope } from '@usd/shared-types';
 import { Badge, Pill, StatusDot, usdColors } from '@usd/ui';
 import type { ReactElement } from 'react';
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth.store';
 import { useNotificationsStore } from '../../store/notifications.store';
 import {
@@ -34,6 +35,7 @@ export type ActivitySidebarProps = {
  */
 function ActivityFeedEntry(props: { event: WsOutboundEnvelope }): ReactElement {
   const { event } = props;
+  const navigate = useNavigate();
   const ticket = parseActivityTicketSnapshot(event);
   const source = getActivityEventSource(event);
   const sourceLabel = source === 'jira' ? 'Jira' : source === 'helpdesk' ? 'ME' : null;
@@ -47,11 +49,14 @@ function ActivityFeedEntry(props: { event: WsOutboundEnvelope }): ReactElement {
   const status = ticket?.status;
 
   return (
-    <li
-      className={`rounded-md border px-2 py-1.5 text-[11px] ${
-        actionRequired ? 'border-red-200 bg-red-50/40' : 'border-gray-100'
-      }`}
-    >
+    <li>
+      <button
+        type="button"
+        onClick={() => { navigate(`/tickets/${event.ticketId}`); }}
+        className={`w-full rounded-md border px-2 py-1.5 text-left text-[11px] transition-colors hover:cursor-pointer hover:bg-gray-50 ${
+          actionRequired ? 'border-red-200 bg-red-50/40' : 'border-gray-100'
+        }`}
+      >
       <div className="mb-1 flex flex-wrap items-center gap-1">
         {sourceLabel !== null ? <Badge label={sourceLabel} color={sourceColor} sm /> : null}
         <span className="font-mono text-[10px] font-bold text-gray-600">{displayId}</span>
@@ -73,6 +78,7 @@ function ActivityFeedEntry(props: { event: WsOutboundEnvelope }): ReactElement {
       {attribution !== null ? (
         <p className="mt-0.5 text-[10px] text-gray-500">{attribution}</p>
       ) : null}
+      </button>
     </li>
   );
 }
